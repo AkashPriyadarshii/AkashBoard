@@ -193,15 +193,14 @@ class DataManager(
             // Clear all preferences
             prefs.edit().clear().apply()
 
-            // Clear clipboard database
-            // Note: Room doesn't support clear() directly, so we delete all rows
-            android.database.sqlite.SQLiteDatabase.openDatabase(
-                context.getDatabasePath("akashboard_clipboard").absolutePath,
-                null,
-                android.database.sqlite.SQLiteDatabase.OPEN_READWRITE
-            ).apply {
-                execSQL("DELETE FROM clipboard_history")
-                close()
+            // Clear clipboard database via Room DAO
+            try {
+                val db = ClipboardDB.getDatabase(context)
+                kotlinx.coroutines.runBlocking {
+                    db.clipboardDao().clearAll()
+                }
+            } catch (e: Exception) {
+                // DB might not exist yet
             }
 
             // Clear analytics

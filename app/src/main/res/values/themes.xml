@@ -1,11 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- AkashBoard themes -->
 <resources>
-    <!-- Main app theme (companion app / settings) -->
-    <style name="Theme.AkashBoard" parent="android:Theme.Material.NoActionBar">
+    <!-- Main app theme — MUST be MaterialComponents for AppCompatActivity -->
+    <style name="Theme.AkashBoard" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <item name="colorPrimary">#6C63FF</item>
+        <item name="colorPrimaryVariant">#5A52D5</item>
+        <item name="colorOnPrimary">#FFFFFF</item>
+        <item name="colorSecondary">#6C63FF</item>
         <item name="android:windowBackground">#111214</item>
         <item name="android:statusBarColor">#111214</item>
         <item name="android:navigationBarColor">#111214</item>
         <item name="android:windowLightStatusBar">false</item>
+        <item name="android:colorBackground">#111214</item>
+        <item name="colorSurface">#1A1C20</item>
+        <item name="colorOnSurface">#F2F3F5</item>
     </style>
 </resources>

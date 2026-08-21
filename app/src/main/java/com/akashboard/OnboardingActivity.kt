@@ -14,23 +14,23 @@ package com.akashboard
 
 import android.content.Context
 import android.content.Intent
+import android.graphics.Color
+import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
 import android.provider.Settings
-import android.view.inputmethod.InputMethodManager
-import android.widget.LinearLayout
-import android.widget.TextView
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
-import android.widget.Button
-import android.widget.ImageView
+import android.view.inputmethod.InputMethodManager
+import android.widget.LinearLayout
+import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.content.ContextCompat
+import com.google.android.material.button.MaterialButton
 
 class OnboardingActivity : AppCompatActivity() {
 
     private lateinit var statusText: TextView
-    private lateinit var actionButton: Button
+    private lateinit var actionButton: MaterialButton
     private lateinit var stepIndicator: TextView
     private var currentStep = 0
 
@@ -44,13 +44,11 @@ class OnboardingActivity : AppCompatActivity() {
         }
 
         setContentView(createLayout())
-
         updateStep()
     }
 
     override fun onResume() {
         super.onResume()
-        // Re-check when coming back from settings
         updateStep()
     }
 
@@ -150,12 +148,19 @@ class OnboardingActivity : AppCompatActivity() {
                 setPadding(0, 0, 0, (32 * density).toInt())
             })
 
-            // Action button
-            actionButton = Button(context).apply {
+            // Action button — MaterialButton with gradient drawable background
+            val btnBg = GradientDrawable().apply {
+                shape = GradientDrawable.RECTANGLE
+                setColor(0xFF6C63FF.toInt())
+                cornerRadius = 12f * density
+            }
+            actionButton = MaterialButton(context).apply {
                 text = "Enable Keyboard"
                 textSize = 16f
-                setTextColor(0xFFFFFFFF.toInt())
-                setBackgroundColor(0xFF6C63FF.toInt())
+                setTextColor(Color.WHITE)
+                background = btnBg
+                insetTop = 0
+                insetBottom = 0
                 layoutParams = LinearLayout.LayoutParams(
                     (280 * density).toInt(),
                     (52 * density).toInt()
@@ -164,18 +169,26 @@ class OnboardingActivity : AppCompatActivity() {
             }
             addView(actionButton)
 
-            // Skip button
-            addView(Button(context).apply {
+            // Skip button — plain TextView, no Button widget
+            addView(TextView(context).apply {
                 text = "Skip for now"
                 textSize = 14f
                 setTextColor(0xFF60656D.toInt())
-                setBackgroundColor(0x00000000)
+                gravity = Gravity.CENTER
                 layoutParams = LinearLayout.LayoutParams(
                     ViewGroup.LayoutParams.WRAP_CONTENT,
                     ViewGroup.LayoutParams.WRAP_CONTENT
                 ).apply {
                     topMargin = (16 * density).toInt()
                 }
+                setPadding(
+                    (16 * density).toInt(),
+                    (8 * density).toInt(),
+                    (16 * density).toInt(),
+                    (8 * density).toInt()
+                )
+                isClickable = true
+                isFocusable = true
                 setOnClickListener { launchMainApp() }
             })
         }
@@ -199,7 +212,6 @@ class OnboardingActivity : AppCompatActivity() {
                 actionButton.text = "Switch Keyboard"
             }
             else -> {
-                // Both done!
                 statusText.text = "You're all set!"
                 actionButton.text = "Start Typing"
                 stepIndicator.text = "✓ Complete"
@@ -210,13 +222,11 @@ class OnboardingActivity : AppCompatActivity() {
     private fun handleAction() {
         when (currentStep) {
             0 -> {
-                // Open keyboard settings
                 val intent = Intent(Settings.ACTION_INPUT_METHOD_SETTINGS)
                 intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
                 startActivity(intent)
             }
             1 -> {
-                // Show keyboard picker
                 val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
                 imm.showInputMethodPicker()
             }
@@ -236,13 +246,11 @@ class OnboardingActivity : AppCompatActivity() {
     }
 
     private fun launchMainApp() {
-        // Mark onboarding as complete
         getSharedPreferences("akashboard_prefs", Context.MODE_PRIVATE)
             .edit()
             .putBoolean("onboarding_complete", true)
             .apply()
 
-        // Launch settings
         startActivity(Intent(this, SettingsActivity::class.java))
         finish()
     }

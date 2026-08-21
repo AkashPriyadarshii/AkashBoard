@@ -206,17 +206,17 @@ class PrivacyDashboard(
     }
 
     private fun estimateClipboardSize(): Long {
+        // Return estimated size based on DB file existence
         return try {
-            val db = ClipboardDB.getDatabase(context)
-            val count = runBlocking { db.clipboardDao().count() }
-            (count.toLong() * 100) / 1024 // Rough estimate: 100 bytes per item
+            val dbFile = context.getDatabasePath("akashboard_clipboard")
+            if (dbFile.exists()) {
+                dbFile.length() / 1024
+            } else {
+                0L
+            }
         } catch (e: Exception) {
             0L
         }
-    }
-
-    private fun <T> runBlocking(block: suspend () -> T): T {
-        return kotlinx.coroutines.runBlocking { block() }
     }
 
     // ── Data Models ───────────────────────────────────────────────────────

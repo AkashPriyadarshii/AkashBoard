@@ -142,10 +142,13 @@ class SettingsMainFragment : Fragment() {
             gravity = android.view.Gravity.CENTER_VERTICAL
             isClickable = true
             isFocusable = true
-            foreground = android.util.TypedValue().let {
-                context.theme.resolveAttribute(android.R.attr.selectableItemBackground, it, true)
-                context.getDrawable(it.resourceId)
-            }
+            try {
+                val outValue = android.util.TypedValue()
+                context.theme.resolveAttribute(android.R.attr.selectableItemBackground, outValue, true)
+                if (outValue.resourceId != 0) {
+                    foreground = context.getDrawable(outValue.resourceId)
+                }
+            } catch (_: Exception) { }
 
             setOnClickListener {
                 (activity as? SettingsActivity)?.navigateTo(fragment)
