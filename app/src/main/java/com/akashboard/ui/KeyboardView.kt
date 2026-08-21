@@ -22,17 +22,15 @@ import android.graphics.RectF
 import android.util.AttributeSet
 import android.view.MotionEvent
 import android.view.View
-import kotlin.math.min
+import com.akashboard.core.KeyData
+import com.akashboard.core.KeyType
+import com.akashboard.core.KeyboardLayoutType
+import com.akashboard.core.KeyboardLayouts
+import com.akashboard.core.LayoutCalculator
+import com.akashboard.core.ShiftState
 
 /**
  * Custom keyboard view rendered via Canvas for maximum performance.
- *
- *为什么不使用 XML layouts:
- *   - Canvas rendering gives us 60-120fps consistently
- *   - No XML inflation overhead
- *   - Full control over touch hitboxes
- *   - GPU-accelerated via HardwareLayer
- *   - No framework layout measurement costs
  */
 class KeyboardView @JvmOverloads constructor(
     context: Context,
@@ -40,18 +38,23 @@ class KeyboardView @JvmOverloads constructor(
     defStyleAttr: Int = 0
 ) : View(context, attrs, defStyleAttr) {
 
+    // ── Dimensions (must be first — used by Paint init) ───────────────────
+
+    private val displayDensity = resources.displayMetrics.density
+    private val cornerRadius = 8f * displayDensity
+
     // ── Paint objects (pre-allocated for performance) ─────────────────────
 
-    private val keyBackgroundPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+    private val keyBgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.FILL
     }
 
     private val keyBorderPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
-        strokeWidth = 1f * resources.displayMetrics.density
+        strokeWidth = 1f * displayDensity
     }
 
-    private val keyPressedPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+    private val keyPressedBgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.FILL
     }
 
@@ -65,20 +68,15 @@ class KeyboardView @JvmOverloads constructor(
         style = Paint.Style.FILL
     }
 
-    // ── Key data ──────────────────────────────────────────────────────────
+    // ── State ─────────────────────────────────────────────────────────────
 
-    data class Key(
-        val label: String,
-        val code: Int,
-        val rect: RectF,
-        val hitRect: RectF,       // Larger touch region
-        val isWide: Boolean = false
-    )
+    private var keys = listOf<KeyData>()
+    private var pressedKey: KeyData? = null
+    private var currentLayoutType = KeyboardLayoutType.QWERTY
+    private var shiftState = ShiftState.NONE
+    private var totalHeight = 0f
 
-    private val keys = mutableListOf<Key>()
-    private var pressedKey: Key? = null
-
-    // ── Colors (from DesignTokens) ────────────────────────────────────────
+    // ── Colors (Dark theme default) ───────────────────────────────────────
 
     private var keyBgColor = 0xFF2B2E34.toInt()
     private var keyPressedColor = 0xFF363A42.toInt()
@@ -86,190 +84,109 @@ class KeyboardView @JvmOverloads constructor(
     private var keyTextColor = 0xFFF2F3F5.toInt()
     private var accentColor = 0xFF6C63FF.toInt()
 
-    // ── Dimensions ────────────────────────────────────────────────────────
-
-    private val density = resources.displayMetrics.density
-    private val cornerRadius = 8f * density
-    private val keyGap = 6f * density
-    private val keyPadding = 4f * density
-    private val hitboxExpansion = 4f * density  // Extra touch area
-
-    // ── Layout ────────────────────────────────────────────────────────────
-
-    private val qwertyRows = listOf(
-        listOf("Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P"),
-        listOf("A", "S", "D", "F", "G", "H", "J", "K", "L"),
-        listOf("⇧", "Z", "X", "C", "V", "B", "N", "M", "⌫"),
-        listOf("?123", "🌐", "😊", "SPACE", ",", "⏎")
-    )
-
     // ── Initialization ────────────────────────────────────────────────────
 
     init {
-        // Enable hardware layer for GPU-accelerated rendering
         setLayerType(LAYER_TYPE_HARDWARE, null)
     }
 
-    // ── Layout calculation ────────────────────────────────────────────────
+    // ── Layout ────────────────────────────────────────────────────────────
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
         val width = MeasureSpec.getSize(widthMeasureSpec)
-        val keyHeight = 46f * density
-        val bottomRowHeight = 52f * density
-        val suggestionBarHeight = 48f * density
-        val totalHeight = suggestionBarHeight +
-                (keyHeight * 3) + keyGap * 3 +
-                bottomRowHeight + keyGap
-
+        val layout = getLayoutForType(currentLayoutType)
+        val calculated = LayoutCalculator.calculate(layout, width.toFloat(), displayDensity)
+        keys = calculated.keys
+        totalHeight = calculated.totalHeight
         setMeasuredDimension(width, totalHeight.toInt())
     }
 
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
         super.onSizeChanged(w, h, oldw, oldh)
-        calculateKeyPositions(w, h)
+        if (w > 0) {
+            val layout = getLayoutForType(currentLayoutType)
+            val calculated = LayoutCalculator.calculate(layout, w.toFloat(), displayDensity)
+            keys = calculated.keys
+            totalHeight = calculated.totalHeight
+        }
     }
 
-    private fun calculateKeyPositions(width: Int, height: Int) {
-        keys.clear()
-
-        val suggestionBarHeight = 48f * density
-        val keyHeight = 46f * density
-        val bottomRowHeight = 52f * density
-        val totalKeys = qwertyRows.maxOf { it.size }
-
-        var yOffset = suggestionBarHeight
-
-        for ((rowIndex, row) in qwertyRows.withIndex()) {
-            val isBottomRow = rowIndex == qwertyRows.size - 1
-            val rowHeight = if (isBottomRow) bottomRowHeight else keyHeight
-            val rowCount = row.size
-
-            // Calculate key width for this row
-            val availableWidth = width.toFloat() - (keyGap * (rowCount + 1))
-            val standardKeyWidth = availableWidth / totalKeys
-
-            var xOffset = keyGap
-
-            for (keyLabel in row) {
-                val keyWidth = when (keyLabel) {
-                    "⇧", "⌫" -> standardKeyWidth * 1.5f
-                    "?123", "🌐", "😊", "," -> standardKeyWidth * 1.2f
-                    "SPACE" -> standardKeyWidth * 4f
-                    "⏎" -> standardKeyWidth * 1.8f
-                    else -> standardKeyWidth
-                }
-
-                val rect = RectF(
-                    xOffset,
-                    yOffset,
-                    xOffset + keyWidth,
-                    yOffset + rowHeight
-                )
-
-                // Hitbox is larger than visual key
-                val hitRect = RectF(
-                    rect.left - hitboxExpansion,
-                    rect.top - hitboxExpansion,
-                    rect.right + hitboxExpansion,
-                    rect.bottom + hitboxExpansion
-                )
-
-                val code = when (keyLabel) {
-                    "⇧" -> KEYCODE_SHIFT
-                    "⌫" -> KEYCODE_DELETE
-                    "SPACE" -> KEYCODE_SPACE
-                    "⏎" -> KEYCODE_ENTER
-                    "?123" -> KEYCODE_SYMBOLS
-                    "🌐" -> KEYCODE_LANGUAGE
-                    "😊" -> KEYCODE_EMOJI
-                    "," -> KEYCODE_COMMA
-                    else -> keyLabel[0].code
-                }
-
-                keys.add(Key(
-                    label = keyLabel,
-                    code = code,
-                    rect = rect,
-                    hitRect = hitRect
-                ))
-
-                xOffset += keyWidth + keyGap
-            }
-
-            yOffset += rowHeight + keyGap
-        }
+    private fun getLayoutForType(type: KeyboardLayoutType) = when (type) {
+        KeyboardLayoutType.QWERTY -> KeyboardLayouts.QWERTY
+        KeyboardLayoutType.SYMBOLS -> KeyboardLayouts.SYMBOLS
+        KeyboardLayoutType.EMOJI -> KeyboardLayouts.QWERTY
+        KeyboardLayoutType.NUMBERS -> KeyboardLayouts.SYMBOLS
     }
 
     // ── Drawing ───────────────────────────────────────────────────────────
 
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
-
         for (key in keys) {
             drawKey(canvas, key)
         }
     }
 
-    private fun drawKey(canvas: Canvas, key: Key) {
+    private fun drawKey(canvas: Canvas, key: KeyData) {
         val isPressed = key == pressedKey
         val rect = key.rect
 
-        // Scale animation for pressed state
         if (isPressed) {
-            val scale = 0.92f
-            val cx = rect.centerX()
-            val cy = rect.centerY()
             canvas.save()
-            canvas.scale(scale, scale, cx, cy)
+            canvas.scale(0.92f, 0.92f, rect.centerX(), rect.centerY())
         }
 
-        // Key background
-        keyBackgroundPaint.color = if (isPressed) keyPressedColor else keyBgColor
-        canvas.drawRoundRect(rect, cornerRadius, cornerRadius, keyBackgroundPaint)
+        // Background
+        keyBgPaint.color = if (isPressed) keyPressedColor else keyBgColor
+        canvas.drawRoundRect(rect, cornerRadius, cornerRadius, keyBgPaint)
 
-        // Key border
+        // Border
         keyBorderPaint.color = keyBorderColor
         canvas.drawRoundRect(rect, cornerRadius, cornerRadius, keyBorderPaint)
 
-        // Glow effect on press
+        // Glow on press
         if (isPressed) {
             glowPaint.color = (accentColor and 0x00FFFFFF) or 0x40000000
             glowPaint.maskFilter = android.graphics.BlurMaskFilter(
-                12f * density, android.graphics.BlurMaskFilter.Blur.NORMAL
+                12f * displayDensity, android.graphics.BlurMaskFilter.Blur.NORMAL
             )
             canvas.drawRoundRect(rect, cornerRadius, cornerRadius, glowPaint)
         }
 
-        // Key text
+        // Text
         keyTextPaint.color = keyTextColor
-        keyTextPaint.textSize = when (key.label) {
-            "SPACE" -> 14f * density
-            "⇧", "⌫", "⏎", "?123", "🌐", "😊" -> 16f * density
-            else -> 22f * density
+        keyTextPaint.textSize = when {
+            key.type == KeyType.SPACE -> 14f * displayDensity
+            key.type in listOf(KeyType.SHIFT, KeyType.DELETE, KeyType.ENTER,
+                KeyType.SYMBOLS, KeyType.LANGUAGE, KeyType.EMOJI) -> 16f * displayDensity
+            else -> 22f * displayDensity
         }
 
-        val textY = rect.centerY() + (keyTextPaint.textSize / 3)
-        canvas.drawText(key.label, rect.centerX(), textY, keyTextPaint)
+        val displayLabel = when {
+            key.type == KeyType.SHIFT -> when (shiftState) {
+                ShiftState.NONE -> "⇧"
+                ShiftState.ONE -> "⇧"
+                ShiftState.LOCKED -> "⇧🔒"
+            }
+            else -> key.label
+        }
+
+        canvas.drawText(displayLabel, rect.centerX(), rect.centerY() + (keyTextPaint.textSize / 3), keyTextPaint)
 
         if (isPressed) {
             canvas.restore()
         }
     }
 
-    // ── Touch handling ────────────────────────────────────────────────────
+    // ── Touch ─────────────────────────────────────────────────────────────
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
         when (event.action) {
             MotionEvent.ACTION_DOWN -> {
-                val key = findKeyAt(event.x, event.y)
-                if (key != pressedKey) {
-                    pressedKey = key
-                    invalidate()
-                    // Future: Haptic feedback
-                }
+                pressedKey = findKeyAt(event.x, event.y)
+                invalidate()
                 return true
             }
-
             MotionEvent.ACTION_MOVE -> {
                 val key = findKeyAt(event.x, event.y)
                 if (key != pressedKey) {
@@ -278,17 +195,14 @@ class KeyboardView @JvmOverloads constructor(
                 }
                 return true
             }
-
             MotionEvent.ACTION_UP -> {
                 pressedKey?.let { key ->
                     onKeyPressedListener?.onKeyPressed(key)
-                    // Future: Haptic feedback, sound
                 }
                 pressedKey = null
                 invalidate()
                 return true
             }
-
             MotionEvent.ACTION_CANCEL -> {
                 pressedKey = null
                 invalidate()
@@ -298,29 +212,34 @@ class KeyboardView @JvmOverloads constructor(
         return super.onTouchEvent(event)
     }
 
-    private fun findKeyAt(x: Float, y: Float): Key? {
-        // Check hit regions (larger than visual keys)
+    private fun findKeyAt(x: Float, y: Float): KeyData? {
         return keys.find { it.hitRect.contains(x, y) }
     }
+
+    // ── Public API ────────────────────────────────────────────────────────
+
+    fun setLayout(type: KeyboardLayoutType) {
+        if (type != currentLayoutType) {
+            currentLayoutType = type
+            requestLayout()
+            invalidate()
+        }
+    }
+
+    fun setShiftState(state: ShiftState) {
+        if (state != shiftState) {
+            shiftState = state
+            invalidate()
+        }
+    }
+
+    fun getCurrentLayoutType(): KeyboardLayoutType = currentLayoutType
 
     // ── Listener ──────────────────────────────────────────────────────────
 
     interface OnKeyPressedListener {
-        fun onKeyPressed(key: Key)
+        fun onKeyPressed(key: KeyData)
     }
 
     var onKeyPressedListener: OnKeyPressedListener? = null
-
-    // ── Key codes ─────────────────────────────────────────────────────────
-
-    companion object {
-        const val KEYCODE_SHIFT = -100
-        const val KEYCODE_DELETE = -101
-        const val KEYCODE_SPACE = 32
-        const val KEYCODE_ENTER = -102
-        const val KEYCODE_SYMBOLS = -103
-        const val KEYCODE_LANGUAGE = -104
-        const val KEYCODE_EMOJI = -105
-        const val KEYCODE_COMMA = 44
-    }
 }
