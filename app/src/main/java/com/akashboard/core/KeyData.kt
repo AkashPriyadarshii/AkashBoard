@@ -120,6 +120,12 @@ sealed class KeyPressResult {
     /** Enter action performed */
     data class Enter(val action: Int) : KeyPressResult()
 
+    /** Emoji panel requested */
+    object Emoji : KeyPressResult()
+
+    /** Clipboard panel requested */
+    object Clipboard : KeyPressResult()
+
     /** No action (key was consumed but no output) */
     object None : KeyPressResult()
 }

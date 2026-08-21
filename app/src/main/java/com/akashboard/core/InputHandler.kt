@@ -178,7 +178,10 @@ class InputHandler(
         currentLayout = layout
         onLayoutChange(layout)
         hapticFeedback.modeSwitch()
-        return KeyPressResult.LayoutChanged(layout)
+        return when (layout) {
+            KeyboardLayoutType.EMOJI -> KeyPressResult.Emoji
+            else -> KeyPressResult.LayoutChanged(layout)
+        }
     }
 
     private fun handleLanguageSwitch(): KeyPressResult {
