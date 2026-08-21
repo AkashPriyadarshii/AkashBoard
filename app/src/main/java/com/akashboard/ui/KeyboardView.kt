@@ -2,12 +2,12 @@
  * Copyright (C) 2026 Akash Priyadarshi
  * Licensed under the GNU General Public License v3.0
  *
- * KeyboardView.kt — Custom View that renders the keyboard via Canvas.
+ * KeyboardView.kt — Custom keyboard view with swipe typing.
  *
- * Week 3 additions:
- *   - Long-press repeat for backspace
- *   - Popup preview for alternate characters
- *   - Spacebar cursor movement via swipe
+ * Week 5 additions:
+ *   - Swipe gesture detection
+ *   - Visual trail rendering
+ *   - Swipe-to-word matching
  */
 
 package com.akashboard.ui
@@ -16,6 +16,7 @@ import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
+import android.graphics.PointF
 import android.graphics.RectF
 import android.util.AttributeSet
 import android.view.MotionEvent
@@ -30,16 +31,11 @@ import com.akashboard.core.PopupPreviewManager
 import com.akashboard.core.PopupState
 import com.akashboard.core.ShiftState
 import com.akashboard.core.SpacebarCursorManager
+import com.akashboard.core.SwipeDetector
+import com.akashboard.core.SwipeTrail
 
 /**
- * Custom keyboard view rendered via Canvas.
- *
- * Handles:
- *   - Key rendering with animations
- *   - Touch input with hitbox detection
- *   - Long-press repeat (backspace)
- *   - Popup preview (alternate characters)
- *   - Spacebar cursor movement
+ * Custom keyboard view with swipe typing support.
  */
 class KeyboardView @JvmOverloads constructor(
     context: Context,
@@ -57,36 +53,25 @@ class KeyboardView @JvmOverloads constructor(
     private val keyBgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.FILL
     }
-
     private val keyBorderPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
         strokeWidth = 1f * displayDensity
     }
-
     private val keyTextPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = Color.WHITE
         textAlign = Paint.Align.CENTER
     }
-
     private val glowPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.FILL
     }
-
     private val popupBgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.FILL
         color = 0xFF363A42.toInt()
     }
-
     private val popupTextPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = Color.WHITE
         textAlign = Paint.Align.CENTER
         textSize = 24f * displayDensity
-    }
-
-    private val cursorPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        style = Paint.Style.FILL
-        color = 0xFF6C63FF.toInt()
-        strokeWidth = 2f * displayDensity
     }
 
     // ── State ─────────────────────────────────────────────────────────────
@@ -96,12 +81,15 @@ class KeyboardView @JvmOverloads constructor(
     private var currentLayoutType = KeyboardLayoutType.QWERTY
     private var shiftState = ShiftState.NONE
     private var totalHeight = 0f
+    private var popupState: PopupState = PopupState()
 
     // ── Managers ──────────────────────────────────────────────────────────
 
     private val keyRepeatManager = KeyRepeatManager { onRepeatTick() }
     private val popupPreviewManager = PopupPreviewManager()
     private val spacebarCursorManager = SpacebarCursorManager()
+    private val swipeTrail = SwipeTrail(displayDensity)
+    private var swipeDetector: SwipeDetector? = null
 
     // ── Touch tracking ────────────────────────────────────────────────────
 
@@ -109,6 +97,8 @@ class KeyboardView @JvmOverloads constructor(
     private var touchStartY = 0f
     private var isSpacebarGesture = false
     private var longPressTriggered = false
+    private var isSwipeGesture = false
+    private var swipeThreshold = 30f * displayDensity
 
     // ── Colors ────────────────────────────────────────────────────────────
 
@@ -133,8 +123,6 @@ class KeyboardView @JvmOverloads constructor(
         }
     }
 
-    private var popupState: PopupState = PopupState()
-
     // ── Layout ────────────────────────────────────────────────────────────
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
@@ -153,7 +141,18 @@ class KeyboardView @JvmOverloads constructor(
             val calculated = LayoutCalculator.calculate(layout, w.toFloat(), displayDensity)
             keys = calculated.keys
             totalHeight = calculated.totalHeight
+            initSwipeDetector()
         }
+    }
+
+    private fun initSwipeDetector() {
+        val keyMap = mutableMapOf<Char, PointF>()
+        for (key in keys) {
+            if (key.type == KeyType.LETTER && key.label.length == 1) {
+                keyMap[key.label[0].lowercaseChar()] = PointF(key.rect.centerX(), key.rect.centerY())
+            }
+        }
+        swipeDetector = SwipeDetector(keyMap)
     }
 
     private fun getLayoutForType(type: KeyboardLayoutType) = when (type) {
@@ -173,6 +172,11 @@ class KeyboardView @JvmOverloads constructor(
             drawKey(canvas, key)
         }
 
+        // Draw swipe trail
+        if (swipeTrail.isVisible) {
+            swipeTrail.draw(canvas)
+        }
+
         // Draw popup preview
         if (popupState.visible) {
             drawPopup(canvas)
@@ -188,15 +192,12 @@ class KeyboardView @JvmOverloads constructor(
             canvas.scale(0.92f, 0.92f, rect.centerX(), rect.centerY())
         }
 
-        // Background
         keyBgPaint.color = if (isPressed) keyPressedColor else keyBgColor
         canvas.drawRoundRect(rect, cornerRadius, cornerRadius, keyBgPaint)
 
-        // Border
         keyBorderPaint.color = keyBorderColor
         canvas.drawRoundRect(rect, cornerRadius, cornerRadius, keyBorderPaint)
 
-        // Glow on press
         if (isPressed) {
             glowPaint.color = (accentColor and 0x00FFFFFF) or 0x40000000
             glowPaint.maskFilter = android.graphics.BlurMaskFilter(
@@ -205,7 +206,6 @@ class KeyboardView @JvmOverloads constructor(
             canvas.drawRoundRect(rect, cornerRadius, cornerRadius, glowPaint)
         }
 
-        // Text
         keyTextPaint.color = keyTextColor
         keyTextPaint.textSize = when {
             key.type == KeyType.SPACE -> 14f * displayDensity
@@ -245,11 +245,9 @@ class KeyboardView @JvmOverloads constructor(
             state.y
         )
 
-        // Popup background
         popupBgPaint.color = if (state.alternateSelected) accentColor else 0xFF363A42.toInt()
         canvas.drawRoundRect(popupRect, popupRadius, popupRadius, popupBgPaint)
 
-        // Popup text
         popupTextPaint.color = Color.WHITE
         canvas.drawText(state.label, state.x, state.y - popupHeight / 2 + popupTextPaint.textSize / 3, popupTextPaint)
     }
@@ -272,12 +270,19 @@ class KeyboardView @JvmOverloads constructor(
         touchStartX = x
         touchStartY = y
         longPressTriggered = false
+        isSwipeGesture = false
 
         val key = findKeyAt(x, y)
         pressedKey = key
         invalidate()
 
         if (key == null) return
+
+        // Start swipe detection for letter keys
+        if (key.type == KeyType.LETTER) {
+            swipeDetector?.onTouchDown(x, y)
+            swipeTrail.start(x, y)
+        }
 
         // Start long-press repeat for backspace
         if (KeyRepeatManager.supportsRepeat(key.type)) {
@@ -287,7 +292,7 @@ class KeyboardView @JvmOverloads constructor(
         // Start long-press popup for letter keys
         if (key.type == KeyType.LETTER) {
             postDelayed({
-                if (pressedKey == key && !longPressTriggered) {
+                if (pressedKey == key && !longPressTriggered && !isSwipeGesture) {
                     longPressTriggered = true
                     popupPreviewManager.show(key, displayDensity)
                 }
@@ -309,11 +314,37 @@ class KeyboardView @JvmOverloads constructor(
         if (isSpacebarGesture && spacebarCursorManager.isTracking) {
             val verticalDrift = Math.abs(y - touchStartY)
             if (verticalDrift > SpacebarCursorManager.MAX_VERTICAL_DRIFT * displayDensity) {
-                // Finger moved too far vertically — cancel cursor gesture
                 spacebarCursorManager.cancelTracking()
                 isSpacebarGesture = false
             } else {
                 spacebarCursorManager.update(x, displayDensity)
+                return
+            }
+        }
+
+        // Handle swipe gesture
+        if (!isSpacebarGesture && !longPressTriggered) {
+            val dx = x - touchStartX
+            val dy = y - touchStartY
+            val distance = Math.sqrt((dx * dx + dy * dy).toDouble()).toFloat()
+
+            if (!isSwipeGesture && distance > swipeThreshold) {
+                // Movement exceeded threshold — start swipe
+                isSwipeGesture = true
+                popupPreviewManager.forceDismiss()
+            }
+
+            if (isSwipeGesture) {
+                swipeDetector?.onTouchMove(x, y)
+                swipeTrail.addPoint(x, y)
+                invalidate()
+
+                // Highlight closest key
+                val closestKey = findKeyAt(x, y)
+                if (closestKey != pressedKey) {
+                    pressedKey = closestKey
+                    invalidate()
+                }
                 return
             }
         }
@@ -328,28 +359,39 @@ class KeyboardView @JvmOverloads constructor(
         val key = findKeyAt(x, y)
         if (key != pressedKey) {
             pressedKey = key
-
-            // Cancel long-press if moved to different key
             if (key == null || key.type != pressedKey?.type) {
                 keyRepeatManager.stop()
                 popupPreviewManager.forceDismiss()
             }
-
             invalidate()
         }
     }
 
     private fun handleTouchUp(event: MotionEvent) {
+        // Handle swipe gesture completion
+        if (isSwipeGesture) {
+            val results = swipeDetector?.onTouchUp() ?: emptyList()
+            swipeTrail.end()
+
+            if (results.isNotEmpty()) {
+                onSwipeListener?.onSwipeCompleted(results[0])
+            }
+
+            isSwipeGesture = false
+            pressedKey = null
+            invalidate()
+            return
+        }
+
         // End spacebar cursor gesture
         if (isSpacebarGesture) {
             spacebarCursorManager.endTracking()
             isSpacebarGesture = false
         }
 
-        // Dismiss popup and get selected label
+        // Dismiss popup
         if (popupState.visible) {
-            val selectedLabel = popupPreviewManager.dismiss()
-            // Future: If alternate was selected, commit that instead
+            popupPreviewManager.dismiss()
         }
 
         // Stop key repeat
@@ -369,7 +411,10 @@ class KeyboardView @JvmOverloads constructor(
         keyRepeatManager.stop()
         popupPreviewManager.forceDismiss()
         spacebarCursorManager.cancelTracking()
+        swipeDetector?.cancel()
+        swipeTrail.cancel()
         isSpacebarGesture = false
+        isSwipeGesture = false
         pressedKey = null
         longPressTriggered = false
         invalidate()
@@ -378,8 +423,6 @@ class KeyboardView @JvmOverloads constructor(
     private fun findKeyAt(x: Float, y: Float): KeyData? {
         return keys.find { it.hitRect.contains(x, y) }
     }
-
-    // ── Repeat callback ───────────────────────────────────────────────────
 
     private fun onRepeatTick() {
         pressedKey?.let { key ->
@@ -420,6 +463,11 @@ class KeyboardView @JvmOverloads constructor(
         fun onCursorMove(deltaChars: Int)
     }
 
+    interface OnSwipeListener {
+        fun onSwipeCompleted(word: String)
+    }
+
     var onKeyPressedListener: OnKeyPressedListener? = null
     var onCursorMoveListener: OnCursorMoveListener? = null
+    var onSwipeListener: OnSwipeListener? = null
 }
