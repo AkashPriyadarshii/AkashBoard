@@ -14,6 +14,9 @@ import android.view.View
 import android.view.ViewGroup
 import android.view.inputmethod.EditorInfo
 import android.widget.LinearLayout
+import com.akashboard.analytics.TimeAwarePredictor
+import com.akashboard.analytics.TypingDNA
+import com.akashboard.analytics.TypingStats
 import com.akashboard.core.InputHandler
 import com.akashboard.core.HapticFeedback
 import com.akashboard.core.KeyData
@@ -44,6 +47,9 @@ class AkashBoardIME : InputMethodService() {
     private lateinit var inputHandler: InputHandler
     private lateinit var themeManager: ThemeManager
     private lateinit var clipboardDB: ClipboardDB
+    private lateinit var typingStats: TypingStats
+    private lateinit var typingDNA: TypingDNA
+    private lateinit var timeAwarePredictor: TimeAwarePredictor
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
     private enum class PanelState { KEYBOARD, EMOJI, CLIPBOARD }
@@ -57,6 +63,10 @@ class AkashBoardIME : InputMethodService() {
         themeManager = ThemeManager(this)
         themeManager.loadSavedTheme()
         clipboardDB = ClipboardDB.getDatabase(this)
+        typingStats = TypingStats(this)
+        typingDNA = TypingDNA(this)
+        timeAwarePredictor = TimeAwarePredictor(this)
+        timeAwarePredictor.loadPatterns()
 
         inputHandler = InputHandler(
             hapticFeedback = hapticFeedback,
@@ -184,6 +194,9 @@ class AkashBoardIME : InputMethodService() {
         inputHandler.setInputConnection(currentInputConnection, info)
         keyboardView?.setShiftState(inputHandler.getShiftState())
 
+        // Start typing session
+        typingStats.startSession()
+
         // Load clipboard items
         scope.launch(Dispatchers.IO) {
             val items = clipboardDB.clipboardDao().getItems(20)
@@ -195,6 +208,7 @@ class AkashBoardIME : InputMethodService() {
 
     override fun onFinishInputView(finishingInput: Boolean) {
         super.onFinishInputView(finishingInput)
+        typingStats.endSession()
         voiceInput?.stopListening()
     }
 
@@ -228,6 +242,9 @@ class AkashBoardIME : InputMethodService() {
             showPanel(PanelState.KEYBOARD)
         }
 
+        // Track analytics
+        typingDNA.onKeyPressed(key.label.firstOrNull() ?: ' ', System.currentTimeMillis())
+
         val result = inputHandler.handleKeyPress(key)
         when (result) {
             is com.akashboard.core.KeyPressResult.ShiftChanged -> keyboardView?.setShiftState(result.state)
@@ -242,6 +259,10 @@ class AkashBoardIME : InputMethodService() {
                 }
                 showPanel(PanelState.CLIPBOARD)
             }
+            is com.akashboard.core.KeyPressResult.WordCompleted -> {
+                typingStats.onWordCompleted(result.word)
+                timeAwarePredictor.learnWord(result.word, packageName)
+            }
             else -> keyboardView?.setShiftState(inputHandler.getShiftState())
         }
     }
@@ -254,6 +275,10 @@ class AkashBoardIME : InputMethodService() {
         hapticFeedback.selection()
         val context = inputHandler.getContextForPrediction()
         PredictorBridge.learn(word, context, System.currentTimeMillis())
+
+        // Track analytics
+        typingStats.onWordCompleted(word)
+        timeAwarePredictor.learnWord(word, packageName)
     }
 
     private fun handleCursorMove(deltaChars: Int) {
