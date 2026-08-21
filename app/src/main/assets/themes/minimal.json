@@ -1,0 +1,29 @@
+{
+  "name": "Minimal",
+  "version": 1,
+  "author": "Akash Priyadarshi",
+  "colors": {
+    "canvas": "#000000",
+    "surface": "#0A0A0A",
+    "surface2": "#141414",
+    "key": "#1A1A1A",
+    "keyPressed": "#252525",
+    "text": "#FFFFFF",
+    "textSecondary": "#888888",
+    "accent": "#FFFFFF",
+    "selection": "#FFFFFF",
+    "cursor": "#FFFFFF",
+    "destructive": "#FF0000"
+  },
+  "dimensions": {
+    "cornerRadius": 6,
+    "keyElevation": 0,
+    "keyPadding": 4,
+    "suggestionBarHeight": 48
+  },
+  "animation": {
+    "pressScale": 0.95,
+    "pressDuration": 60,
+    "transitionDuration": 150
+  }
+}

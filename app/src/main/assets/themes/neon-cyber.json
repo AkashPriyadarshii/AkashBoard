@@ -1,0 +1,29 @@
+{
+  "name": "Neon Cyber",
+  "version": 1,
+  "author": "Akash Priyadarshi",
+  "colors": {
+    "canvas": "#0A0A0A",
+    "surface": "#111111",
+    "surface2": "#1A1A1A",
+    "key": "#1E1E1E",
+    "keyPressed": "#2A2A2A",
+    "text": "#E0E0E0",
+    "textSecondary": "#888888",
+    "accent": "#00FF88",
+    "selection": "#00FF88",
+    "cursor": "#00FF88",
+    "destructive": "#FF4444"
+  },
+  "dimensions": {
+    "cornerRadius": 8,
+    "keyElevation": 1,
+    "keyPadding": 4,
+    "suggestionBarHeight": 48
+  },
+  "animation": {
+    "pressScale": 0.92,
+    "pressDuration": 80,
+    "transitionDuration": 200
+  }
+}

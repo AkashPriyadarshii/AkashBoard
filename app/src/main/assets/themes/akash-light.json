@@ -1,0 +1,29 @@
+{
+  "name": "Akash Light",
+  "version": 1,
+  "author": "Akash Priyadarshi",
+  "colors": {
+    "canvas": "#F5F6F8",
+    "surface": "#FFFFFF",
+    "surface2": "#ECEEF2",
+    "key": "#E7E9ED",
+    "keyPressed": "#D9DCE2",
+    "text": "#15171A",
+    "textSecondary": "#60656D",
+    "accent": "#4A90D9",
+    "selection": "#4A90D9",
+    "cursor": "#4A90D9",
+    "destructive": "#B3261E"
+  },
+  "dimensions": {
+    "cornerRadius": 8,
+    "keyElevation": 1,
+    "keyPadding": 4,
+    "suggestionBarHeight": 48
+  },
+  "animation": {
+    "pressScale": 0.92,
+    "pressDuration": 80,
+    "transitionDuration": 200
+  }
+}
