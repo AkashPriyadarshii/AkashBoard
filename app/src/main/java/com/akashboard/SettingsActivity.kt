@@ -2,97 +2,75 @@
  * Copyright (C) 2026 Akash Priyadarshi
  * Licensed under the GNU General Public License v3.0
  *
- * SettingsActivity.kt — Companion configuration app entry point.
- * This is the launcher activity that guides users to enable AkashBoard.
+ * SettingsActivity.kt — Companion app settings.
+ *
+ * Uses AndroidX Preference fragments for standard settings UI.
+ * Navigation: Main → Typing / Appearance / Privacy / About
  */
 
 package com.akashboard
 
 import android.os.Bundle
-import android.content.Intent
-import android.provider.Settings
-import android.view.inputmethod.InputMethodManager
-import android.content.Context
-import android.widget.Button
-import android.widget.LinearLayout
-import android.widget.TextView
-import android.view.Gravity
-import android.view.ViewGroup.LayoutParams.MATCH_PARENT
-import android.view.ViewGroup.LayoutParams.WRAP_CONTENT
-import android.graphics.Color
-import android.util.TypedValue
+import android.view.MenuItem
+import androidx.appcompat.app.AppCompatActivity
+import androidx.fragment.app.Fragment
+import com.akashboard.settings.KeyboardSettingsProvider
+import com.akashboard.settings.AboutFragment
+import com.akashboard.settings.AppearanceFragment
+import com.akashboard.settings.PrivacyFragment
+import com.akashboard.settings.SettingsMainFragment
+import com.akashboard.settings.TypingFragment
 
-class SettingsActivity : android.app.Activity() {
+class SettingsActivity : AppCompatActivity() {
+
+    lateinit var settingsProvider: KeyboardSettingsProvider
+        private set
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_settings)
 
-        val layout = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(dp(32), dp(32), dp(32), dp(32))
-            setBackgroundColor(Color.parseColor("#111214"))
-            gravity = Gravity.CENTER_HORIZONTAL
+        settingsProvider = KeyboardSettingsProvider(this)
+
+        setSupportActionBar(findViewById(R.id.toolbar))
+        supportActionBar?.setDisplayHomeAsUpEnabled(true)
+        supportActionBar?.title = getString(R.string.settings_title)
+
+        if (savedInstanceState == null) {
+            showFragment(com.akashboard.settings.SettingsMainFragment())
         }
-
-        // Title
-        val title = TextView(this).apply {
-            text = "AkashBoard"
-            setTextColor(Color.parseColor("#F2F3F5"))
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 32f)
-            gravity = Gravity.CENTER
-            setPadding(0, dp(48), 0, dp(16))
-        }
-        layout.addView(title, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT))
-
-        // Subtitle
-        val subtitle = TextView(this).apply {
-            text = "The keyboard that becomes YOU."
-            setTextColor(Color.parseColor("#A6ABB4"))
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f)
-            gravity = Gravity.CENTER
-            setPadding(0, 0, 0, dp(48))
-        }
-        layout.addView(subtitle, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT))
-
-        // Enable button
-        val enableButton = Button(this).apply {
-            text = "Enable AkashBoard"
-            setTextColor(Color.WHITE)
-            setBackgroundColor(Color.parseColor("#6C63FF"))
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f)
-            setPadding(dp(24), dp(16), dp(24), dp(16))
-            setOnClickListener {
-                val intent = Intent(Settings.ACTION_INPUT_METHOD_SETTINGS)
-                intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
-                startActivity(intent)
-            }
-        }
-        layout.addView(enableButton, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT).apply {
-            setMargins(0, 0, 0, dp(16))
-        })
-
-        // Switch button
-        val switchButton = Button(this).apply {
-            text = "Switch to AkashBoard"
-            setTextColor(Color.parseColor("#F2F3F5"))
-            setBackgroundColor(Color.parseColor("#2B2E34"))
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f)
-            setPadding(dp(24), dp(16), dp(24), dp(16))
-            setOnClickListener {
-                val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
-                imm.showInputMethodPicker()
-            }
-        }
-        layout.addView(switchButton, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT))
-
-        setContentView(layout)
     }
 
-    private fun dp(value: Int): Int {
-        return TypedValue.applyDimension(
-            TypedValue.COMPLEX_UNIT_DIP,
-            value.toFloat(),
-            resources.displayMetrics
-        ).toInt()
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        if (item.itemId == android.R.id.home) {
+            if (supportFragmentManager.backStackEntryCount > 0) {
+                supportFragmentManager.popBackStack()
+            } else {
+                finish()
+            }
+            return true
+        }
+        return super.onOptionsItemSelected(item)
+    }
+
+    override fun onBackPressed() {
+        if (supportFragmentManager.backStackEntryCount > 0) {
+            supportFragmentManager.popBackStack()
+        } else {
+            super.onBackPressed()
+        }
+    }
+
+    fun navigateTo(fragment: Fragment) {
+        supportFragmentManager.beginTransaction()
+            .replace(R.id.fragment_container, fragment)
+            .addToBackStack(null)
+            .commit()
+    }
+
+    fun showFragment(fragment: Fragment) {
+        supportFragmentManager.beginTransaction()
+            .replace(R.id.fragment_container, fragment)
+            .commit()
     }
 }

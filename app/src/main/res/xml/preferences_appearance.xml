@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <PreferenceCategory app:title="Theme">
+
+        <ListPreference
+            app:key="theme_id"
+            app:title="Keyboard theme"
+            app:summary="Choose your keyboard appearance"
+            app:entries="@array/theme_entries"
+            app:entryValues="@array/theme_values"
+            app:defaultValue="akash_dark"
+            app:iconSpaceReserved="false" />
+
+        <Preference
+            app:key="theme_preview"
+            app:title="Preview current theme"
+            app:summary="See how your keyboard looks"
+            app:iconSpaceReserved="false" />
+
+    </PreferenceCategory>
+
+    <PreferenceCategory app:title="Layout">
+
+        <SeekBarPreference
+            app:key="keyboard_height"
+            app:title="Keyboard height"
+            app:summary="Adjust the keyboard height"
+            app:defaultValue="280"
+            app:iconSpaceReserved="false" />
+
+        <ListPreference
+            app:key="one_handed_mode"
+            app:title="One-handed mode"
+            app:summary="Shrink keyboard for one-hand use"
+            app:entries="@array/one_handed_entries"
+            app:entryValues="@array/one_handed_values"
+            app:defaultValue="off"
+            app:iconSpaceReserved="false" />
+
+        <SeekBarPreference
+            app:key="key_corner_radius"
+            app:title="Key corner radius"
+            app:summary="Adjust key roundness"
+            app:defaultValue="8"
+            app:iconSpaceReserved="false" />
+
+        <SeekBarPreference
+            app:key="key_spacing"
+            app:title="Key spacing"
+            app:summary="Adjust gap between keys"
+            app:defaultValue="6"
+            app:iconSpaceReserved="false" />
+
+    </PreferenceCategory>
+
+    <PreferenceCategory app:title="Bottom Row">
+
+        <SwitchPreferenceCompat
+            app:key="show_emoji_key"
+            app:title="Show emoji key"
+            app:summary="Add emoji button to bottom row"
+            app:defaultValue="true"
+            app:iconSpaceReserved="false" />
+
+        <SwitchPreferenceCompat
+            app:key="show_voice_key"
+            app:title="Show voice input key"
+            app:summary="Add microphone button to bottom row"
+            app:defaultValue="true"
+            app:iconSpaceReserved="false" />
+
+        <SwitchPreferenceCompat
+            app:key="show_clipboard_key"
+            app:title="Show clipboard key"
+            app:summary="Add clipboard button to bottom row"
+            app:defaultValue="false"
+            app:iconSpaceReserved="false" />
+
+    </PreferenceCategory>
+
+    <PreferenceCategory app:title="Number Row">
+
+        <SwitchPreferenceCompat
+            app:key="show_number_row"
+            app:title="Show number row"
+            app:summary="Always show numbers above letter keys"
+            app:defaultValue="false"
+            app:iconSpaceReserved="false" />
+
+    </PreferenceCategory>
+
+</PreferenceScreen>

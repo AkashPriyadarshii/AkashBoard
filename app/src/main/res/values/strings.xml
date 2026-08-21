@@ -7,4 +7,90 @@
     <string name="enable_keyboard">Enable AkashBoard</string>
     <string name="switch_keyboard">Switch to AkashBoard</string>
     <string name="subtitle">The keyboard that becomes YOU.</string>
+
+    <!-- Settings categories -->
+    <string name="pref_category_typing">Typing</string>
+    <string name="pref_category_appearance">Appearance</string>
+    <string name="pref_category_privacy">Privacy</string>
+    <string name="pref_category_about">About</string>
+
+    <!-- Autocorrect strength -->
+    <string-array name="autocorrect_strength_entries">
+        <item>Off</item>
+        <item>Light</item>
+        <item>Medium</item>
+        <item>Aggressive</item>
+    </string-array>
+    <string-array name="autocorrect_strength_values">
+        <item>off</item>
+        <item>light</item>
+        <item>medium</item>
+        <item>aggressive</item>
+    </string-array>
+
+    <!-- Repeat delay -->
+    <string-array name="repeat_delay_entries">
+        <item>Fast (200ms)</item>
+        <item>Normal (300ms)</item>
+        <item>Slow (500ms)</item>
+    </string-array>
+    <string-array name="repeat_delay_values">
+        <item>200</item>
+        <item>300</item>
+        <item>500</item>
+    </string-array>
+
+    <!-- Repeat rate -->
+    <string-array name="repeat_rate_entries">
+        <item>Fast (30ms)</item>
+        <item>Normal (50ms)</item>
+        <item>Slow (80ms)</item>
+    </string-array>
+    <string-array name="repeat_rate_values">
+        <item>30</item>
+        <item>50</item>
+        <item>80</item>
+    </string-array>
+
+    <!-- Themes -->
+    <string-array name="theme_entries">
+        <item>Akash Dark</item>
+        <item>Akash Light</item>
+        <item>Neon Cyber</item>
+        <item>Minimal</item>
+        <item>Sunset</item>
+    </string-array>
+    <string-array name="theme_values">
+        <item>akash_dark</item>
+        <item>akash_light</item>
+        <item>neon_cyber</item>
+        <item>minimal</item>
+        <item>sunset</item>
+    </string-array>
+
+    <!-- One-handed mode -->
+    <string-array name="one_handed_entries">
+        <item>Off</item>
+        <item>Left</item>
+        <item>Right</item>
+    </string-array>
+    <string-array name="one_handed_values">
+        <item>off</item>
+        <item>left</item>
+        <item>right</item>
+    </string-array>
+
+    <!-- Clipboard max items -->
+    <string-array name="clipboard_max_entries">
+        <item>25 items</item>
+        <item>50 items</item>
+        <item>100 items</item>
+        <item>200 items</item>
+    </string-array>
+    <string-array name="clipboard_max_values">
+        <item>25</item>
+        <item>50</item>
+        <item>100</item>
+        <item>200</item>
+    </string-array>
 </resources>

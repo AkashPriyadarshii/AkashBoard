@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <PreferenceCategory app:title="Privacy">
+
+        <SwitchPreferenceCompat
+            app:key="incognito_mode"
+            app:title="Incognito mode"
+            app:summary="Don't learn from what you type"
+            app:defaultValue="false"
+            app:iconSpaceReserved="false" />
+
+        <SwitchPreferenceCompat
+            app:key="learning_enabled"
+            app:title="Personal dictionary"
+            app:summary="Learn from your typing to improve suggestions"
+            app:defaultValue="true"
+            app:iconSpaceReserved="false" />
+
+    </PreferenceCategory>
+
+    <PreferenceCategory app:title="Clipboard">
+
+        <SwitchPreferenceCompat
+            app:key="clipboard_history_enabled"
+            app:title="Clipboard history"
+            app:summary="Save copied text for quick access"
+            app:defaultValue="true"
+            app:iconSpaceReserved="false" />
+
+        <ListPreference
+            app:key="clipboard_max_items"
+            app:title="Maximum saved items"
+            app:summary="How many items to keep in history"
+            app:entries="@array/clipboard_max_entries"
+            app:entryValues="@array/clipboard_max_values"
+            app:defaultValue="50"
+            app:iconSpaceReserved="false" />
+
+        <SwitchPreferenceCompat
+            app:key="clipboard_auto_clear"
+            app:title="Auto-clear clipboard"
+            app:summary="Clear clipboard after 1 hour"
+            app:defaultValue="false"
+            app:iconSpaceReserved="false" />
+
+        <Preference
+            app:key="clear_clipboard_history"
+            app:title="Clear clipboard history"
+            app:summary="Remove all saved clipboard items"
+            app:iconSpaceReserved="false" />
+
+    </PreferenceCategory>
+
+    <PreferenceCategory app:title="Data">
+
+        <Preference
+            app:key="export_data"
+            app:title="Export settings"
+            app:summary="Save your settings to a file"
+            app:iconSpaceReserved="false" />
+
+        <Preference
+            app:key="import_data"
+            app:title="Import settings"
+            app:summary="Load settings from a file"
+            app:iconSpaceReserved="false" />
+
+        <Preference
+            app:key="reset_settings"
+            app:title="Reset to defaults"
+            app:summary="Restore all settings to factory defaults"
+            app:iconSpaceReserved="false" />
+
+    </PreferenceCategory>
+
+    <PreferenceCategory app:title="About">
+
+        <Preference
+            app:key="privacy_report"
+            app:title="Privacy report"
+            app:summary="See what data is collected"
+            app:iconSpaceReserved="false" />
+
+        <SwitchPreferenceCompat
+            app:key="network_access"
+            app:title="Network access"
+            app:summary="Allow network for voice input and updates"
+            app:defaultValue="false"
+            app:iconSpaceReserved="false" />
+
+    </PreferenceCategory>
+
+</PreferenceScreen>
