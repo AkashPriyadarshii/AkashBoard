@@ -2,14 +2,16 @@
  * Copyright (C) 2026 Akash Priyadarshi
  * Licensed under the GNU General Public License v3.0
  *
- * AkashBoardIME.kt — Main IME with emoji, clipboard, and voice.
+ * AkashBoardIME.kt — Main IME with comprehensive error handling.
  *
- * Week 8: Integrates EmojiPanel, ClipboardPanel, VoiceInput.
+ * All initialization is wrapped in try-catch to prevent crashes.
+ * The keyboard degrades gracefully if components fail.
  */
 
 package com.akashboard
 
 import android.inputmethodservice.InputMethodService
+import android.util.Log
 import android.view.View
 import android.view.ViewGroup
 import android.view.inputmethod.EditorInfo
@@ -37,19 +39,24 @@ import kotlinx.coroutines.launch
 
 class AkashBoardIME : InputMethodService() {
 
+    companion object {
+        private const val TAG = "AkashBoardIME"
+    }
+
     private var keyboardView: KeyboardView? = null
     private var suggestionBar: SuggestionBar? = null
     private var emojiPanel: EmojiPanel? = null
     private var clipboardPanel: ClipboardPanel? = null
     private var voiceInput: VoiceInput? = null
 
-    private lateinit var hapticFeedback: HapticFeedback
-    private lateinit var inputHandler: InputHandler
-    private lateinit var themeManager: ThemeManager
-    private lateinit var clipboardDB: ClipboardDB
-    private lateinit var typingStats: TypingStats
-    private lateinit var typingDNA: TypingDNA
-    private lateinit var timeAwarePredictor: TimeAwarePredictor
+    private var hapticFeedback: HapticFeedback? = null
+    private var inputHandler: InputHandler? = null
+    private var themeManager: ThemeManager? = null
+    private var clipboardDB: ClipboardDB? = null
+    private var typingStats: TypingStats? = null
+    private var typingDNA: TypingDNA? = null
+    private var timeAwarePredictor: TimeAwarePredictor? = null
+
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
     private enum class PanelState { KEYBOARD, EMOJI, CLIPBOARD }
@@ -57,131 +64,204 @@ class AkashBoardIME : InputMethodService() {
 
     override fun onCreate() {
         super.onCreate()
-        PredictorBridge.init(filesDir.absolutePath)
+        Log.d(TAG, "onCreate")
 
-        hapticFeedback = HapticFeedback(this)
-        themeManager = ThemeManager(this)
-        themeManager.loadSavedTheme()
-        clipboardDB = ClipboardDB.getDatabase(this)
-        typingStats = TypingStats(this)
-        typingDNA = TypingDNA(this)
-        timeAwarePredictor = TimeAwarePredictor(this)
-        timeAwarePredictor.loadPatterns()
-
-        inputHandler = InputHandler(
-            hapticFeedback = hapticFeedback,
-            onLayoutChange = { layout -> keyboardView?.setLayout(layout) },
-            onSuggestionsUpdate = { suggestions -> suggestionBar?.setSuggestions(suggestions) }
-        )
-
-        voiceInput = VoiceInput(this)
-        voiceInput?.setListener(object : VoiceInput.OnVoiceInputListener {
-            override fun onPartialResult(text: String) {
-                // Show partial results in suggestion bar
-                suggestionBar?.setSuggestions(listOf(text))
+        try {
+            // Initialize Rust engine (optional — keyboard works without it)
+            try {
+                PredictorBridge.init(filesDir.absolutePath)
+            } catch (e: Exception) {
+                Log.w(TAG, "Rust engine init failed, predictions disabled", e)
             }
 
-            override fun onResult(text: String) {
-                val connection = currentInputConnection ?: return
-                connection.commitText(text, 1)
-                hapticFeedback.selection()
-                suggestionBar?.setSuggestions(emptyList())
+            // Initialize haptic feedback
+            try {
+                hapticFeedback = HapticFeedback(this)
+            } catch (e: Exception) {
+                Log.w(TAG, "Haptic feedback init failed", e)
             }
 
-            override fun onError(error: String) {
-                // Could show a toast or status
+            // Initialize theme manager
+            try {
+                themeManager = ThemeManager(this)
+                themeManager?.loadSavedTheme()
+            } catch (e: Exception) {
+                Log.w(TAG, "Theme manager init failed", e)
             }
 
-            override fun onStateChanged(state: VoiceInput.VoiceState) {
-                // Update UI state if needed
+            // Initialize clipboard database
+            try {
+                clipboardDB = ClipboardDB.getDatabase(this)
+            } catch (e: Exception) {
+                Log.w(TAG, "Clipboard DB init failed", e)
             }
-        })
+
+            // Initialize analytics
+            try {
+                typingStats = TypingStats(this)
+            } catch (e: Exception) {
+                Log.w(TAG, "TypingStats init failed", e)
+            }
+
+            try {
+                typingDNA = TypingDNA(this)
+            } catch (e: Exception) {
+                Log.w(TAG, "TypingDNA init failed", e)
+            }
+
+            try {
+                timeAwarePredictor = TimeAwarePredictor(this)
+                timeAwarePredictor?.loadPatterns()
+            } catch (e: Exception) {
+                Log.w(TAG, "TimeAwarePredictor init failed", e)
+            }
+
+            // Initialize input handler
+            try {
+                inputHandler = InputHandler(
+                    hapticFeedback = hapticFeedback ?: HapticFeedback(this),
+                    onLayoutChange = { layout -> keyboardView?.setLayout(layout) },
+                    onSuggestionsUpdate = { suggestions -> suggestionBar?.setSuggestions(suggestions) }
+                )
+            } catch (e: Exception) {
+                Log.e(TAG, "InputHandler init failed", e)
+            }
+
+            // Initialize voice input (optional)
+            try {
+                voiceInput = VoiceInput(this)
+                voiceInput?.setListener(object : VoiceInput.OnVoiceInputListener {
+                    override fun onPartialResult(text: String) {
+                        suggestionBar?.setSuggestions(listOf(text))
+                    }
+                    override fun onResult(text: String) {
+                        val connection = currentInputConnection ?: return
+                        connection.commitText(text, 1)
+                        hapticFeedback?.selection()
+                        suggestionBar?.setSuggestions(emptyList())
+                    }
+                    override fun onError(error: String) {
+                        Log.w(TAG, "Voice input error: $error")
+                    }
+                    override fun onStateChanged(state: VoiceInput.VoiceState) {
+                        // Update UI state if needed
+                    }
+                })
+            } catch (e: Exception) {
+                Log.w(TAG, "Voice input init failed (might need permissions)", e)
+            }
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Critical init failure", e)
+        }
     }
 
     override fun onCreateInputView(): View {
+        Log.d(TAG, "onCreateInputView")
+
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             layoutParams = ViewGroup.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT
             )
-            setBackgroundColor(themeManager.getColors().canvas)
+            setBackgroundColor(themeManager?.getColors()?.canvas ?: 0xFF111214.toInt())
         }
 
         // Suggestion bar
-        val bar = SuggestionBar(this).apply {
-            onSuggestionClickListener = object : SuggestionBar.OnSuggestionClickListener {
-                override fun onSuggestionClicked(index: Int, word: String) {
-                    inputHandler.acceptSuggestion(word)
+        try {
+            val bar = SuggestionBar(this).apply {
+                onSuggestionClickListener = object : SuggestionBar.OnSuggestionClickListener {
+                    override fun onSuggestionClicked(index: Int, word: String) {
+                        inputHandler?.acceptSuggestion(word)
+                    }
+                }
+                onMicClickListener = object : SuggestionBar.OnMicClickListener {
+                    override fun onClick() {
+                        try {
+                            voiceInput?.startListening()
+                        } catch (e: Exception) {
+                            Log.w(TAG, "Voice start failed", e)
+                        }
+                    }
                 }
             }
-            onMicClickListener = object : SuggestionBar.OnMicClickListener {
-                override fun onClick() {
-                    voiceInput?.startListening()
-                }
-            }
+            suggestionBar = bar
+            root.addView(bar, LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                48 * resources.displayMetrics.density.toInt()
+            ))
+        } catch (e: Exception) {
+            Log.e(TAG, "SuggestionBar creation failed", e)
         }
-        suggestionBar = bar
-        root.addView(bar, LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT,
-            48 * resources.displayMetrics.density.toInt()
-        ))
 
         // Keyboard view
-        val keyboard = KeyboardView(this).apply {
-            setThemeColors(themeManager.getColors())
-            onKeyPressedListener = object : KeyboardView.OnKeyPressedListener {
-                override fun onKeyPressed(key: KeyData) {
-                    this@AkashBoardIME.handleKeyPress(key)
+        try {
+            val keyboard = KeyboardView(this).apply {
+                themeManager?.getColors()?.let { setThemeColors(it) }
+                onKeyPressedListener = object : KeyboardView.OnKeyPressedListener {
+                    override fun onKeyPressed(key: KeyData) {
+                        this@AkashBoardIME.handleKeyPress(key)
+                    }
+                }
+                onCursorMoveListener = object : KeyboardView.OnCursorMoveListener {
+                    override fun onCursorMove(deltaChars: Int) {
+                        this@AkashBoardIME.handleCursorMove(deltaChars)
+                    }
+                }
+                onSwipeListener = object : KeyboardView.OnSwipeListener {
+                    override fun onSwipeCompleted(word: String) {
+                        this@AkashBoardIME.handleSwipeWord(word)
+                    }
                 }
             }
-            onCursorMoveListener = object : KeyboardView.OnCursorMoveListener {
-                override fun onCursorMove(deltaChars: Int) {
-                    this@AkashBoardIME.handleCursorMove(deltaChars)
-                }
-            }
-            onSwipeListener = object : KeyboardView.OnSwipeListener {
-                override fun onSwipeCompleted(word: String) {
-                    this@AkashBoardIME.handleSwipeWord(word)
-                }
-            }
+            keyboardView = keyboard
+            root.addView(keyboard, LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            ))
+        } catch (e: Exception) {
+            Log.e(TAG, "KeyboardView creation failed", e)
         }
-        keyboardView = keyboard
-        root.addView(keyboard, LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT,
-            ViewGroup.LayoutParams.WRAP_CONTENT
-        ))
 
         // Emoji panel
-        val emoji = EmojiPanel(this).apply {
-            onEmojiClickListener = object : EmojiPanel.OnEmojiClickListener {
-                override fun onEmojiClicked(emoji: String) {
-                    currentInputConnection?.commitText(emoji, 1)
-                    hapticFeedback.keyPress()
+        try {
+            val emoji = EmojiPanel(this).apply {
+                onEmojiClickListener = object : EmojiPanel.OnEmojiClickListener {
+                    override fun onEmojiClicked(emoji: String) {
+                        currentInputConnection?.commitText(emoji, 1)
+                        hapticFeedback?.keyPress()
+                    }
                 }
             }
+            emojiPanel = emoji
+            root.addView(emoji, LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                300 * resources.displayMetrics.density.toInt()
+            ))
+        } catch (e: Exception) {
+            Log.e(TAG, "EmojiPanel creation failed", e)
         }
-        emojiPanel = emoji
-        root.addView(emoji, LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT,
-            300 * resources.displayMetrics.density.toInt()
-        ))
 
         // Clipboard panel
-        val clipboard = ClipboardPanel(this).apply {
-            onItemClickListener = object : ClipboardPanel.OnItemClickListener {
-                override fun onItemClicked(item: ClipboardItem) {
-                    currentInputConnection?.commitText(item.text, 1)
-                    hapticFeedback.selection()
-                    showPanel(PanelState.KEYBOARD)
+        try {
+            val clipboard = ClipboardPanel(this).apply {
+                onItemClickListener = object : ClipboardPanel.OnItemClickListener {
+                    override fun onItemClicked(item: ClipboardItem) {
+                        currentInputConnection?.commitText(item.text, 1)
+                        hapticFeedback?.selection()
+                        showPanel(PanelState.KEYBOARD)
+                    }
                 }
             }
+            clipboardPanel = clipboard
+            root.addView(clipboard, LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                300 * resources.displayMetrics.density.toInt()
+            ))
+        } catch (e: Exception) {
+            Log.e(TAG, "ClipboardPanel creation failed", e)
         }
-        clipboardPanel = clipboard
-        root.addView(clipboard, LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT,
-            300 * resources.displayMetrics.density.toInt()
-        ))
 
         // Start with keyboard visible
         showPanel(PanelState.KEYBOARD)
@@ -191,31 +271,48 @@ class AkashBoardIME : InputMethodService() {
 
     override fun onStartInputView(info: EditorInfo?, restarting: Boolean) {
         super.onStartInputView(info, restarting)
-        inputHandler.setInputConnection(currentInputConnection, info)
-        keyboardView?.setShiftState(inputHandler.getShiftState())
+        try {
+            inputHandler?.setInputConnection(currentInputConnection, info)
+            keyboardView?.setShiftState(inputHandler?.getShiftState() ?: com.akashboard.core.ShiftState.NONE)
+            typingStats?.startSession()
 
-        // Start typing session
-        typingStats.startSession()
-
-        // Load clipboard items
-        scope.launch(Dispatchers.IO) {
-            val items = clipboardDB.clipboardDao().getItems(20)
-            scope.launch(Dispatchers.Main) {
-                clipboardPanel?.setItems(items)
+            // Load clipboard items
+            val db = clipboardDB
+            if (db != null) {
+                scope.launch(Dispatchers.IO) {
+                    try {
+                        val items = db.clipboardDao().getItems(20)
+                        scope.launch(Dispatchers.Main) {
+                            clipboardPanel?.setItems(items)
+                        }
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Failed to load clipboard", e)
+                    }
+                }
             }
+        } catch (e: Exception) {
+            Log.e(TAG, "onStartInputView failed", e)
         }
     }
 
     override fun onFinishInputView(finishingInput: Boolean) {
         super.onFinishInputView(finishingInput)
-        typingStats.endSession()
-        voiceInput?.stopListening()
+        try {
+            typingStats?.endSession()
+            voiceInput?.stopListening()
+        } catch (e: Exception) {
+            Log.w(TAG, "onFinishInputView cleanup failed", e)
+        }
     }
 
     override fun onDestroy() {
-        scope.cancel()
-        PredictorBridge.destroy()
-        keyboardView?.destroy()
+        try {
+            scope.cancel()
+            PredictorBridge.destroy()
+            keyboardView?.destroy()
+        } catch (e: Exception) {
+            Log.w(TAG, "onDestroy cleanup failed", e)
+        }
         keyboardView = null
         suggestionBar = null
         emojiPanel = null
@@ -233,59 +330,80 @@ class AkashBoardIME : InputMethodService() {
         clipboardPanel?.visibility = if (panel == PanelState.CLIPBOARD) View.VISIBLE else View.GONE
 
         if (panel == PanelState.KEYBOARD) {
-            keyboardView?.setShiftState(inputHandler.getShiftState())
+            keyboardView?.setShiftState(inputHandler?.getShiftState() ?: com.akashboard.core.ShiftState.NONE)
         }
     }
 
     private fun handleKeyPress(key: KeyData) {
-        if (currentPanel != PanelState.KEYBOARD) {
-            showPanel(PanelState.KEYBOARD)
-        }
+        try {
+            if (currentPanel != PanelState.KEYBOARD) {
+                showPanel(PanelState.KEYBOARD)
+            }
 
-        // Track analytics
-        typingDNA.onKeyPressed(key.label.firstOrNull() ?: ' ', System.currentTimeMillis())
+            // Track analytics
+            typingDNA?.onKeyPressed(key.label.firstOrNull() ?: ' ', System.currentTimeMillis())
 
-        val result = inputHandler.handleKeyPress(key)
-        when (result) {
-            is com.akashboard.core.KeyPressResult.ShiftChanged -> keyboardView?.setShiftState(result.state)
-            is com.akashboard.core.KeyPressResult.LayoutChanged -> keyboardView?.setLayout(result.layout)
-            is com.akashboard.core.KeyPressResult.Emoji -> showPanel(PanelState.EMOJI)
-            is com.akashboard.core.KeyPressResult.Clipboard -> {
-                scope.launch(Dispatchers.IO) {
-                    val items = clipboardDB.clipboardDao().getItems(20)
-                    scope.launch(Dispatchers.Main) {
-                        clipboardPanel?.setItems(items)
+            val handler = inputHandler ?: return
+            val result = handler.handleKeyPress(key)
+
+            when (result) {
+                is com.akashboard.core.KeyPressResult.ShiftChanged -> keyboardView?.setShiftState(result.state)
+                is com.akashboard.core.KeyPressResult.LayoutChanged -> keyboardView?.setLayout(result.layout)
+                is com.akashboard.core.KeyPressResult.Emoji -> showPanel(PanelState.EMOJI)
+                is com.akashboard.core.KeyPressResult.Clipboard -> {
+                    val db = clipboardDB
+                    if (db != null) {
+                        scope.launch(Dispatchers.IO) {
+                            try {
+                                val items = db.clipboardDao().getItems(20)
+                                scope.launch(Dispatchers.Main) {
+                                    clipboardPanel?.setItems(items)
+                                }
+                            } catch (e: Exception) {
+                                Log.w(TAG, "Failed to load clipboard for panel", e)
+                            }
+                        }
                     }
+                    showPanel(PanelState.CLIPBOARD)
                 }
-                showPanel(PanelState.CLIPBOARD)
+                is com.akashboard.core.KeyPressResult.WordCompleted -> {
+                    typingStats?.onWordCompleted(result.word)
+                    timeAwarePredictor?.learnWord(result.word, packageName)
+                }
+                else -> keyboardView?.setShiftState(handler.getShiftState())
             }
-            is com.akashboard.core.KeyPressResult.WordCompleted -> {
-                typingStats.onWordCompleted(result.word)
-                timeAwarePredictor.learnWord(result.word, packageName)
-            }
-            else -> keyboardView?.setShiftState(inputHandler.getShiftState())
+        } catch (e: Exception) {
+            Log.e(TAG, "handleKeyPress failed", e)
         }
     }
 
     private fun handleSwipeWord(word: String) {
-        val connection = currentInputConnection ?: return
-        val currentWord = inputHandler.getCurrentWord()
-        if (currentWord.isNotEmpty()) connection.deleteSurroundingText(currentWord.length, 0)
-        connection.commitText("$word ", 1)
-        hapticFeedback.selection()
-        val context = inputHandler.getContextForPrediction()
-        PredictorBridge.learn(word, context, System.currentTimeMillis())
+        try {
+            val connection = currentInputConnection ?: return
+            val handler = inputHandler ?: return
+            val currentWord = handler.getCurrentWord()
+            if (currentWord.isNotEmpty()) connection.deleteSurroundingText(currentWord.length, 0)
+            connection.commitText("$word ", 1)
+            hapticFeedback?.selection()
+            val context = handler.getContextForPrediction()
+            PredictorBridge.learn(word, context, System.currentTimeMillis())
 
-        // Track analytics
-        typingStats.onWordCompleted(word)
-        timeAwarePredictor.learnWord(word, packageName)
+            typingStats?.onWordCompleted(word)
+            timeAwarePredictor?.learnWord(word, packageName)
+        } catch (e: Exception) {
+            Log.e(TAG, "handleSwipeWord failed", e)
+        }
     }
 
     private fun handleCursorMove(deltaChars: Int) {
-        val connection = currentInputConnection ?: return
-        val text = connection.getExtractedText(android.view.inputmethod.ExtractedTextRequest(), 0) ?: return
-        val newStart = (text.selectionStart + deltaChars).coerceIn(0, text.text?.length ?: 0)
-        val newEnd = (text.selectionEnd + deltaChars).coerceIn(0, text.text?.length ?: 0)
-        connection.setSelection(newStart, newEnd)
+        try {
+            val connection = currentInputConnection ?: return
+            val text = connection.getExtractedText(android.view.inputmethod.ExtractedTextRequest(), 0) ?: return
+            val newStart = (text.selectionStart + deltaChars).coerceIn(0, text.text?.length ?: 0)
+            val newEnd = (text.selectionEnd + deltaChars).coerceIn(0, text.text?.length ?: 0)
+            connection.setSelection(newStart, newEnd)
+        } catch (e: Exception) {
+            Log.e(TAG, "handleCursorMove failed", e)
+        }
     }
 }

@@ -9,6 +9,16 @@
 # Keep Room entities
 -keep class com.akashboard.data.ClipboardItem { *; }
 
+# Keep Room DAOs
+-keep class com.akashboard.data.ClipboardDao { *; }
+
+# Keep Room Database
+-keep class com.akashboard.data.ClipboardDB { *; }
+-keep class * extends androidx.room.RoomDatabase { *; }
+-keepclassmembers class * {
+    @androidx.room.* <methods>;
+}
+
 # Keep serialized data classes
 -keepattributes *Annotation*
 -keepclassmembers class kotlinx.serialization.json.** { *** Companion; }
@@ -23,7 +33,17 @@
     kotlinx.serialization.KSerializer serializer(...);
 }
 
+# Keep settings fragments
+-keep class com.akashboard.settings.** { *; }
+
 # General
 -keepattributes Signature
 -keepattributes Exceptions
 -dontwarn javax.annotation.**
+
+# Kotlin coroutines
+-keepnames class kotlinx.coroutines.internal.MainDispatcherFactory {}
+-keepnames class kotlinx.coroutines.CoroutineExceptionHandler {}
+-keepclassmembers class kotlinx.coroutines.** {
+    volatile <fields>;
+}
