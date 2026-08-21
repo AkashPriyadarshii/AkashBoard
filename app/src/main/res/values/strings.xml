@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- AkashBoard string resources -->
+<resources>
+    <string name="app_name">AkashBoard</string>
+    <string name="ime_name">AkashBoard</string>
+    <string name="settings_title">AkashBoard Settings</string>
+    <string name="enable_keyboard">Enable AkashBoard</string>
+    <string name="switch_keyboard">Switch to AkashBoard</string>
+    <string name="subtitle">The keyboard that becomes YOU.</string>
+</resources>

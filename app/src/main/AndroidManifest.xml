@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    AkashBoard — The keyboard that becomes YOU.
+    Copyright (C) 2026 Akash Priyadarshi
+    Licensed under the GNU General Public License v3.0
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- NO INTERNET PERMISSION — by design. Zero network requests. -->
+    <uses-permission android:name="android.permission.VIBRATE" />
+
+    <application
+        android:allowBackup="true"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.AkashBoard"
+        android:extractNativeLibs="false"
+        tools:targetApi="35">
+
+        <!-- IME Service — The core of AkashBoard -->
+        <service
+            android:name=".AkashBoardIME"
+            android:label="@string/ime_name"
+            android:permission="android.permission.BIND_INPUT_METHOD"
+            android:exported="true"
+            android:directBootAware="true">
+            <intent-filter>
+                <action android:name="android.view.InputMethod" />
+            </intent-filter>
+            <meta-data
+                android:name="android.view.im"
+                android:resource="@xml/method" />
+        </service>
+
+        <!-- Settings Activity (companion app) -->
+        <activity
+            android:name=".SettingsActivity"
+            android:label="@string/settings_title"
+            android:theme="@style/Theme.AkashBoard"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+    </application>
+
+</manifest>

@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- AkashBoard IME configuration -->
+<input-method xmlns:android="http://schemas.android.com/apk/res/android"
+    android:settingsActivity="com.akashboard.SettingsActivity">
+    <subtype
+        android:imeSubtypeMode="keyboard"
+        android:isAsciiCapable="true"
+        android:languageTag="en" />
+    <subtype
+        android:imeSubtypeMode="keyboard"
+        android:isAsciiCapable="true"
+        android:languageTag="hi" />
+    <subtype
+        android:imeSubtypeMode="keyboard"
+        android:isAsciiCapable="true"
+        android:languageTag="es" />
+    <subtype
+        android:imeSubtypeMode="keyboard"
+        android:isAsciiCapable="true"
+        android:languageTag="fr" />
+</input-method>

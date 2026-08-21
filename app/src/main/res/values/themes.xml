@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- AkashBoard themes -->
+<resources>
+    <!-- Main app theme (companion app / settings) -->
+    <style name="Theme.AkashBoard" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">#111214</item>
+        <item name="android:statusBarColor">#111214</item>
+        <item name="android:navigationBarColor">#111214</item>
+        <item name="android:windowLightStatusBar">false</item>
+    </style>
+</resources>
