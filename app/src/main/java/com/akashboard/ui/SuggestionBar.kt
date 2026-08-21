@@ -3,11 +3,6 @@
  * Licensed under the GNU General Public License v3.0
  *
  * SuggestionBar.kt — Prediction strip with animations.
- *
- * Week 6: Added slide-in/out animations for suggestions.
- *   - New suggestions slide in from right (200ms)
- *   - Staggered: each suggestion delays by 50ms
- *   - Tap to accept: word scales up, others fade
  */
 
 package com.akashboard.ui
@@ -15,7 +10,6 @@ package com.akashboard.ui
 import android.animation.ValueAnimator
 import android.content.Context
 import android.graphics.Canvas
-import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.RectF
 import android.util.AttributeSet
@@ -23,22 +17,15 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.animation.DecelerateInterpolator
 
-/**
- * Suggestion bar with animated suggestions.
- */
 class SuggestionBar @JvmOverloads constructor(
     context: Context,
     attrs: AttributeSet? = null,
     defStyleAttr: Int = 0
 ) : View(context, attrs, defStyleAttr) {
 
-    // ── Dimensions ────────────────────────────────────────────────────────
-
     private val density = resources.displayMetrics.density
     private val barHeight = 48f * density
     private val micButtonWidth = 48f * density
-
-    // ── Paint objects ─────────────────────────────────────────────────────
 
     private val bgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.FILL
@@ -62,25 +49,16 @@ class SuggestionBar @JvmOverloads constructor(
         textAlign = Paint.Align.CENTER
     }
 
-    // ── State ─────────────────────────────────────────────────────────────
-
     private var suggestions = listOf<String>()
     private var suggestionRects = mutableListOf<RectF>()
     private var micRect = RectF()
 
-    /** Animation offsets for each suggestion (0.0 = off-screen right, 1.0 = in place) */
     private val animOffsets = FloatArray(3) { 1f }
-
-    /** Animator for slide-in effect */
     private var slideAnimator: ValueAnimator? = null
-
-    // ── Initialization ────────────────────────────────────────────────────
 
     init {
         setLayerType(LAYER_TYPE_HARDWARE, null)
     }
-
-    // ── Layout ────────────────────────────────────────────────────────────
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
         val width = MeasureSpec.getSize(widthMeasureSpec)
@@ -103,8 +81,6 @@ class SuggestionBar @JvmOverloads constructor(
         micRect = RectF(width - micButtonWidth, 0f, width, barHeight)
     }
 
-    // ── Drawing ───────────────────────────────────────────────────────────
-
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
 
@@ -112,8 +88,6 @@ class SuggestionBar @JvmOverloads constructor(
 
         for (i in suggestions.indices.take(3)) {
             val rect = suggestionRects.getOrNull(i) ?: continue
-
-            // Apply slide animation offset
             val offset = animOffsets[i]
             val slideX = (1f - offset) * rect.width()
 
@@ -124,7 +98,6 @@ class SuggestionBar @JvmOverloads constructor(
                 canvas.drawLine(rect.left, 8f * density, rect.left, barHeight - 8f * density, dividerPaint)
             }
 
-            // Fade based on animation progress
             suggestionTextPaint.alpha = (offset * 255).toInt().coerceIn(0, 255)
             canvas.drawText(suggestions[i], rect.centerX(), rect.centerY() + suggestionTextPaint.textSize / 3, suggestionTextPaint)
 
@@ -133,8 +106,6 @@ class SuggestionBar @JvmOverloads constructor(
 
         canvas.drawText("🎤", micRect.centerX(), micRect.centerY() + micPaint.textSize / 3, micPaint)
     }
-
-    // ── Touch ─────────────────────────────────────────────────────────────
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
         if (event.action == MotionEvent.ACTION_UP) {
@@ -146,16 +117,10 @@ class SuggestionBar @JvmOverloads constructor(
                 return true
             }
 
+            // Use the LOGICAL rects (not animated positions) for hit testing
             for (i in suggestions.indices.take(3)) {
                 val rect = suggestionRects.getOrNull(i) ?: continue
-                // Adjust for slide offset
-                val adjustedRect = RectF(
-                    rect.left + (1f - animOffsets[i]) * rect.width(),
-                    rect.top,
-                    rect.right + (1f - animOffsets[i]) * rect.width(),
-                    rect.bottom
-                )
-                if (adjustedRect.contains(x, y)) {
+                if (rect.contains(x, y)) {
                     onSuggestionClickListener?.onSuggestionClicked(i, suggestions[i])
                     return true
                 }
@@ -164,20 +129,13 @@ class SuggestionBar @JvmOverloads constructor(
         return super.onTouchEvent(event)
     }
 
-    // ── Public API ────────────────────────────────────────────────────────
-
-    /**
-     * Update suggestions with slide-in animation.
-     */
     fun setSuggestions(newSuggestions: List<String>) {
         suggestions = newSuggestions.take(3)
 
-        // Reset offsets to off-screen
         for (i in animOffsets.indices) {
             animOffsets[i] = 0f
         }
 
-        // Animate each suggestion in with stagger
         slideAnimator?.cancel()
         slideAnimator = ValueAnimator.ofFloat(0f, 1f).apply {
             duration = 200
@@ -185,7 +143,6 @@ class SuggestionBar @JvmOverloads constructor(
             addUpdateListener { animator ->
                 val value = animator.animatedValue as Float
                 for (i in animOffsets.indices) {
-                    // Stagger: each suggestion delays by 50ms worth of progress
                     val staggerOffset = i * 0.15f
                     animOffsets[i] = ((value - staggerOffset) / (1f - staggerOffset)).coerceIn(0f, 1f)
                 }
@@ -200,8 +157,6 @@ class SuggestionBar @JvmOverloads constructor(
         for (i in animOffsets.indices) animOffsets[i] = 1f
         invalidate()
     }
-
-    // ── Listeners ─────────────────────────────────────────────────────────
 
     interface OnSuggestionClickListener {
         fun onSuggestionClicked(index: Int, word: String)

@@ -3,11 +3,6 @@
  * Licensed under the GNU General Public License v3.0
  *
  * OnboardingActivity.kt — First-run onboarding.
- *
- * Guides the user through:
- * 1. Enable AkashBoard in system settings
- * 2. Switch to AkashBoard as default keyboard
- * 3. Welcome and ready to type
  */
 
 package com.akashboard
@@ -33,11 +28,11 @@ class OnboardingActivity : AppCompatActivity() {
     private lateinit var actionButton: MaterialButton
     private lateinit var stepIndicator: TextView
     private var currentStep = 0
+    private var allDone = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Check if keyboard is already enabled — skip onboarding
         if (isKeyboardEnabled() && isKeyboardSelected()) {
             launchMainApp()
             return
@@ -70,6 +65,14 @@ class OnboardingActivity : AppCompatActivity() {
             gravity = Gravity.CENTER_HORIZONTAL
             setBackgroundColor(0xFF111214.toInt())
 
+            // Spacer top
+            addView(View(context).apply {
+                layoutParams = LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    0, 1f
+                )
+            })
+
             // App icon
             addView(TextView(context).apply {
                 text = "⌨️"
@@ -79,7 +82,7 @@ class OnboardingActivity : AppCompatActivity() {
                     ViewGroup.LayoutParams.MATCH_PARENT,
                     ViewGroup.LayoutParams.WRAP_CONTENT
                 )
-                setPadding(0, (24 * density).toInt(), 0, (16 * density).toInt())
+                setPadding(0, 0, 0, (16 * density).toInt())
             })
 
             // Title
@@ -148,7 +151,7 @@ class OnboardingActivity : AppCompatActivity() {
                 setPadding(0, 0, 0, (32 * density).toInt())
             })
 
-            // Action button — MaterialButton with gradient drawable background
+            // Action button
             val btnBg = GradientDrawable().apply {
                 shape = GradientDrawable.RECTANGLE
                 setColor(0xFF6C63FF.toInt())
@@ -169,7 +172,7 @@ class OnboardingActivity : AppCompatActivity() {
             }
             addView(actionButton)
 
-            // Skip button — plain TextView, no Button widget
+            // Skip button
             addView(TextView(context).apply {
                 text = "Skip for now"
                 textSize = 14f
@@ -191,6 +194,14 @@ class OnboardingActivity : AppCompatActivity() {
                 isFocusable = true
                 setOnClickListener { launchMainApp() }
             })
+
+            // Spacer bottom
+            addView(View(context).apply {
+                layoutParams = LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    0, 1f
+                )
+            })
         }
     }
 
@@ -201,29 +212,37 @@ class OnboardingActivity : AppCompatActivity() {
         when {
             !enabled -> {
                 currentStep = 0
+                allDone = false
                 stepIndicator.text = "Step 1 of 2"
                 statusText.text = "Enable AkashBoard"
                 actionButton.text = "Enable Keyboard"
             }
             !selected -> {
                 currentStep = 1
+                allDone = false
                 stepIndicator.text = "Step 2 of 2"
                 statusText.text = "Switch to AkashBoard"
                 actionButton.text = "Switch Keyboard"
             }
             else -> {
-                statusText.text = "You're all set!"
-                actionButton.text = "Start Typing"
+                allDone = true
                 stepIndicator.text = "✓ Complete"
+                statusText.text = "You're all set!"
+                actionButton.text = "Start Typing →"
             }
         }
     }
 
     private fun handleAction() {
+        if (allDone) {
+            // Both steps done — launch settings app
+            launchMainApp()
+            return
+        }
+
         when (currentStep) {
             0 -> {
                 val intent = Intent(Settings.ACTION_INPUT_METHOD_SETTINGS)
-                intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
                 startActivity(intent)
             }
             1 -> {
@@ -235,12 +254,10 @@ class OnboardingActivity : AppCompatActivity() {
 
     private fun isKeyboardEnabled(): Boolean {
         val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
-        val enabledIMEs = imm.enabledInputMethodList
-        return enabledIMEs.any { it.packageName == packageName }
+        return imm.enabledInputMethodList.any { it.packageName == packageName }
     }
 
     private fun isKeyboardSelected(): Boolean {
-        val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
         val currentIME = Settings.Secure.getString(contentResolver, Settings.Secure.DEFAULT_INPUT_METHOD)
         return currentIME?.contains(packageName) == true
     }

@@ -100,8 +100,17 @@ class EmojiPanel @JvmOverloads constructor(
         val width = MeasureSpec.getSize(widthMeasureSpec)
         val rows = (currentEmojis.size + columns - 1) / columns
         val gridHeight = rows * (emojiSize + emojiPadding) + emojiPadding
-        panelHeight = tabHeight + gridHeight
-        setMeasuredDimension(width, panelHeight.toInt())
+        val desiredHeight = (tabHeight + gridHeight).toInt()
+        val heightMode = MeasureSpec.getMode(heightMeasureSpec)
+        val heightConstraint = MeasureSpec.getSize(heightMeasureSpec)
+
+        val finalHeight = when (heightMode) {
+            MeasureSpec.EXACTLY -> heightConstraint
+            MeasureSpec.AT_MOST -> desiredHeight.coerceAtMost(heightConstraint)
+            else -> desiredHeight
+        }
+        panelHeight = finalHeight.toFloat()
+        setMeasuredDimension(width, finalHeight)
     }
 
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
