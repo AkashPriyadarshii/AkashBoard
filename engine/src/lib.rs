@@ -17,6 +17,7 @@
 
 mod predictor;
 mod learner;
+mod corrector;
 
 use jni::JNIEnv;
 use jni::objects::{JClass, JString};

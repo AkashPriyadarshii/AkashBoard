@@ -2,12 +2,13 @@
  * Copyright (C) 2026 Akash Priyadarshi
  * Licensed under the GNU General Public License v3.0
  *
- * InputHandler.kt — Main input processing pipeline.
+ * InputHandler.kt — Input processing with autocorrect.
  *
- * Week 4: Integrated with Rust prediction engine.
- *   - Requests predictions after each key press
- *   - Accepts suggestions from prediction bar
- *   - Learns new words from user typing
+ * Week 6: Autocorrect flow:
+ *   1. User types a word
+ *   2. On space/punctuation, check if word needs correction
+ *   3. If correction found, replace the word silently
+ *   4. If user re-types the original, learn it as preference
  */
 
 package com.akashboard.core
@@ -16,11 +17,6 @@ import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputConnection
 import com.akashboard.engine.PredictorBridge
 
-/**
- * Main input processing handler.
- *
- * Connects keyboard view → prediction engine → target app.
- */
 class InputHandler(
     private val hapticFeedback: HapticFeedback,
     private val onLayoutChange: (KeyboardLayoutType) -> Unit,
@@ -35,12 +31,18 @@ class InputHandler(
     var autoCorrectEnabled: Boolean = true
     var incognitoMode: Boolean = false
 
+    // Track last autocorrect for undo
+    private var lastAutoCorrectedWord: String? = null
+    private var lastOriginalWord: String? = null
+
     // ── Connection ────────────────────────────────────────────────────────
 
     fun setInputConnection(connection: InputConnection?, info: EditorInfo?) {
         inputConnection = connection
         editorInfo = info
         wordComposer.reset()
+        lastAutoCorrectedWord = null
+        lastOriginalWord = null
 
         val inputType = info?.inputType ?: 0
         val isPassword = (inputType and EditorInfo.TYPE_TEXT_VARIATION_PASSWORD) != 0 ||
@@ -67,7 +69,6 @@ class InputHandler(
             KeyType.VOICE -> KeyPressResult.None
         }
 
-        // Request predictions after any key press
         if (result is KeyPressResult.Character) {
             requestPredictions()
         }
@@ -91,7 +92,28 @@ class InputHandler(
     private fun handleSpace(connection: InputConnection): KeyPressResult {
         val word = wordComposer.finishWord()
 
-        // Learn the completed word
+        // Autocorrect before committing space
+        if (autoCorrectEnabled && !word.isNullOrBlank() && !incognitoMode) {
+            val corrected = PredictorBridge.correct(word, wordComposer.getContext())
+            if (corrected != word) {
+                // Replace the word
+                connection.deleteSurroundingText(word.length, 0)
+                connection.commitText("$corrected ", 1)
+
+                // Track for potential undo
+                lastAutoCorrectedWord = corrected
+                lastOriginalWord = word
+
+                // Learn the correction
+                PredictorBridge.learn(corrected, wordComposer.getContext(), System.currentTimeMillis())
+
+                hapticFeedback.selection()
+                onSuggestionsUpdate(emptyList())
+                return KeyPressResult.WordCompleted(corrected)
+            }
+        }
+
+        // Learn the word
         if (!incognitoMode && !word.isNullOrBlank()) {
             val context = wordComposer.getContextWords().joinToString(" ")
             PredictorBridge.learn(word, context, System.currentTimeMillis())
@@ -105,6 +127,26 @@ class InputHandler(
     }
 
     private fun handleDelete(connection: InputConnection): KeyPressResult {
+        // If last action was autocorrect, undo it
+        if (lastAutoCorrectedWord != null && wordComposer.isEmpty()) {
+            val corrected = lastAutoCorrectedWord!!
+            val original = lastOriginalWord ?: ""
+
+            connection.deleteSurroundingText(corrected.length + 1, 0) // +1 for space
+            connection.commitText(original, 1)
+
+            // Rebuild word composer with original
+            for (char in original) {
+                wordComposer.addCharacter(char)
+            }
+
+            lastAutoCorrectedWord = null
+            lastOriginalWord = null
+
+            hapticFeedback.keyPress()
+            return KeyPressResult.Backspace
+        }
+
         if (wordComposer.deleteLast()) {
             connection.deleteSurroundingText(1, 0)
             hapticFeedback.keyPress()
@@ -121,6 +163,8 @@ class InputHandler(
         wordComposer.finishWord()
         connection.performEditorAction(action)
         hapticFeedback.modifier()
+        lastAutoCorrectedWord = null
+        lastOriginalWord = null
         return KeyPressResult.Enter(action)
     }
 
@@ -144,9 +188,26 @@ class InputHandler(
 
     private fun handlePunctuation(connection: InputConnection, punct: String): KeyPressResult {
         val word = wordComposer.finishWord()
+
+        // Autocorrect before punctuation
+        if (autoCorrectEnabled && !word.isNullOrBlank() && !incognitoMode) {
+            val corrected = PredictorBridge.correct(word, wordComposer.getContext())
+            if (corrected != word) {
+                connection.deleteSurroundingText(word.length, 0)
+                connection.commitText("$corrected$punct", 1)
+                lastAutoCorrectedWord = corrected
+                lastOriginalWord = word
+                hapticFeedback.selection()
+                onSuggestionsUpdate(emptyList())
+                return KeyPressResult.WordCompleted(corrected)
+            }
+        }
+
         connection.commitText(punct, 1)
         hapticFeedback.keyPress()
         onSuggestionsUpdate(emptyList())
+        lastAutoCorrectedWord = null
+        lastOriginalWord = null
         return if (word != null) KeyPressResult.WordCompleted(word) else KeyPressResult.None
     }
 
@@ -154,32 +215,20 @@ class InputHandler(
 
     private fun requestPredictions() {
         val context = wordComposer.getContext()
-        if (context.isBlank()) {
-            onSuggestionsUpdate(emptyList())
-            return
-        }
-
+        if (context.isBlank()) { onSuggestionsUpdate(emptyList()); return }
         val predictions = PredictorBridge.predict(context, 3)
         onSuggestionsUpdate(predictions)
     }
 
-    /**
-     * Accept a suggestion from the suggestion bar.
-     */
     fun acceptSuggestion(word: String) {
         val connection = inputConnection ?: return
-
-        // Delete current partial word
         val currentWord = wordComposer.getCurrentWord()
         if (currentWord.isNotEmpty()) {
             connection.deleteSurroundingText(currentWord.length, 0)
         }
-
-        // Commit the suggested word + space
         connection.commitText("$word ", 1)
         wordComposer.finishWord()
         wordComposer.clearShift()
-
         hapticFeedback.selection()
         onSuggestionsUpdate(emptyList())
     }

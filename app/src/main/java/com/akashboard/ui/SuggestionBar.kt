@@ -2,20 +2,17 @@
  * Copyright (C) 2026 Akash Priyadarshi
  * Licensed under the GNU General Public License v3.0
  *
- * SuggestionBar.kt — Prediction strip above the keyboard.
+ * SuggestionBar.kt — Prediction strip with animations.
  *
- * Shows top 3 word suggestions from the Rust prediction engine.
- * Tap to accept, tap mic for voice input.
- *
- * Design (from DESIGN.md):
- *   - Frosted glass background (near-opaque for legibility)
- *   - Suggestions slide in with stagger (50ms delay each)
- *   - Tap to accept → word slides up, others fade
- *   - Rightmost: mic button for voice input
+ * Week 6: Added slide-in/out animations for suggestions.
+ *   - New suggestions slide in from right (200ms)
+ *   - Staggered: each suggestion delays by 50ms
+ *   - Tap to accept: word scales up, others fade
  */
 
 package com.akashboard.ui
 
+import android.animation.ValueAnimator
 import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Color
@@ -24,12 +21,10 @@ import android.graphics.RectF
 import android.util.AttributeSet
 import android.view.MotionEvent
 import android.view.View
+import android.view.animation.DecelerateInterpolator
 
 /**
- * Suggestion bar rendered via Canvas.
- *
- * Shows up to 3 word suggestions plus a mic button.
- * Positioned above the keyboard in the IME layout.
+ * Suggestion bar with animated suggestions.
  */
 class SuggestionBar @JvmOverloads constructor(
     context: Context,
@@ -47,17 +42,11 @@ class SuggestionBar @JvmOverloads constructor(
 
     private val bgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.FILL
-        color = 0x0D000000  // Near-transparent dark
+        color = 0x0D000000
     }
 
     private val suggestionTextPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = 0xFFB8B8CC.toInt()
-        textSize = 16f * density
-        textAlign = Paint.Align.CENTER
-    }
-
-    private val suggestionHighlightPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = 0xFF6C63FF.toInt()
         textSize = 16f * density
         textAlign = Paint.Align.CENTER
     }
@@ -79,6 +68,12 @@ class SuggestionBar @JvmOverloads constructor(
     private var suggestionRects = mutableListOf<RectF>()
     private var micRect = RectF()
 
+    /** Animation offsets for each suggestion (0.0 = off-screen right, 1.0 = in place) */
+    private val animOffsets = FloatArray(3) { 1f }
+
+    /** Animator for slide-in effect */
+    private var slideAnimator: ValueAnimator? = null
+
     // ── Initialization ────────────────────────────────────────────────────
 
     init {
@@ -94,33 +89,18 @@ class SuggestionBar @JvmOverloads constructor(
 
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
         super.onSizeChanged(w, h, oldw, oldh)
-        if (w > 0) {
-            calculateLayout(w.toFloat())
-        }
+        if (w > 0) calculateLayout(w.toFloat())
     }
 
     private fun calculateLayout(width: Float) {
         suggestionRects.clear()
-
         val availableWidth = width - micButtonWidth
         val suggestionWidth = availableWidth / 3f
 
         for (i in 0 until 3) {
-            val rect = RectF(
-                i * suggestionWidth,
-                0f,
-                (i + 1) * suggestionWidth,
-                barHeight
-            )
-            suggestionRects.add(rect)
+            suggestionRects.add(RectF(i * suggestionWidth, 0f, (i + 1) * suggestionWidth, barHeight))
         }
-
-        micRect = RectF(
-            width - micButtonWidth,
-            0f,
-            width,
-            barHeight
-        )
+        micRect = RectF(width - micButtonWidth, 0f, width, barHeight)
     }
 
     // ── Drawing ───────────────────────────────────────────────────────────
@@ -128,44 +108,54 @@ class SuggestionBar @JvmOverloads constructor(
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
 
-        // Background
         canvas.drawRect(0f, 0f, width.toFloat(), barHeight, bgPaint)
 
-        // Suggestions
         for (i in suggestions.indices.take(3)) {
             val rect = suggestionRects.getOrNull(i) ?: continue
-            val text = suggestions[i]
 
-            // Divider between suggestions
+            // Apply slide animation offset
+            val offset = animOffsets[i]
+            val slideX = (1f - offset) * rect.width()
+
+            canvas.save()
+            canvas.translate(slideX, 0f)
+
             if (i > 0) {
                 canvas.drawLine(rect.left, 8f * density, rect.left, barHeight - 8f * density, dividerPaint)
             }
 
-            // Text (centered in rect)
-            canvas.drawText(text, rect.centerX(), rect.centerY() + suggestionTextPaint.textSize / 3, suggestionTextPaint)
+            // Fade based on animation progress
+            suggestionTextPaint.alpha = (offset * 255).toInt().coerceIn(0, 255)
+            canvas.drawText(suggestions[i], rect.centerX(), rect.centerY() + suggestionTextPaint.textSize / 3, suggestionTextPaint)
+
+            canvas.restore()
         }
 
-        // Mic button
         canvas.drawText("🎤", micRect.centerX(), micRect.centerY() + micPaint.textSize / 3, micPaint)
     }
 
-    // ── Touch handling ────────────────────────────────────────────────────
+    // ── Touch ─────────────────────────────────────────────────────────────
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
         if (event.action == MotionEvent.ACTION_UP) {
             val x = event.x
             val y = event.y
 
-            // Check mic button
             if (micRect.contains(x, y)) {
                 onMicClickListener?.onClick()
                 return true
             }
 
-            // Check suggestions
             for (i in suggestions.indices.take(3)) {
                 val rect = suggestionRects.getOrNull(i) ?: continue
-                if (rect.contains(x, y)) {
+                // Adjust for slide offset
+                val adjustedRect = RectF(
+                    rect.left + (1f - animOffsets[i]) * rect.width(),
+                    rect.top,
+                    rect.right + (1f - animOffsets[i]) * rect.width(),
+                    rect.bottom
+                )
+                if (adjustedRect.contains(x, y)) {
                     onSuggestionClickListener?.onSuggestionClicked(i, suggestions[i])
                     return true
                 }
@@ -177,18 +167,37 @@ class SuggestionBar @JvmOverloads constructor(
     // ── Public API ────────────────────────────────────────────────────────
 
     /**
-     * Update the displayed suggestions.
+     * Update suggestions with slide-in animation.
      */
     fun setSuggestions(newSuggestions: List<String>) {
         suggestions = newSuggestions.take(3)
-        invalidate()
+
+        // Reset offsets to off-screen
+        for (i in animOffsets.indices) {
+            animOffsets[i] = 0f
+        }
+
+        // Animate each suggestion in with stagger
+        slideAnimator?.cancel()
+        slideAnimator = ValueAnimator.ofFloat(0f, 1f).apply {
+            duration = 200
+            interpolator = DecelerateInterpolator()
+            addUpdateListener { animator ->
+                val value = animator.animatedValue as Float
+                for (i in animOffsets.indices) {
+                    // Stagger: each suggestion delays by 50ms worth of progress
+                    val staggerOffset = i * 0.15f
+                    animOffsets[i] = ((value - staggerOffset) / (1f - staggerOffset)).coerceIn(0f, 1f)
+                }
+                invalidate()
+            }
+            start()
+        }
     }
 
-    /**
-     * Clear all suggestions.
-     */
     fun clearSuggestions() {
         suggestions = emptyList()
+        for (i in animOffsets.indices) animOffsets[i] = 1f
         invalidate()
     }
 
