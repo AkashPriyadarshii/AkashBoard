@@ -2,37 +2,52 @@
  * Copyright (C) 2026 Akash Priyadarshi
  * Licensed under the GNU General Public License v3.0
  *
- * AkashBoardIME.kt — Main Input Method Editor service.
+ * AkashBoardIME.kt — Main IME service with prediction integration.
  *
- * Week 3 additions:
- *   - Cursor movement via spacebar swipe
- *   - Long-press repeat (backspace)
- *   - Popup preview (alternate characters)
+ * Week 4: Connected to Rust prediction engine.
+ *   - Initializes PredictorBridge on create
+ *   - Updates suggestions after each key press
+ *   - Accepts suggestions from SuggestionBar
+ *   - Learns words on space/punctuation
  */
 
 package com.akashboard
 
 import android.inputmethodservice.InputMethodService
+import android.view.Gravity
 import android.view.View
+import android.view.ViewGroup
 import android.view.inputmethod.EditorInfo
+import android.widget.LinearLayout
 import com.akashboard.core.InputHandler
 import com.akashboard.core.HapticFeedback
 import com.akashboard.core.KeyData
 import com.akashboard.core.KeyboardLayoutType
 import com.akashboard.core.ShiftState
+import com.akashboard.engine.PredictorBridge
 import com.akashboard.ui.KeyboardView
+import com.akashboard.ui.SuggestionBar
 
 /**
  * AkashBoard's IME service.
+ *
+ * Connects:
+ *   KeyboardView → InputHandler → PredictorBridge → SuggestionBar
+ *                                  ↓
+ *                             InputConnection → Target App
  */
 class AkashBoardIME : InputMethodService() {
 
     private var keyboardView: KeyboardView? = null
+    private var suggestionBar: SuggestionBar? = null
     private lateinit var hapticFeedback: HapticFeedback
     private lateinit var inputHandler: InputHandler
 
     override fun onCreate() {
         super.onCreate()
+
+        // Initialize Rust prediction engine
+        PredictorBridge.init(filesDir.absolutePath)
 
         hapticFeedback = HapticFeedback(this)
 
@@ -44,7 +59,35 @@ class AkashBoardIME : InputMethodService() {
     }
 
     override fun onCreateInputView(): View {
-        val view = KeyboardView(this).apply {
+        val root = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            layoutParams = ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            )
+        }
+
+        // Suggestion bar
+        val bar = SuggestionBar(this).apply {
+            onSuggestionClickListener = object : SuggestionBar.OnSuggestionClickListener {
+                override fun onSuggestionClicked(index: Int, word: String) {
+                    inputHandler.acceptSuggestion(word)
+                }
+            }
+            onMicClickListener = object : SuggestionBar.OnMicClickListener {
+                override fun onClick() {
+                    // Future: voice input
+                }
+            }
+        }
+        suggestionBar = bar
+        root.addView(bar, LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            48 * resources.displayMetrics.density.toInt()
+        ))
+
+        // Keyboard view
+        val keyboard = KeyboardView(this).apply {
             onKeyPressedListener = object : KeyboardView.OnKeyPressedListener {
                 override fun onKeyPressed(key: KeyData) {
                     this@AkashBoardIME.handleKeyPress(key)
@@ -56,8 +99,13 @@ class AkashBoardIME : InputMethodService() {
                 }
             }
         }
-        keyboardView = view
-        return view
+        keyboardView = keyboard
+        root.addView(keyboard, LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            ViewGroup.LayoutParams.WRAP_CONTENT
+        ))
+
+        return root
     }
 
     override fun onStartInputView(info: EditorInfo?, restarting: Boolean) {
@@ -71,8 +119,10 @@ class AkashBoardIME : InputMethodService() {
     }
 
     override fun onDestroy() {
+        PredictorBridge.destroy()
         keyboardView?.destroy()
         keyboardView = null
+        suggestionBar = null
         super.onDestroy()
     }
 
@@ -98,34 +148,23 @@ class AkashBoardIME : InputMethodService() {
 
     private fun handleCursorMove(deltaChars: Int) {
         val connection = currentInputConnection ?: return
+        val text = connection.getExtractedText(
+            android.view.inputmethod.ExtractedTextRequest(), 0
+        ) ?: return
 
-        if (deltaChars > 0) {
-            // Move cursor right
-            connection.setSelection(
-                connection.getExtractedText(android.view.inputmethod.ExtractedTextRequest(), 0)?.selectionStart?.plus(deltaChars)
-                    ?: return,
-                connection.getExtractedText(android.view.inputmethod.ExtractedTextRequest(), 0)?.selectionEnd?.plus(deltaChars)
-                    ?: return
-            )
-        } else if (deltaChars < 0) {
-            // Move cursor left
-            connection.setSelection(
-                connection.getExtractedText(android.view.inputmethod.ExtractedTextRequest(), 0)?.selectionStart?.plus(deltaChars)
-                    ?: return,
-                connection.getExtractedText(android.view.inputmethod.ExtractedTextRequest(), 0)?.selectionEnd?.plus(deltaChars)
-                    ?: return
-            )
-        }
+        val newStart = (text.selectionStart + deltaChars).coerceIn(0, text.text?.length ?: 0)
+        val newEnd = (text.selectionEnd + deltaChars).coerceIn(0, text.text?.length ?: 0)
+        connection.setSelection(newStart, newEnd)
     }
 
-    // ── Layout Management ─────────────────────────────────────────────────
+    // ── Layout & Suggestions ──────────────────────────────────────────────
 
     private fun handleLayoutChange(layout: KeyboardLayoutType) {
         keyboardView?.setLayout(layout)
     }
 
     private fun handleSuggestionsUpdate(suggestions: List<String>) {
-        // Future: Update suggestion bar UI
+        suggestionBar?.setSuggestions(suggestions)
     }
 
     override fun onConfigurationChanged(newConfig: android.content.res.Configuration) {
