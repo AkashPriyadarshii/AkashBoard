@@ -203,6 +203,11 @@ Level 3 — Transient Surface
 
 Color communicates **state and hierarchy**. It is not the decoration layer.
 
+> **Insight from Apple:** UI chrome recedes so the product can speak. No decorative gradients, no shadows on chrome.
+> **Insight from Linear:** The accent color appears on focus rings and a few intentional CTAs — never decoratively.
+> **Insight from Stripe:** Use tabular-figure body type where numerics matter.
+> **Insight from Figma:** Weight (not opacity) carries the hierarchy. Body copy is always the same color at different weights.
+
 ### Light Theme
 
 ```css
@@ -270,6 +275,12 @@ All color combinations must meet **WCAG 2.1 AA** standards:
 
 Use the **platform system font** unless there is a demonstrable product reason not to.
 
+> **Insight from Apple:** SF Pro at thin weights with negative letter-spacing creates confident editorial cadence.
+> **Insight from Stripe:** Thin (300) weights for display, tabular figures for numerics.
+> **Insight from Linear:** Measured negative tracking on display sizes creates "quietly luxurious" feel.
+> **Insight from Figma:** Variable typeface at fine weight increments (320, 330, 340) — a single voice that flexes rather than a multi-weight family.
+> **Insight from Superhuman:** Tight tracking, weight 460-540, body at 1.5 line-height.
+
 - Optical sizing where supported
 - Platform text scaling respected
 - Size-specific tracking
@@ -293,12 +304,12 @@ Settings Value:    14sp   Medium (500)   Line height: 1.5
 ### Companion App Typography
 
 ```css
-Display:    28-32sp
-Title:      22-24sp
-Section:    16-18sp
-Body:       15-16sp
-Secondary:  13-14sp
-Caption:    12-13sp
+Display:    28-32sp   Weight: 300-400   Tracking: -0.5px
+Title:      22-24sp   Weight: 500       Tracking: -0.3px
+Section:    16-18sp   Weight: 500       Tracking: 0
+Body:       15-16sp   Weight: 400       Tracking: 0
+Secondary:  13-14sp   Weight: 400       Tracking: 0
+Caption:    12-13sp   Weight: 400       Tracking: +0.2px
 ```
 
 ---
@@ -321,6 +332,10 @@ lg:  16px
 - Do not turn keys into extreme capsules
 - App controls: 8-16px depending on hierarchy
 - Large cards should NOT automatically receive 24-32px radius
+
+> **Insight from Apple:** Tight-radius pills for buttons, product tiles use square corners.
+> **Insight from Linear:** Cards live as charcoal panels with hairline borders — not rounded cards with shadows.
+> **Insight from Stripe:** Tight-radius pills (6-8px) for buttons, not oversized.
 
 ---
 
@@ -355,6 +370,9 @@ The engine adapts to:
 
 **Do not hard-code one keyboard screenshot into the app.**
 
+> **Insight from GitHub Primer:** Responsive behavior is foundational. Layout, typography, color and spacing are shared primitives.
+> **Insight from Shopify Polaris:** Internationalization must be designed into the system.
+
 ---
 
 ## 8. Key Model
@@ -374,6 +392,8 @@ The visual key and touch hitbox are **separate concepts**:
 ```
 
 The engine enlarges effective hit regions into surrounding whitespace where doing so does not create ambiguous overlaps. **This is more valuable than increasing visible key size indefinitely.**
+
+> **Insight from Radix Primitives:** Focus management is explicit. Collision handling matters. Origin-aware animation matters.
 
 ### Key Data Model
 
@@ -425,6 +445,8 @@ The bottom row is an **ergonomic control region**. Elements:
 - Backspace (as appropriate)
 
 Do not permanently add every possible control. Keep it minimal.
+
+> **Insight from Apple:** Purpose before decoration. Simplicity without hiding necessary functionality.
 
 ---
 
@@ -511,6 +533,8 @@ No prediction rail (hidden)
 No prediction content (hidden)
 ```
 
+> **Insight from Linear:** The prediction rail should feel like a dense, technical tool — not a marketing surface. Each suggestion is a precise, functional item.
+
 ---
 
 ## 14. Emoji Panel
@@ -591,6 +615,10 @@ Preview updates **immediately**. Do not use only Small/Medium/Large. A continuou
 
 ## 18. Motion System
 
+> **Insight from Apple HIG:** Purpose, Agency, Responsibility, Familiarity, Flexibility, Simplicity, Craft, Delight. Motion should explain change, not exist to look impressive.
+> **Insight from Fluent 2:** Motion should feel natural and velocity-aware. Motion must remain functional.
+> **Insight from Apple Reference:** Critically damped defaults. Reserve bounce for momentum-driven interactions only. Velocity handoff is the seam between gesture and animation.
+
 ### Default Motion (Critically Damped)
 
 ```css
@@ -656,6 +684,8 @@ old target → jump → new target
 
 That visible discontinuity makes the UI feel synthetic.
 
+> **Insight from Apple Reference:** The uploaded reference explicitly recommends interactive prototypes because the interaction itself exposes design problems that static designs hide.
+
 ### Implementation
 
 ```kotlin
@@ -702,6 +732,8 @@ optional physics (spring/momentum)
 - Preserve finger-to-content offset
 - Do not lock the user during animations
 - Velocity handoff between gesture and animation
+
+> **Insight from Apple Reference:** Velocity handoff is the seam between gesture and animation. A swipe should feel like one uninterrupted physical interaction.
 
 ### Gesture Velocity
 
@@ -775,6 +807,8 @@ Every component needs:
 - Motion rule (which animation applies)
 - Reduced-motion behavior (cross-fade instead of slide)
 
+> **Insight from Radix Primitives:** Behavior and accessibility are inseparable from components. Focus management is explicit. Composable primitives outperform giant opinionated visual abstractions.
+
 ---
 
 ## 23. Design Tokens
@@ -782,6 +816,9 @@ Every component needs:
 **Design tokens are authoritative.** No arbitrary one-off values in production UI.
 
 If the design requires `radius = 11`, do not invent it inside one screen. Add it to the token system or use the nearest existing token.
+
+> **Insight from Atlassian:** Tokens are the source of truth. Spacing, color, typography, elevation, borders and radius should be systematic.
+> **Insight from USWDS:** Design tokens reduce arbitrary decisions.
 
 ### Token Registry
 
@@ -807,6 +844,10 @@ object DesignTokens {
 
 Accessibility is **part of the core layout engine**, not a feature toggle.
 
+> **Insight from WCAG 2.2:** Controls need strong focus visibility. Visual focus must not be obscured. Accessibility is a measurable requirement rather than a styling preference.
+> **Insight from GOV.UK:** Reusable components. Strong patterns for common tasks. Consistent, understandable interaction. Accessibility as a default property.
+> **Insight from Radix:** Focus management is explicit. Every interactive control is keyboard accessible. Focus order is logical. Escape closes temporary surfaces.
+
 ### Support
 
 - Larger text (up to 200% scaling)
@@ -830,6 +871,8 @@ When system reduced-motion is enabled:
 - Preserve state feedback (color changes, opacity)
 - Preserve focus visibility
 - Keep haptic feedback (if not also reduced)
+
+> **Insight from Apple HIG & Fluent 2:** Reduced motion is an alternate feedback strategy rather than simply deleting all feedback.
 
 ---
 
@@ -874,6 +917,8 @@ Error:                 distinct (double-tap, 10ms)
 - Haptic intensity must be configurable
 - Sound and haptic can be independently enabled/disabled
 
+> **Insight from Apple HIG:** Clear feedback. Detailed craft. Every interaction should feel intentional.
+
 ### Sound Packs
 
 | Pack | Description | Volume |
@@ -914,6 +959,8 @@ Use **one coherent icon family** per platform.
 
 Do not create custom "AI-looking" icons for normal features.
 
+> **Insight from Figma:** Monochrome system core. The accent color appears only on focus rings and a few intentional CTAs — never decoratively.
+
 ---
 
 ## 28. Microcopy
@@ -945,6 +992,9 @@ Revolutionary input
 ```
 
 The design should **explain the feature** rather than market it.
+
+> **Insight from Apple:** Purpose before decoration. Simplicity without hiding necessary functionality.
+> **Insight from Linear:** The system reads as software-craft documentation: dense, technical, and quietly luxurious.
 
 ---
 
@@ -978,6 +1028,8 @@ Advanced settings are one level deeper. The common path stays visible.
 ```
 
 Do not turn every setting into a large marketing card. Prefer compact rows, clear grouping, and direct descriptions.
+
+> **Insight from Apple:** Settings should be dense, scannable, and functional — not spacious marketing surfaces.
 
 ---
 
@@ -1059,6 +1111,8 @@ Q W E R T Y U I O P  │  1 2 3 4 5 6 7 8 9 0
 
 The content hierarchy stays constant even when the layout changes.
 
+> **Insight from GitHub Primer:** Responsive behavior is foundational. The same interface language needs to work across a broad range of usage contexts.
+
 ---
 
 ## 34. Theme System
@@ -1083,6 +1137,8 @@ destructive
 ```
 
 Do not ship hundreds of hard-coded themes. Generate controlled variants from the token system.
+
+> **Insight from Figma:** The monochrome system core makes color blocks feel intentional rather than decorative. Same vocabulary, different rhythm per variant.
 
 ### Built-in Themes (5)
 
@@ -1179,6 +1235,8 @@ Privacy report                         →
 
 Do not hide this under "Advanced."
 
+> **Insight from Apple HIG:** Agency and recoverability. The user must always know what's happening with their data.
+
 ---
 
 ## 37. Interaction Quality Gates
@@ -1229,7 +1287,26 @@ Before shipping a UI feature:
 
 ---
 
-## 39. Final Aesthetic Target
+## 39. Design System Provenance
+
+This design system was synthesized from 10 world-class design systems:
+
+| System | Key Insight for AkashBoard |
+|--------|---------------------------|
+| **Apple HIG** | Purpose before decoration. Critically damped motion. Velocity handoff. Reduced motion as alternate feedback strategy. |
+| **Stripe** | Thin weights (300) for display. Tabular figures for numerics. Tight-radius pills. Atmospheric restraint. |
+| **Linear** | Near-black canvas. Single accent, used sparingly. Dense, technical, quietly luxurious. Charcoal panels with hairline borders. |
+| **Figma** | Monochrome core. Weight (not opacity) carries hierarchy. Variable typeface at fine increments. Color blocks for rhythm. |
+| **Superhuman** | Speed-obsessed. Tight tracking. Weight 460-540. High-end newsletter feel. Sober, dense. |
+| **Vercel** | Clean, minimal, performance-focused. Sharp corners on buttons, soft on containers. Two-tier radius philosophy. |
+| **Airbnb** | Design tokens as source of truth. Internationalization built in. Accessibility as quality. |
+| **Notion** | Clean, functional UI. Dense information architecture. No decorative chrome. |
+| **Raycast** | Keyboard-first. Every action reachable via keyboard. Minimal visual noise. |
+| **Uber** | Motion design as explanation, not decoration. Natural physics. Velocity-aware transitions. |
+
+---
+
+## 40. Final Aesthetic Target
 
 The finished product should look like:
 
@@ -1257,15 +1334,18 @@ RANDOM ANIMATION
 
 The visual sophistication comes from **geometry, hierarchy, spacing, typography, state transitions, responsiveness, and physical interaction**.
 
+> **Insight from Linear:** The system reads as software-craft documentation: dense, technical, and quietly luxurious.
+> **Insight from Apple:** Detailed craft. The interface should feel engineered, not designed.
+
 ---
 
-## 40. Final Design Sentence
+## 41. Final Design Sentence
 
 **A quiet, adaptive, highly configurable keyboard whose quality is felt through responsiveness and control rather than advertised through decoration.**
 
 ---
 
-## 41. Acceptance Bar
+## 42. Acceptance Bar
 
 The design is considered successful only when a first-time user can:
 
