@@ -79,6 +79,10 @@ class KeyboardSettingsProvider(context: Context) {
         get() = prefs.getString(KEY_ONE_HANDED, "off") ?: "off"
         set(value) = prefs.edit().putString(KEY_ONE_HANDED, value).apply()
 
+    var suggestionBarHeight: Int
+        get() = prefs.getInt(KEY_SUGGESTION_BAR_HEIGHT, 48)
+        set(value) = prefs.edit().putInt(KEY_SUGGESTION_BAR_HEIGHT, value).apply()
+
     var keyCornerRadius: Int
         get() = prefs.getInt(KEY_CORNER_RADIUS, 8)
         set(value) = prefs.edit().putInt(KEY_CORNER_RADIUS, value).apply()
@@ -200,6 +204,7 @@ class KeyboardSettingsProvider(context: Context) {
         private const val KEY_THEME = "theme_id"
         private const val KEY_HEIGHT = "keyboard_height"
         private const val KEY_ONE_HANDED = "one_handed_mode"
+        private const val KEY_SUGGESTION_BAR_HEIGHT = "suggestion_bar_height"
         private const val KEY_CORNER_RADIUS = "key_corner_radius"
         private const val KEY_SPACING = "key_spacing"
         private const val KEY_SHOW_EMOJI = "show_emoji_key"

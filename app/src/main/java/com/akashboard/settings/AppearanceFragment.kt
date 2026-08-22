@@ -15,16 +15,43 @@ import androidx.preference.PreferenceFragmentCompat
 import androidx.preference.SeekBarPreference
 import androidx.preference.SwitchPreferenceCompat
 import com.akashboard.R
+import com.akashboard.theme.ThemeManager
 
 class AppearanceFragment : PreferenceFragmentCompat() {
 
     override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
         setPreferencesFromResource(R.xml.preferences_appearance, rootKey)
 
-        // Theme preview listener
+        // Theme preview: render sample keys with the active theme's colors
         findPreference<androidx.preference.Preference>("theme_preview")?.setOnPreferenceClickListener {
-            // Could open a theme preview dialog
+            val colors = ThemeManager(this@AppearanceFragment.requireContext().applicationContext).apply {
+                loadSavedTheme()
+            }.getColors()
+            showThemePreview(colors)
             true
         }
+    }
+
+    private fun showThemePreview(colors: com.akashboard.theme.ThemeColors) {
+        val density = resources.displayMetrics.density
+        val swatches = listOf(
+            "Canvas" to colors.canvas,
+            "Keys" to colors.keyBg,
+            "Pressed" to colors.keyPressed,
+            "Text" to colors.keyText,
+            "Accent" to colors.accent,
+            "Suggestions" to colors.suggestionBg
+        )
+        val label = buildString {
+            append("Active theme colors:\n")
+            swatches.forEach { (name, color) ->
+                append("\n■ $name  #${Integer.toHexString(color and 0xFFFFFF).padStart(6, '0')}")
+            }
+        }
+        androidx.appcompat.app.AlertDialog.Builder(requireContext())
+            .setTitle("Theme Preview")
+            .setMessage(label)
+            .setPositiveButton("OK", null)
+            .show()
     }
 }

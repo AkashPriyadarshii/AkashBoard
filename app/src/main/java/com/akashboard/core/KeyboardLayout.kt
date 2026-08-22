@@ -75,6 +75,9 @@ object LayoutCalculator {
     @Volatile var keyboardWidthFractionOverride: Float? = null
     @Volatile var keyboardSideOffsetFraction: Float = 0f
 
+    /** Suggestion bar height override in dp (null = default 48dp) */
+    @Volatile var suggestionBarHeightOverrideDp: Float? = null
+
     /**
      * Calculate key positions for a given screen width.
      *
@@ -92,7 +95,7 @@ object LayoutCalculator {
         val keyGap = (keyGapOverrideDp ?: DEFAULT_KEY_GAP_DP) * density
         val keyHeight = (keyHeightOverrideDp ?: DEFAULT_KEY_HEIGHT_DP) * density
         val bottomRowHeight = BOTTOM_ROW_HEIGHT_DP * density
-        val suggestionBarHeight = SUGGESTION_BAR_HEIGHT_DP * density
+        val suggestionBarHeight = (suggestionBarHeightOverrideDp ?: SUGGESTION_BAR_HEIGHT_DP) * density
         val hitboxExpansion = HITBOX_EXPANSION_DP * density
 
         val keys = mutableListOf<KeyData>()

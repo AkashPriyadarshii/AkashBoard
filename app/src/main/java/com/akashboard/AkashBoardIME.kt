@@ -22,6 +22,7 @@ import com.akashboard.analytics.TypingStats
 import com.akashboard.core.InputHandler
 import com.akashboard.core.HapticFeedback
 import com.akashboard.core.KeyData
+import com.akashboard.core.LayoutCalculator
 import com.akashboard.core.VoiceInput
 import com.akashboard.data.ClipboardDB
 import com.akashboard.data.ClipboardItem
@@ -302,6 +303,7 @@ class AkashBoardIME : InputMethodService() {
                 keyboardView?.setCornerRadius(sp.keyCornerRadius)
                 keyboardView?.setKeySpacing(sp.keySpacing)
                 keyboardView?.setKeyboardHeight(sp.keyboardHeight)
+                LayoutCalculator.suggestionBarHeightOverrideDp = sp.suggestionBarHeight.toFloat()
                 keyboardView?.setOneHandedMode(sp.oneHandedMode)
                 keyboardView?.swipeTypingEnabled = sp.swipeTypingEnabled
                 keyboardView?.spacebarCursorEnabled = sp.spacebarCursorEnabled
