@@ -55,7 +55,7 @@
 # General
 -keepattributes Signature
 -keepattributes Exceptions
--dontwarn javax.annotation.**
+-keep class javax.annotation.** { *; }
 
 # Kotlin coroutines
 -keepnames class kotlinx.coroutines.internal.MainDispatcherFactory {}

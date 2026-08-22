@@ -14,5 +14,8 @@
         <item name="android:colorBackground">#F5F6F8</item>
         <item name="colorSurface">#FFFFFF</item>
         <item name="colorOnSurface">#15171A</item>
+        <item name="colorOnSecondary">#FFFFFF</item>
+        <item name="android:textColorPrimary">#15171A</item>
+        <item name="android:textColorSecondary">#60656D</item>
     </style>
 </resources>
