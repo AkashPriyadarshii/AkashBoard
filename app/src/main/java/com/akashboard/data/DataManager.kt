@@ -204,6 +204,9 @@ class DataManager(
             // Clear analytics
             timeAwarePredictor.reset()
             typingStats.resetAllStats()
+            
+            // Clear prediction engine
+            com.akashboard.engine.PredictorBridge.clearAll()
 
             true
         } catch (e: Exception) {

@@ -30,10 +30,10 @@ AkashBoard is a **free, open-source Android keyboard** (FOSS) with a **Rust pred
 
 This entire keyboard — from empty repository to production-ready APK with 227 passing tests — was built in **2 days** (August 21-22, 2026). That's 12 weeks of planned work compressed into an intense sprint covering:
 
-- Kotlin IME service with custom Canvas rendering (60-120 FPS)
+- 100% Jetpack Compose UI with 60FPS Bezier swipe trails (60-120 FPS)
 - Rust prediction engine compiled to ARM64 native code via JNI
 - Swipe/glide typing, auto-correct, 5 themes, emoji, clipboard, voice
-- Settings companion app with 4 preference screens
+- Elite Material 3 Jetpack Compose Settings Dashboard
 - 227 passing tests (174 Kotlin + 53 Rust)
 
 ### Why AkashBoard Exists

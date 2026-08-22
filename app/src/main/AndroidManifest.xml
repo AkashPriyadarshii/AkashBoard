@@ -1,14 +1,14 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <!--
-    AkashBoard — The keyboard that becomes YOU.
+    AkashBoard â€” The keyboard that becomes YOU.
     Copyright (C) 2026 Akash Priyadarshi
     Licensed under the GNU General Public License v3.0
 -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
-    <!-- NO INTERNET PERMISSION — by design. Zero network requests. -->
-    <uses-permission android:name="android.permission.VIBRATE" />
+    <!-- NO INTERNET PERMISSION â€” by design. Zero network requests. -->
+    <uses-permission android:name="android.permission.VIBRATE" />`n    <uses-permission android:name="android.permission.RECORD_AUDIO" />
 
     <application
         android:allowBackup="false"
@@ -19,7 +19,7 @@
         android:theme="@style/Theme.AkashBoard"
         tools:targetApi="35">
 
-        <!-- Onboarding Activity — First launch -->
+        <!-- Onboarding Activity â€” First launch -->
         <activity
             android:name=".OnboardingActivity"
             android:label="@string/app_name"
@@ -38,7 +38,7 @@
             android:theme="@style/Theme.AkashBoard"
             android:exported="true" />
 
-        <!-- IME Service — The core of AkashBoard -->
+        <!-- IME Service â€” The core of AkashBoard -->
         <service
             android:name=".AkashBoardIME"
             android:label="@string/ime_name"

@@ -20,6 +20,23 @@
  */
 
 use std::collections::HashMap;
+use fasttext::FastText;
+
+#[derive(Default)]
+pub struct TrieNode {
+    pub is_word: bool,
+    pub children: HashMap<char, Box<TrieNode>>,
+}
+
+impl TrieNode {
+    pub fn insert(&mut self, word: &str) {
+        let mut curr = self;
+        for c in word.chars() {
+            curr = curr.children.entry(c).or_insert_with(|| Box::new(TrieNode::default()));
+        }
+        curr.is_word = true;
+    }
+}
 
 /// Owned persistence shape (deserialize target).
 #[derive(serde::Serialize, serde::Deserialize)]
@@ -61,17 +78,22 @@ pub struct Predictor {
 
     /// Personal error patterns learned from user corrections: wrong → right
     corrections: HashMap<String, String>,
+    trie_root: TrieNode,
+    fasttext_model: Option<FastText>,
 }
 
 impl Predictor {
     /// Create a new empty predictor.
     pub fn new() -> Self {
+        let fasttext_model = fasttext::FastText::load_model("model.ftz").ok();
         Self {
             unigrams: HashMap::new(),
             bigram_index: HashMap::new(),
             trigram_index: HashMap::new(),
             total_words: 0,
             corrections: HashMap::new(),
+            trie_root: TrieNode::default(),
+            fasttext_model,
         }
     }
 

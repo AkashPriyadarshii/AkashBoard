@@ -30,7 +30,7 @@
 │  │         │          │          │          │                 │  │
 │  │  ┌──────▼──────┐ ┌─▼────────┐ ┌▼────────▼┐ ┌───────────┐ │  │
 │  │  │ KeyboardView│ │Suggestion│ │  Emoji   │ │ Clipboard │ │  │
-│  │  │  (Canvas)   │ │   Bar    │ │  Panel   │ │   Panel   │ │  │
+│  │  │  (Compose)   │ │   Bar    │ │  Panel   │ │   Panel   │ │  │
 │  │  └──────┬──────┘ └────┬────┘ └────┬─────┘ └─────┬─────┘ │  │
 │  │         │             │           │              │        │  │
 │  │  ┌──────▼─────────────▼───────────▼──────────────▼──────┐ │  │
@@ -76,10 +76,10 @@ Responsible for rendering the keyboard UI and handling user interaction.
 ```
 presentation/
 ├── ui/
-│   ├── KeyboardView.kt          # Main keyboard rendering (Canvas)
-│   ├── SuggestionBar.kt         # Prediction strip
-│   ├── EmojiPanel.kt            # Emoji grid
-│   ├── ClipboardPanel.kt        # Clipboard history
+│   ├── KeyboardLayout.kt          # Main keyboard rendering (Compose)
+│   ├── ComposeSuggestionBar.kt         # Prediction strip
+│   ├── ComposeEmojiPanel.kt            # Emoji grid
+│   ├── ComposeClipboardPanel.kt        # Clipboard history
 │   ├── SwipeTrail.kt            # Gesture trail rendering
 │   └── KeyRenderer.kt           # Individual key rendering
 ├── theme/
@@ -92,7 +92,7 @@ presentation/
 ```
 
 **Key Design Decisions:**
-- **Custom Canvas rendering** (not XML layouts) for 60fps performance
+- **Custom Compose Canvas & pointerInput rendering** (not XML layouts) for 60fps performance
 - **No Jetpack Compose** — too heavy for a keyboard (adds ~2MB overhead)
 - **GPU-accelerated animations** via `HardwareLayer` for key press effects
 
@@ -114,7 +114,7 @@ core/
 **Input Processing Pipeline:**
 
 ```
-User Action → InputHandler → WordComposer → Engine Bridge → SuggestionBar
+User Action → InputHandler → WordComposer → Engine Bridge → ComposeSuggestionBar
      │                                              │
      │              ┌───────────────────────────────┘
      │              │
@@ -450,7 +450,7 @@ User copies text
          │
          ▼
 ┌─────────────────┐
-│ Notify UI       │ → Update ClipboardPanel if visible
+│ Notify UI       │ → Update ComposeClipboardPanel if visible
 └─────────────────┘
 ```
 
@@ -669,7 +669,7 @@ cargo ndk -t arm64-v8a build --release
 | Decision | Choice | Alternative | Why |
 |----------|--------|-------------|-----|
 | IME language | Kotlin | Java | Null safety, coroutines, modern |
-| UI rendering | Custom Canvas | XML Layouts | 60fps, full control |
+| UI rendering | Custom Compose Canvas & pointerInput | XML Layouts | 60fps, full control |
 | UI framework | None (raw) | Jetpack Compose | Compose adds ~2MB, too heavy |
 | Prediction engine | Rust | Kotlin | 50x faster, smaller binary |
 | JNI | Manual | Caffeine/Swiss | More control, no extra deps |

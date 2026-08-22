@@ -11,12 +11,11 @@
  *   - Decay system (old patterns lose weight)
  *
  * All learning happens locally. Zero cloud dependency.
- */
-
-use std::collections::HashMap;
+ */use std::collections::HashMap;
+use serde::{Deserialize, Serialize};
 
 /// Context profile types.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum ContextType {
     /// Neutral/unknown context
     Neutral,
@@ -29,25 +28,28 @@ pub enum ContextType {
 }
 
 /// A personal pattern entry with decay tracking.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PatternEntry {
     /// Usage count
     pub frequency: u32,
     /// Last used timestamp (Unix seconds)
     pub last_used: u64,
-    /// Time-of-day usage (hour 0-23 → count)
+    /// Track when decay was last applied to prevent compound loop
+    pub last_decayed: u64,
+    /// Time-of-day usage (hour 0-23 -> count)
     pub time_pattern: [u32; 24],
     /// Context type
     pub context: ContextType,
 }
 
 impl PatternEntry {
-    pub fn new(timestamp: u64) -> Self {
+    pub fn new(timestamp: u64, context: ContextType) -> Self {
         Self {
-            frequency: 1,
+            frequency: 0,
             last_used: timestamp,
+            last_decayed: timestamp,
             time_pattern: [0; 24],
-            context: ContextType::Neutral,
+            context,
         }
     }
 }
@@ -55,29 +57,25 @@ impl PatternEntry {
 /// Personal pattern learning engine.
 ///
 /// Learns user-specific patterns without cloud dependency.
+#[derive(Serialize, Deserialize, Default)]
 pub struct Learner {
     /// Word patterns with decay tracking
-    patterns: HashMap<String, PatternEntry>,
+    pub patterns: HashMap<String, PatternEntry>,
 
-    /// Error correction patterns: wrong → correct
-    corrections: HashMap<String, String>,
+    /// Error correction patterns: wrong -> correct
+    pub corrections: HashMap<String, String>,
 
     /// Context profiles per app/package name
-    context_profiles: HashMap<String, ContextType>,
+    pub context_profiles: HashMap<String, ContextType>,
 
     /// Current hour (0-23) for time-based learning
-    current_hour: u8,
+    pub current_hour: u8,
 }
 
 impl Learner {
     /// Create a new learner.
     pub fn new() -> Self {
-        Self {
-            patterns: HashMap::new(),
-            corrections: HashMap::new(),
-            context_profiles: HashMap::new(),
-            current_hour: 0,
-        }
+        Self::default()
     }
 
     /// Learn a new word pattern.
@@ -86,20 +84,16 @@ impl Learner {
     /// * `word` - The word to learn
     /// * `context` - Surrounding text
     /// * `timestamp` - Unix timestamp in seconds
-    pub fn learn_word(&mut self, word: &str, _context: &str, timestamp: u64) {
+    /// * `localized_hour` - The user's actual local time hour (0-23) passed from Android
+    pub fn learn_word(&mut self, word: &str, _context: &str, timestamp: u64, localized_hour: u8) {
         let lower = word.to_lowercase();
         if lower.is_empty() {
             return;
         }
 
-        let hour = ((timestamp / 3600) % 24) as usize;
+        let hour = (localized_hour % 24) as usize;
 
-        let entry = self.patterns.entry(lower).or_insert_with(|| PatternEntry {
-            frequency: 0,
-            last_used: timestamp,
-            time_pattern: [0; 24],
-            context: ContextType::Neutral,
-        });
+        let entry = self.patterns.entry(lower).or_insert_with(|| PatternEntry::new(timestamp, ContextType::Neutral));
 
         entry.frequency += 1;
         entry.last_used = timestamp;
@@ -134,6 +128,14 @@ impl Learner {
             .unwrap_or(ContextType::Neutral)
     }
 
+    pub fn get_pattern(&self, word: &str) -> Option<&PatternEntry> {
+        self.patterns.get(&word.to_lowercase())
+    }
+
+    pub fn current_hour(&self) -> u8 {
+        self.current_hour
+    }
+
     /// Update the current hour (call when hour changes).
     pub fn set_hour(&mut self, hour: u8) {
         self.current_hour = hour.min(23);
@@ -145,15 +147,21 @@ impl Learner {
     /// Called periodically (e.g., once per day).
     pub fn apply_decay(&mut self, current_timestamp: u64, max_age_days: u32) {
         let max_age_seconds = max_age_days as u64 * 86400;
-        let now = current_timestamp;
 
         for entry in self.patterns.values_mut() {
-            let age = now.saturating_sub(entry.last_used);
-            if age > max_age_seconds {
-                // Reduce frequency by 10% per month unused
-                let months_old = (age / (30 * 86400)).max(1);
-                let decay_factor = 0.9f32.powi(months_old as i32);
-                entry.frequency = (entry.frequency as f32 * decay_factor) as u32;
+            let time_since_last_use = current_timestamp.saturating_sub(entry.last_used);
+            let time_since_last_decay = current_timestamp.saturating_sub(entry.last_decayed);
+            
+            // Only apply decay if it's been idle past the threshold, AND we haven't decayed it recently
+            if time_since_last_use > max_age_seconds && time_since_last_decay > (30 * 86400) {
+                // Drop frequency by 10%
+                entry.frequency = (entry.frequency as f32 * 0.9) as u32;
+                entry.last_decayed = current_timestamp; // Reset the decay clock
+                
+                // Also decay the time_pattern array proportionally
+                for count in entry.time_pattern.iter_mut() {
+                    *count = (*count as f32 * 0.9) as u32;
+                }
             }
         }
 
@@ -210,7 +218,7 @@ mod tests {
     #[test]
     fn test_learn_word() {
         let mut l = Learner::new();
-        l.learn_word("hello", "hi there", 1000000);
+        l.learn_word("hello", "hi there", 1000000, 0);
         assert_eq!(l.pattern_count(), 1);
     }
 
@@ -226,8 +234,8 @@ mod tests {
     fn test_time_patterns() {
         let mut l = Learner::new();
         // Learn "morning" at hour 8
-        l.learn_word("morning", "", 8 * 3600);
-        l.learn_word("morning", "", 8 * 3600 + 100);
+        l.learn_word("morning", "", 8 * 3600, 8);
+        l.learn_word("morning", "", 8 * 3600 + 100, 8);
 
         let patterns = l.get_time_patterns(8, 5);
         assert!(patterns.iter().any(|(w, _)| *w == "morning"));
@@ -251,8 +259,8 @@ mod tests {
     #[test]
     fn test_decay() {
         let mut l = Learner::new();
-        l.learn_word("old_word", "", 1000000);
-        l.learn_word("new_word", "", 1000000 + 90 * 86400); // 90 days later
+        l.learn_word("old_word", "", 1000000, 0);
+        l.learn_word("new_word", "", 1000000 + 90 * 86400, 0); // 90 days later
 
         // Apply decay (max 30 days)
         l.apply_decay(1000000 + 90 * 86400, 30);

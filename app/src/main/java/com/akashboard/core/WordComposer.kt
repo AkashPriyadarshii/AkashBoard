@@ -162,6 +162,11 @@ class WordComposer {
         shiftState = ShiftState.NONE
     }
 
+    /** Set shift to an explicit state — called by QwertyGrid on shift key tap. */
+    fun setShiftState(state: ShiftState) {
+        shiftState = state
+    }
+
     // ── Context ───────────────────────────────────────────────────────────
 
     /**

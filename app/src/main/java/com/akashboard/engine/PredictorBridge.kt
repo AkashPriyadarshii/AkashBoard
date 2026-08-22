@@ -53,8 +53,7 @@ object PredictorBridge {
 
         val k = topK.coerceIn(1, 5)
         val result = nativePredict(context, k)
-        return if (result.isNullOrBlank()) emptyList()
-        else result.split(",").filter { it.isNotBlank() }
+        return result?.filterNotNull()?.filter { it.isNotBlank() } ?: emptyList()
     }
 
     /** Auto-correct a word; personal learned corrections take priority over built-in */
@@ -119,11 +118,20 @@ object PredictorBridge {
     /** Whether engine is available */
     fun isAvailable(): Boolean = isLoaded && isInitialized
 
-    // ── Native Methods ────────────────────────────────────────────────────
+    /** Recognize a swipe gesture */
+    fun recognizeSwipe(path: FloatArray, keys: FloatArray, topK: Int = 3): List<String> {
+        if (!isLoaded || !isInitialized) return emptyList()
+        val k = topK.coerceIn(1, 5)
+        val result = nativeRecognizeSwipe(path, keys, k)
+        return result?.filterNotNull()?.filter { it.isNotBlank() } ?: emptyList()
+    }
+
+    // ---------------- Native Methods ----------------
 
     private external fun nativeInit(configPath: String)
     private external fun nativeDestroy()
-    private external fun nativePredict(context: String, topK: Int): String?
+    private external fun nativePredict(context: String, topK: Int): Array<String>?
+    private external fun nativeRecognizeSwipe(path: FloatArray, keys: FloatArray, topK: Int): Array<String>?
     private external fun nativeCorrect(word: String, context: String): String?
     private external fun nativeLearnError(wrong: String, correct: String): Boolean
     private external fun nativeGetCorrection(word: String): String?

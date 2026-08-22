@@ -261,4 +261,38 @@ class InputHandler(
     fun setAutoCorrect(enabled: Boolean) { autoCorrectEnabled = enabled }
     fun setIncognito(enabled: Boolean) { incognitoMode = enabled }
     fun setPredictiveText(enabled: Boolean) { predictiveTextEnabled = enabled }
+
+    // ── Compose-facing public facades ────────────────────────────────────────
+    // QwertyGrid calls these directly instead of going via KeyData/handleKeyPress.
+    // Each one delegates to the existing private handler so autocorrect, learning,
+    // TypingDNA, and suggestions all fire normally.
+
+    /** Commit a single alphabetic or punctuation character. */
+    fun handleCharacter(char: Char) {
+        val connection = inputConnection ?: return
+        // Replicate handleLetter logic without constructing a full KeyData.
+        // wordComposer.addCharacter handles shift-state and returns the committed char.
+        val committed = wordComposer.addCharacter(char)
+        connection.commitText(committed.toString(), 1)
+        hapticFeedback.keyPress()
+        requestPredictions()
+    }
+
+    /** Delete the character before the cursor, with autocorrect-undo support. */
+    fun handleBackspace() {
+        val connection = inputConnection ?: return
+        handleDelete(connection)
+    }
+
+    /** Commit a space, triggering autocorrect and word-learning. */
+    fun handleSpace() {
+        val connection = inputConnection ?: return
+        handleSpace(connection)
+    }
+
+    /** Perform the editor action (Send / Search / Go / newline). */
+    fun handleEnter() {
+        val connection = inputConnection ?: return
+        handleEnter(connection)
+    }
 }

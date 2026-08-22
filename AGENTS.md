@@ -89,7 +89,7 @@ Rules for every agent:
 | Layer | Technology | Why |
 |-------|-----------|-----|
 | IME Service | Kotlin | Modern, null-safe, Google-recommended for IME |
-| UI Rendering | Custom View (Canvas) | 60fps animations, no framework overhead |
+| UI Rendering | Jetpack Compose | Modern UI toolkit, 60fps gesture rendering, dynamic layout |
 | Prediction Engine | Rust → JNI (ARM64) | 50x faster than Java for pattern matching |
 | Swipe Engine | Kotlin (ported from AnySoftKeyboard) | Proven algorithm, no proprietary libs |
 | Storage | Room DB + SharedPreferences | Room for structured data, SharedPrefs for settings |
@@ -266,7 +266,7 @@ adb install -r app/build/outputs/apk/release/app-release.apk
 | `AkashBoardIME.kt` | IME lifecycle, input connection, view management |
 | `OnboardingActivity.kt` | First-run setup (enable keyboard, switch keyboard) |
 | `SettingsActivity.kt` | Companion app with fragment navigation |
-| `KeyboardView.kt` | Renders keyboard layout via Canvas, handles touch events |
+| `ComposeKeyboardView.kt` | Renders keyboard layout via Compose, tracks gestures via pointerInput |
 | `SuggestionBar.kt` | Renders prediction strip, handles suggestion taps |
 | `InputHandler.kt` | Processes key events, manages word composition, autocorrect |
 | `WordComposer.kt` | Current word tracking, shift states, context |

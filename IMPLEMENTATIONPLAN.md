@@ -200,3 +200,8 @@ d731747 feat: Week 1 scaffold — Android project + Rust prediction engine
 | Swipe accuracy | Port proven ASK algorithm | ✅ Swipe works |
 | Storage overflow | Budget in Week 1 | ✅ <2MB |
 | Device compatibility | Test on ARM64 | ✅ ARM64 only |
+
+
+## V2: Jetpack Compose Rewrite (Agentic Upgrade)
+**Status:** ✅ Complete
+**Details:** Demolished all legacy XML layouts and custom Canvas views. Rebuilt the entire keyboard frontend and settings app using 100% Jetpack Compose for superior rendering, mathematical auto-scaling, and reactive UI. Swipes are now tracked at 60fps via pointerInput and feed directly into the JNI bridge.
