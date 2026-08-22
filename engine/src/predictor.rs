@@ -21,6 +21,25 @@
 
 use std::collections::HashMap;
 
+/// Owned persistence shape (deserialize target).
+#[derive(serde::Serialize, serde::Deserialize)]
+struct TrigramRow {
+    p1: String,
+    p2: String,
+    w: String,
+    c: u32,
+}
+
+/// JSON persistence shape. Trigram tuple keys are flattened to rows because
+/// JSON map keys must be strings.
+#[derive(serde::Serialize, serde::Deserialize)]
+struct SerializedModel {
+    unigrams: HashMap<String, u32>,
+    bigram_index: HashMap<String, Vec<(String, u32)>>,
+    trigrams: Vec<TrigramRow>,
+    total_words: u64,
+}
+
 /// N-gram prediction engine.
 pub struct Predictor {
     /// Unigram frequencies: word → count
@@ -210,6 +229,59 @@ impl Predictor {
     /// Get the total number of bigrams.
     pub fn bigram_count(&self) -> usize {
         self.bigram_index.values().map(|v| v.len()).sum()
+    }
+
+    /// Serialize engine state to JSON bytes (for persistence).
+    /// ponytail: trigram tuple-keys can't be JSON map keys, so they're
+    /// flattened to [prev_prev, prev, next, count] arrays. Upgrade path:
+    /// bincode/flatbuffers if JSON size becomes a problem.
+    pub fn to_json(&self) -> Vec<u8> {
+        let trigrams: Vec<TrigramRow> = self
+            .trigram_index
+            .iter()
+            .flat_map(|((p1, p2), entries)| {
+                entries.iter().map(move |(w, c)| TrigramRow {
+                    p1: p1.clone(),
+                    p2: p2.clone(),
+                    w: w.clone(),
+                    c: *c,
+                })
+            })
+            .collect();
+        let payload = SerializedModel {
+            unigrams: self.unigrams.clone(),
+            bigram_index: self.bigram_index.clone(),
+            trigrams,
+            total_words: self.total_words,
+        };
+        serde_json::to_vec(&payload).unwrap_or_default()
+    }
+
+    /// Restore engine state from JSON bytes.
+    /// Returns false on corrupt data (engine left unchanged).
+    pub fn from_json(&mut self, data: &[u8]) -> bool {
+        match serde_json::from_slice::<SerializedModel>(data) {
+            Ok(m) => {
+                let mut trigram_index = HashMap::new();
+                for row in m.trigrams {
+                    trigram_index
+                        .entry((row.p1, row.p2))
+                        .or_insert_with(Vec::new)
+                        .push((row.w, row.c));
+                }
+                self.unigrams = m.unigrams;
+                self.bigram_index = m.bigram_index;
+                self.trigram_index = trigram_index;
+                self.total_words = m.total_words;
+                true
+            }
+            Err(_) => false,
+        }
+    }
+
+    /// Approximate serialized size in bytes.
+    pub fn serialized_size(&self) -> usize {
+        self.to_json().len()
     }
 
     /// Get memory usage estimate in bytes.

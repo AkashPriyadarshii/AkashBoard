@@ -265,12 +265,11 @@ mod learner_extra_tests {
         let mut l = Learner::new();
         // Learn a word very long ago
         l.learn_word("ancient", "", 1000);
+        l.learn_word("fresh", "", 1000 + 90 * 86400);
         // Apply decay with very small max age
         l.apply_decay(1000 + 90 * 86400, 30);
-        // After decay, the pattern should still exist but possibly with reduced frequency
-        let _patterns = l.get_time_patterns(0, 10);
-        // The key assertion: decay was applied without crashing
-        assert!(l.memory_usage() > 0);
+        // Single-use old pattern fully decays to 0 and is pruned; recent survives
+        assert_eq!(l.pattern_count(), 1);
     }
 
     #[test]
