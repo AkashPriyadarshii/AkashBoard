@@ -59,6 +59,12 @@ class InputHandler(
     fun handleKeyPress(key: KeyData): KeyPressResult {
         val connection = inputConnection ?: return KeyPressResult.None
 
+        // Route special keys by CODE first — "ABC" shares KeyType.SYMBOLS with
+        // "?123" but must switch layouts in the opposite direction.
+        if (key.code == KeyCodes.QWERTY) {
+            return handleLayoutSwitch(KeyboardLayoutType.QWERTY)
+        }
+
         val result = when (key.type) {
             KeyType.LETTER -> handleLetter(connection, key)
             KeyType.SPACE -> handleSpace(connection)
@@ -81,13 +87,17 @@ class InputHandler(
     }
 
     private fun handleLetter(connection: InputConnection, key: KeyData): KeyPressResult {
+        // Symbols layout keys are literal characters — never shift/lowercase them.
+        if (currentLayout != KeyboardLayoutType.QWERTY) {
+            val literal = key.label[0]
+            connection.commitText(literal.toString(), 1)
+            hapticFeedback.keyPress()
+            return KeyPressResult.Character(literal.toString())
+        }
+
         val char = key.label[0]
         val committed = wordComposer.addCharacter(char)
         connection.commitText(committed.toString(), 1)
-
-        if (wordComposer.shiftState == ShiftState.ONE) {
-            wordComposer.clearShift()
-        }
 
         hapticFeedback.keyPress()
         return KeyPressResult.Character(committed.toString())

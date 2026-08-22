@@ -138,13 +138,18 @@ class SwipeDetectorTest {
     // ── Constants ─────────────────────────────────────────────────────────
 
     @Test
-    fun `MAX_KEY_DISTANCE is 50`() {
-        assertEquals(50f, SwipeDetector.MAX_KEY_DISTANCE)
+    fun `MIN_POINT_DISTANCE is 8`() {
+        assertEquals(8f, SwipeDetector.MIN_POINT_DISTANCE)
     }
 
     @Test
-    fun `MIN_POINT_DISTANCE is 8`() {
-        assertEquals(8f, SwipeDetector.MIN_POINT_DISTANCE)
+    fun `points far from all keys are dropped`() {
+        // Key centers ~100px apart; a point 500px away exceeds maxKeyDistance
+        val detector = SwipeDetector(mapOf('a' to PointF(0f, 0f), 'b' to PointF(100f, 0f)))
+        detector.onTouchDown(500f, 500f)
+        detector.onTouchMove(510f, 500f)
+        val results = detector.onTouchUp()
+        assertTrue("Gesture nowhere near any key should produce no word", results.isEmpty())
     }
 
     // ── Edge Cases ────────────────────────────────────────────────────────

@@ -37,6 +37,23 @@ class SwipeDetector(
     /** Map of character to key center positions */
     private val keyPositions: Map<Char, PointF>
 ) {
+    /**
+     * Max distance (px) a gesture point may sit from the nearest key center.
+     * ponytail: derived from actual key spacing — half the min gap between
+     * adjacent centers, clamped to [40px, 200px] — so it works at any density.
+     */
+    private val maxKeyDistance: Float = run {
+        val centers = keyPositions.values
+        var minGap = Float.MAX_VALUE
+        for (a in centers) for (b in centers) {
+            if (a != b) {
+                val d = distanceBetween(a, b)
+                if (d < minGap) minGap = d
+            }
+        }
+        if (minGap.isInfinite() || minGap <= 0f) 120f
+        else (minGap / 2f).coerceIn(40f, 200f)
+    }
     /** Collected gesture points */
     private val points = mutableListOf<PointF>()
 
@@ -131,8 +148,9 @@ class SwipeDetector(
         for ((char, keyCenter) in keyPositions) {
             val distance = distanceBetween(point, keyCenter)
 
-            // Only match if within reasonable distance (50px threshold)
-            if (distance < MAX_KEY_DISTANCE && distance < bestDistance) {
+            // Only match if within a reasonable distance of the key center.
+            // ponytail: fixed px threshold; scale by density if mid-key points drop out
+            if (distance < maxKeyDistance && distance < bestDistance) {
                 bestDistance = distance
                 bestChar = char
             }
@@ -220,9 +238,6 @@ class SwipeDetector(
     // ── Constants ─────────────────────────────────────────────────────────
 
     companion object {
-        /** Maximum distance from a touch point to a key center (px) */
-        const val MAX_KEY_DISTANCE = 50f
-
         /** Minimum distance between consecutive gesture points (px) */
         const val MIN_POINT_DISTANCE = 8f
     }
