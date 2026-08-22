@@ -209,16 +209,16 @@ class KeyboardView @JvmOverloads constructor(
         touchStartX = x; touchStartY = y; longPressTriggered = false; isSwipeGesture = false
         val key = findKeyAt(x, y); pressedKey = key; invalidate()
         if (key == null) return
-        if (key.type == KeyType.LETTER) { swipeDetector?.onTouchDown(x, y); swipeTrail.start(x, y) }
-        if (KeyRepeatManager.supportsRepeat(key.type)) keyRepeatManager.start()
-        if (key.type == KeyType.LETTER) {
+        if (key.type == KeyType.LETTER && swipeTypingEnabled) { swipeDetector?.onTouchDown(x, y); swipeTrail.start(x, y) }
+        if (longPressRepeatEnabled && KeyRepeatManager.supportsRepeat(key.type)) keyRepeatManager.start()
+        if (key.type == KeyType.LETTER && swipeTypingEnabled) {
             postDelayed({
                 if (pressedKey == key && !longPressTriggered && !isSwipeGesture) {
                     longPressTriggered = true; popupPreviewManager.show(key, displayDensity)
                 }
             }, PopupPreviewManager.LONG_PRESS_DELAY)
         }
-        if (key.type == KeyType.SPACE) { isSpacebarGesture = true; spacebarCursorManager.startTracking(x) }
+        if (key.type == KeyType.SPACE && spacebarCursorEnabled) { isSpacebarGesture = true; spacebarCursorManager.startTracking(x) }
     }
 
     private fun handleTouchMove(event: MotionEvent) {
@@ -281,6 +281,20 @@ class KeyboardView @JvmOverloads constructor(
     fun getCurrentLayoutType(): KeyboardLayoutType = currentLayoutType
     fun updateRepeatTiming(delayMs: Long, rateMs: Long) { keyRepeatManager.updateTiming(delayMs, rateMs) }
     fun setCornerRadius(radiusDp: Int) { cornerRadius = radiusDp * displayDensity; invalidate() }
+    fun setKeySpacing(spacingDp: Int) {
+        LayoutCalculator.keyGapOverrideDp = spacingDp.toFloat()
+        requestLayout(); invalidate()
+    }
+    fun setKeyboardHeight(heightPx: Int) {
+        LayoutCalculator.keyHeightOverrideDp = heightPx / displayDensity
+        requestLayout(); invalidate()
+    }
+
+    /** Feature gates wired from settings */
+    var swipeTypingEnabled = true
+    var spacebarCursorEnabled = true
+    var longPressRepeatEnabled = true
+
     fun destroy() { keyRepeatManager.destroy() }
 
     interface OnKeyPressedListener { fun onKeyPressed(key: KeyData) }

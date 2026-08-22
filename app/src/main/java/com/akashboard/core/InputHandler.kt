@@ -30,6 +30,10 @@ class InputHandler(
         private set
     var autoCorrectEnabled: Boolean = true
     var incognitoMode: Boolean = false
+    var predictiveTextEnabled: Boolean = true
+    var learningEnabled: Boolean = true
+
+    private fun shouldLearn(): Boolean = !incognitoMode && learningEnabled
 
     // Track last autocorrect for undo
     private var lastAutoCorrectedWord: String? = null
@@ -114,7 +118,7 @@ class InputHandler(
         }
 
         // Learn the word
-        if (!incognitoMode && !word.isNullOrBlank()) {
+        if (shouldLearn() && !word.isNullOrBlank()) {
             val context = wordComposer.getContextWords().joinToString(" ")
             PredictorBridge.learn(word, context, System.currentTimeMillis())
         }
@@ -217,6 +221,7 @@ class InputHandler(
     // ── Predictions ───────────────────────────────────────────────────────
 
     private fun requestPredictions() {
+        if (!predictiveTextEnabled) { onSuggestionsUpdate(emptyList()); return }
         val context = wordComposer.getContext()
         if (context.isBlank()) { onSuggestionsUpdate(emptyList()); return }
         val predictions = PredictorBridge.predict(context, 3)
@@ -244,4 +249,5 @@ class InputHandler(
     fun reset() { wordComposer.reset(); currentLayout = KeyboardLayoutType.QWERTY }
     fun setAutoCorrect(enabled: Boolean) { autoCorrectEnabled = enabled }
     fun setIncognito(enabled: Boolean) { incognitoMode = enabled }
+    fun setPredictiveText(enabled: Boolean) { predictiveTextEnabled = enabled }
 }

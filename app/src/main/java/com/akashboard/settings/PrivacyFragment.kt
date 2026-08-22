@@ -14,6 +14,10 @@ import android.widget.Toast
 import androidx.preference.Preference
 import androidx.preference.PreferenceFragmentCompat
 import com.akashboard.R
+import com.akashboard.data.ClipboardDB
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 class PrivacyFragment : PreferenceFragmentCompat() {
 
@@ -26,7 +30,11 @@ class PrivacyFragment : PreferenceFragmentCompat() {
                 .setTitle("Clear Clipboard History")
                 .setMessage("This will permanently delete all saved clipboard items. Pinned items will be kept.")
                 .setPositiveButton("Clear") { _, _ ->
-                    // Clear will happen via ClipboardDB when keyboard restarts
+                    CoroutineScope(Dispatchers.IO).launch {
+                        try {
+                            ClipboardDB.getDatabase(requireContext()).clipboardDao().clearUnpinned()
+                        } catch (_: Exception) { /* DB may not exist yet */ }
+                    }
                     Toast.makeText(requireContext(), "Clipboard history cleared", Toast.LENGTH_SHORT).show()
                 }
                 .setNegativeButton("Cancel", null)

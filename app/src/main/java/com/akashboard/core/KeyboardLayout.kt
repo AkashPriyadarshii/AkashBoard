@@ -61,11 +61,15 @@ data class CalculatedLayout(
  */
 object LayoutCalculator {
 
-    private const val KEY_GAP_DP = 6f
-    private const val KEY_HEIGHT_DP = 46f
+    private const val DEFAULT_KEY_GAP_DP = 6f
+    private const val DEFAULT_KEY_HEIGHT_DP = 46f
     private const val BOTTOM_ROW_HEIGHT_DP = 52f
     private const val SUGGESTION_BAR_HEIGHT_DP = 48f
     private const val HITBOX_EXPANSION_DP = 4f
+
+    /** Current overrides in dp; null uses defaults. */
+    @Volatile var keyGapOverrideDp: Float? = null
+    @Volatile var keyHeightOverrideDp: Float? = null
 
     /**
      * Calculate key positions for a given screen width.
@@ -76,8 +80,8 @@ object LayoutCalculator {
      * @return CalculatedLayout with positioned keys
      */
     fun calculate(layout: KeyboardLayoutDef, screenWidth: Float, density: Float): CalculatedLayout {
-        val keyGap = KEY_GAP_DP * density
-        val keyHeight = KEY_HEIGHT_DP * density
+        val keyGap = (keyGapOverrideDp ?: DEFAULT_KEY_GAP_DP) * density
+        val keyHeight = (keyHeightOverrideDp ?: DEFAULT_KEY_HEIGHT_DP) * density
         val bottomRowHeight = BOTTOM_ROW_HEIGHT_DP * density
         val suggestionBarHeight = SUGGESTION_BAR_HEIGHT_DP * density
         val hitboxExpansion = HITBOX_EXPANSION_DP * density

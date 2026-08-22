@@ -20,8 +20,8 @@ package com.akashboard.engine
  */
 object PredictorBridge {
 
-    private var isLoaded = false
-    private var isInitialized = false
+    @Volatile private var isLoaded = false
+    @Volatile private var isInitialized = false
 
     init {
         try {
