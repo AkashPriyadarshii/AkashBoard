@@ -137,12 +137,6 @@ class PrivacyDashboard(
                 description = "Save copied text for quick access",
                 isEnabled = settingsProvider.clipboardHistoryEnabled,
                 action = PrivacyAction.CLIPBOARD
-            ),
-            PrivacyControl(
-                name = "Network Access",
-                description = "Allow network for voice input (optional)",
-                isEnabled = settingsProvider.networkAccess,
-                action = PrivacyAction.NETWORK
             )
         )
     }
@@ -155,31 +149,28 @@ class PrivacyDashboard(
     }
 
     /**
-     * Check if keyboard has network permission.
-     */
-    fun hasNetworkPermission(): Boolean {
-        return try {
-            val packageInfo = context.packageManager.getPackageInfo(context.packageName, 0)
-            val permissions = packageInfo.requestedPermissions ?: emptyArray()
-            permissions.any { it == "android.permission.INTERNET" }
-        } catch (e: Exception) {
-            false
-        }
-    }
-
-    /**
      * Generate privacy report.
      */
     fun generateReport(): PrivacyReport {
+        // ponytail: PrivacyReport kept for API compat; network fields dropped with the
+        // dead network_access setting (app has no INTERNET permission by design).
+        val categories = getDataCategories()
         return PrivacyReport(
-            categories = getDataCategories(),
+            categories = categories,
             notCollected = getNotCollected(),
             controls = getPrivacyControls(),
             totalSizeKB = getTotalDataSizeKB(),
-            hasNetworkPermission = hasNetworkPermission(),
             isIncognito = settingsProvider.incognitoMode
         )
     }
+
+    data class PrivacyReport(
+        val categories: List<DataCategory>,
+        val notCollected: List<String>,
+        val controls: List<PrivacyControl>,
+        val totalSizeKB: Long,
+        val isIncognito: Boolean
+    )
 
     // ── Size Estimation ───────────────────────────────────────────────────
 
@@ -250,16 +241,6 @@ class PrivacyDashboard(
     enum class PrivacyAction {
         INCOGNITO,
         LEARNING,
-        CLIPBOARD,
-        NETWORK
+        CLIPBOARD
     }
-
-    data class PrivacyReport(
-        val categories: List<DataCategory>,
-        val notCollected: List<String>,
-        val controls: List<PrivacyControl>,
-        val totalSizeKB: Long,
-        val hasNetworkPermission: Boolean,
-        val isIncognito: Boolean
-    )
 }

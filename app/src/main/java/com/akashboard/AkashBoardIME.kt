@@ -297,10 +297,11 @@ class AkashBoardIME : InputMethodService() {
                 inputHandler?.setAutoCorrect(sp.autoCorrectEnabled)
                 inputHandler?.setPredictiveText(sp.predictiveTextEnabled)
                 inputHandler?.setIncognito(sp.incognitoMode)
-                inputHandler?.setLearningEnabled(sp.learningEnabled)
+                inputHandler?.learningEnabled = sp.learningEnabled
                 keyboardView?.updateRepeatTiming(sp.keyRepeatDelay.toLong(), sp.keyRepeatRate.toLong())
                 keyboardView?.setCornerRadius(sp.keyCornerRadius)
                 keyboardView?.setKeySpacing(sp.keySpacing)
+                keyboardView?.setKeyboardHeight(sp.keyboardHeight)
                 keyboardView?.swipeTypingEnabled = sp.swipeTypingEnabled
                 keyboardView?.spacebarCursorEnabled = sp.spacebarCursorEnabled
                 keyboardView?.longPressRepeatEnabled = sp.longPressRepeatEnabled

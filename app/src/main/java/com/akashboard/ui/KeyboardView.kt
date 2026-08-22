@@ -285,6 +285,10 @@ class KeyboardView @JvmOverloads constructor(
         LayoutCalculator.keyGapOverrideDp = spacingDp.toFloat()
         requestLayout(); invalidate()
     }
+    fun setKeyboardHeight(heightPx: Int) {
+        LayoutCalculator.keyHeightOverrideDp = heightPx / displayDensity
+        requestLayout(); invalidate()
+    }
 
     /** Feature gates wired from settings */
     var swipeTypingEnabled = true

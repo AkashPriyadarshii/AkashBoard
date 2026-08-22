@@ -250,5 +250,4 @@ class InputHandler(
     fun setAutoCorrect(enabled: Boolean) { autoCorrectEnabled = enabled }
     fun setIncognito(enabled: Boolean) { incognitoMode = enabled }
     fun setPredictiveText(enabled: Boolean) { predictiveTextEnabled = enabled }
-    fun setLearningEnabled(enabled: Boolean) { learningEnabled = enabled }
 }
