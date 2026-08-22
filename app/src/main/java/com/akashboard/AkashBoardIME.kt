@@ -56,6 +56,7 @@ class AkashBoardIME : InputMethodService() {
     private var typingStats: TypingStats? = null
     private var typingDNA: TypingDNA? = null
     private var timeAwarePredictor: TimeAwarePredictor? = null
+    private var settingsProvider: com.akashboard.settings.KeyboardSettingsProvider? = null
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
@@ -74,9 +75,19 @@ class AkashBoardIME : InputMethodService() {
                 Log.w(TAG, "Rust engine init failed, predictions disabled", e)
             }
 
+            // Initialize settings provider
+            try {
+                settingsProvider = com.akashboard.settings.KeyboardSettingsProvider(this)
+            } catch (e: Exception) {
+                Log.w(TAG, "Settings provider init failed", e)
+            }
+
             // Initialize haptic feedback
             try {
                 hapticFeedback = HapticFeedback(this)
+                settingsProvider?.let { sp ->
+                    hapticFeedback?.setEnabled(sp.vibrateOnKeypress)
+                }
             } catch (e: Exception) {
                 Log.w(TAG, "Haptic feedback init failed", e)
             }
@@ -123,6 +134,11 @@ class AkashBoardIME : InputMethodService() {
                     onLayoutChange = { layout -> keyboardView?.setLayout(layout) },
                     onSuggestionsUpdate = { suggestions -> suggestionBar?.setSuggestions(suggestions) }
                 )
+                // Wire typing settings
+                settingsProvider?.let { sp ->
+                    inputHandler?.setAutoCorrect(sp.autoCorrectEnabled)
+                    inputHandler?.setIncognito(sp.incognitoMode)
+                }
             } catch (e: Exception) {
                 Log.e(TAG, "InputHandler init failed", e)
             }

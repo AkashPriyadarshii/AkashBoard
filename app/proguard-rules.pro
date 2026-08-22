@@ -36,6 +36,22 @@
 # Keep settings fragments
 -keep class com.akashboard.settings.** { *; }
 
+# Keep activities
+-keep class com.akashboard.OnboardingActivity { *; }
+-keep class com.akashboard.SettingsActivity { *; }
+
+# Keep theme classes
+-keep class com.akashboard.theme.** { *; }
+
+# Keep analytics classes
+-keep class com.akashboard.analytics.** { *; }
+
+# Keep core classes
+-keep class com.akashboard.core.** { *; }
+
+# Keep UI classes
+-keep class com.akashboard.ui.** { *; }
+
 # General
 -keepattributes Signature
 -keepattributes Exceptions

@@ -29,6 +29,7 @@ import com.akashboard.core.PopupState
 import com.akashboard.core.ShiftState
 import com.akashboard.core.SpacebarCursorManager
 import com.akashboard.core.SwipeDetector
+import com.akashboard.core.SwipeDictionary
 import com.akashboard.core.SwipeTrail
 import com.akashboard.theme.ThemeColors
 
@@ -243,15 +244,16 @@ class KeyboardView @JvmOverloads constructor(
         if (popupState.visible) { popupPreviewManager.update(y, displayDensity); return }
         val key = findKeyAt(x, y)
         if (key != pressedKey) {
+            val prevType = pressedKey?.type
             pressedKey = key
-            if (key == null || key.type != pressedKey?.type) { keyRepeatManager.stop(); popupPreviewManager.forceDismiss() }
+            if (key == null || key.type != prevType) { keyRepeatManager.stop(); popupPreviewManager.forceDismiss() }
             invalidate()
         }
     }
 
     private fun handleTouchUp(event: MotionEvent) {
         if (isSwipeGesture) {
-            val results = swipeDetector?.onTouchUp() ?: emptyList()
+            val results = swipeDetector?.onTouchUp(dictionary = SwipeDictionary.getWords()) ?: emptyList()
             swipeTrail.end()
             if (results.isNotEmpty()) onSwipeListener?.onSwipeCompleted(results[0])
             isSwipeGesture = false; pressedKey = null; invalidate(); return

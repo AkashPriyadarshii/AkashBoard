@@ -42,7 +42,12 @@ class SettingsMainFragment : Fragment() {
             setPadding(0, (16 * density).toInt(), 0, 0)
 
             // Keyboard status card
-            addView(createStatusCard(density))
+            addView(createStatusCard(density)).apply {
+                setOnClickListener {
+                    val intent = android.content.Intent(android.provider.Settings.ACTION_INPUT_METHOD_SETTINGS)
+                    startActivity(intent)
+                }
+            }
 
             // Category items
             addView(createCategoryItem(

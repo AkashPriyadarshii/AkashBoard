@@ -232,8 +232,13 @@ class OnboardingActivity : AppCompatActivity() {
 
     private fun handleAction() {
         if (allDone) {
-            // Both steps done — launch settings app
-            launchMainApp()
+            // Both steps done — try to open a text field
+            try {
+                val intent = Intent(android.provider.Settings.ACTION_INPUT_METHOD_SETTINGS)
+                startActivity(intent)
+            } catch (e: Exception) {
+                launchMainApp()
+            }
             return
         }
 

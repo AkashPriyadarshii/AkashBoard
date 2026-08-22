@@ -217,9 +217,11 @@ impl Predictor {
 /// Calculate the Levenshtein edit distance between two strings.
 ///
 /// Used for auto-correction to find the closest known word.
-fn edit_distance(a: &str, b: &str) -> usize {
-    let a_len = a.len();
-    let b_len = b.len();
+pub fn edit_distance(a: &str, b: &str) -> usize {
+    let a_chars: Vec<char> = a.chars().collect();
+    let b_chars: Vec<char> = b.chars().collect();
+    let a_len = a_chars.len();
+    let b_len = b_chars.len();
 
     if a_len == 0 {
         return b_len;
@@ -235,9 +237,6 @@ fn edit_distance(a: &str, b: &str) -> usize {
     for j in 0..=b_len {
         prev[j] = j;
     }
-
-    let a_chars: Vec<char> = a.chars().collect();
-    let b_chars: Vec<char> = b.chars().collect();
 
     for i in 1..=a_len {
         curr[0] = i;
