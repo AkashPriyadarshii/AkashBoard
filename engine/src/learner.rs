@@ -94,10 +94,11 @@ impl Learner {
 
         let hour = ((timestamp / 3600) % 24) as usize;
 
-        let entry = self.patterns.entry(lower).or_insert_with(|| {
-            let mut e = PatternEntry::new(timestamp);
-            e.time_pattern[hour] = 1;
-            e
+        let entry = self.patterns.entry(lower).or_insert_with(|| PatternEntry {
+            frequency: 0,
+            last_used: timestamp,
+            time_pattern: [0; 24],
+            context: ContextType::Neutral,
         });
 
         entry.frequency += 1;
@@ -256,8 +257,7 @@ mod tests {
         // Apply decay (max 30 days)
         l.apply_decay(1000000 + 90 * 86400, 30);
 
-        // old_word should have reduced frequency
-        let old_entry = l.patterns.get("old_word").unwrap();
-        assert!(old_entry.frequency < 2); // Was 2, now decayed
+        // Single-use word fully decays to 0 and gets pruned
+        assert!(!l.patterns.contains_key("old_word"));
     }
 }

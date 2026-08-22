@@ -22,16 +22,33 @@ pub mod corrector;
 use jni::JNIEnv;
 use jni::objects::{JClass, JString};
 use jni::sys::{jboolean, jstring, jint, jlong};
-use std::sync::{Mutex, OnceLock};
+use std::{fs, path::PathBuf, sync::{Mutex, OnceLock}};
 
 /// Global prediction engine state.
 /// Initialized once, reused across all JNI calls.
 /// Wrapped in Mutex for interior mutability (needed for learn/learn_error).
 static ENGINE: OnceLock<Mutex<predictor::Predictor>> = OnceLock::new();
 
-/// Get or initialize the prediction engine.
+/// Directory for the persisted model file (set by nativeInit).
+static CONFIG_DIR: OnceLock<String> = OnceLock::new();
+
+/// Path to the persisted model file.
+fn model_path() -> Option<PathBuf> {
+    CONFIG_DIR.get().map(|dir| PathBuf::from(dir).join("model.json"))
+}
+
+/// Get the prediction engine, recovering from a poisoned lock instead of
+/// panicking (a panic in any JNI call would otherwise crash-loop the IME).
 fn get_engine() -> &'static Mutex<predictor::Predictor> {
     ENGINE.get_or_init(|| Mutex::new(predictor::Predictor::new()))
+}
+
+/// Lock the engine, recovering from poison by taking inner data.
+fn engine() -> std::sync::MutexGuard<'static, predictor::Predictor> {
+    match get_engine().lock() {
+        Ok(g) => g,
+        Err(poisoned) => poisoned.into_inner(),
+    }
 }
 
 // ── JNI Functions ─────────────────────────────────────────────────────────
@@ -41,13 +58,21 @@ fn get_engine() -> &'static Mutex<predictor::Predictor> {
 /// Called once when PredictorBridge is loaded in Kotlin.
 #[no_mangle]
 pub extern "system" fn Java_com_akashboard_engine_PredictorBridge_nativeInit(
-    _env: JNIEnv,
+    mut env: JNIEnv,
     _class: JClass,
-    _config_path: JString,
+    config_path: JString,
 ) {
-    // Initialize the engine (already done via OnceLock)
-    // Future: Load model from config_path
-    let _ = get_engine();
+    if let Ok(dir) = env.get_string(&config_path) {
+        let dir: String = dir.into();
+        let _ = CONFIG_DIR.set(dir);
+    }
+    let mut engine = engine();
+    // Auto-load persisted model if present.
+    if let Some(path) = model_path() {
+        if let Ok(data) = fs::read(&path) {
+            engine.from_json(&data);
+        }
+    }
 }
 
 /// Destroy the prediction engine and free resources.
@@ -84,7 +109,7 @@ pub extern "system" fn Java_com_akashboard_engine_PredictorBridge_nativePredict(
     };
 
     let k = top_k.clamp(1, 5) as usize;
-    let engine = get_engine().lock().unwrap();
+    let engine = engine();
     let predictions = engine.predict(&context_str, k);
     let result = predictions.join(",");
 
@@ -122,7 +147,7 @@ pub extern "system" fn Java_com_akashboard_engine_PredictorBridge_nativeCorrect(
         Err(_) => return empty_string(&mut env),
     };
 
-    let engine = get_engine().lock().unwrap();
+    let engine = engine();
     let corrected = engine.correct(&word_str, &context_str);
 
     match env.new_string(&corrected) {
@@ -161,7 +186,7 @@ pub extern "system" fn Java_com_akashboard_engine_PredictorBridge_nativeLearn(
         Err(_) => return 0,
     };
 
-    let mut engine = get_engine().lock().unwrap();
+    let mut engine = engine();
     engine.learn(&word_str, &context_str) as jboolean
 }
 
@@ -219,8 +244,13 @@ pub extern "system" fn Java_com_akashboard_engine_PredictorBridge_nativeSaveMode
     _env: JNIEnv,
     _class: JClass,
 ) -> jboolean {
-    // Future: Implement model serialization
-    1
+    let Some(path) = model_path() else { return 0 };
+    let engine = engine();
+    let data = engine.to_json();
+    match fs::write(&path, data) {
+        Ok(_) => 1,
+        Err(_) => 0,
+    }
 }
 
 /// Load the prediction model from disk.
@@ -232,8 +262,17 @@ pub extern "system" fn Java_com_akashboard_engine_PredictorBridge_nativeLoadMode
     _env: JNIEnv,
     _class: JClass,
 ) -> jboolean {
-    // Future: Implement model deserialization
-    1
+    let Some(path) = model_path() else { return 0 };
+    match fs::read(&path) {
+        Ok(data) => {
+            let mut engine = engine();
+            if !engine.from_json(&data) {
+                return 0;
+            }
+            1
+        }
+        Err(_) => 0,
+    }
 }
 
 /// Get current storage size in bytes.
@@ -242,8 +281,8 @@ pub extern "system" fn Java_com_akashboard_engine_PredictorBridge_nativeGetStora
     _env: JNIEnv,
     _class: JClass,
 ) -> jlong {
-    // Future: Calculate actual storage size
-    0i64
+    let engine = engine();
+    engine.serialized_size() as jlong
 }
 
 /// Prune old patterns that haven't been used recently.
@@ -265,7 +304,10 @@ pub extern "system" fn Java_com_akashboard_engine_PredictorBridge_nativeClearAll
     _env: JNIEnv,
     _class: JClass,
 ) {
-    // Future: Reset engine state
+    *engine() = predictor::Predictor::new();
+    if let Some(path) = model_path() {
+        let _ = fs::remove_file(path);
+    }
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────
@@ -311,5 +353,110 @@ mod tests {
         // Unknown word should be returned as-is
         let result = engine.correct("xyzabc", "");
         assert_eq!(result, "xyzabc");
+    }
+}
+
+// ── Self-check ────────────────────────────────────────────────────────────
+#[cfg(test)]
+mod persistence_tests {
+    use crate::predictor::Predictor;
+
+    #[test]
+    fn json_roundtrip_preserves_state() {
+        let mut p = Predictor::new();
+        p.learn("store", "going to the");
+        p.learn("store", "going to the");
+        p.learn("market", "going to the");
+        let data = p.to_json();
+        assert!(!data.is_empty());
+
+        let mut restored = Predictor::new();
+        assert!(restored.from_json(&data));
+        assert_eq!(restored.word_count(), 2);
+        // Bigram survived: "the" predicts "store"
+        let preds = restored.predict("going to the", 2);
+        assert!(preds.contains(&"store".to_string()));
+    }
+
+    #[test]
+    fn from_json_rejects_corrupt_data() {
+        let mut p = Predictor::new();
+        p.learn("hello", "");
+        let before = p.word_count();
+        assert!(!p.from_json(b"{corrupt"));
+        assert_eq!(p.word_count(), before);
+    }
+}
+
+// ── Personal correction JNI (Learner-backed) ─────────────────────────────
+
+/// Learn a personal error pattern: user typed `wrong`, meant `correct`.
+#[no_mangle]
+pub extern "system" fn Java_com_akashboard_engine_PredictorBridge_nativeLearnError(
+    mut env: JNIEnv,
+    _class: JClass,
+    wrong: JString,
+    correct: JString,
+) -> jboolean {
+    let wrong: String = match env.get_string(&wrong) {
+        Ok(s) => s.into(),
+        Err(_) => return 0,
+    };
+    let correct: String = match env.get_string(&correct) {
+        Ok(s) => s.into(),
+        Err(_) => return 0,
+    };
+    if wrong.is_empty() || correct.is_empty() {
+        return 0;
+    }
+    let mut engine = engine();
+    engine.learn_error(&wrong, &correct);
+    1
+}
+
+/// Get the learned correction for a word, or "" if none.
+#[no_mangle]
+pub extern "system" fn Java_com_akashboard_engine_PredictorBridge_nativeGetCorrection(
+    mut env: JNIEnv,
+    _class: JClass,
+    word: JString,
+) -> jstring {
+    let word: String = match env.get_string(&word) {
+        Ok(s) => s.into(),
+        Err(_) => return empty_string(&mut env),
+    };
+    let engine = engine();
+    let result = engine.get_correction(&word).unwrap_or("").to_string();
+    match env.new_string(&result) {
+        Ok(s) => s.into_raw(),
+        Err(_) => empty_string(&mut env),
+    }
+}
+
+#[cfg(test)]
+mod correction_tests {
+    use crate::predictor::Predictor;
+
+    #[test]
+    fn learn_error_roundtrip_and_persistence() {
+        let mut p = Predictor::new();
+        p.learn_error("teh", "the");
+        assert_eq!(p.get_correction("TEH"), Some("the"));
+        assert_eq!(p.get_correction("hello"), None);
+
+        // Survives persistence
+        let mut restored = Predictor::new();
+        assert!(restored.from_json(&p.to_json()));
+        assert_eq!(restored.get_correction("teh"), Some("the"));
+    }
+
+    #[test]
+    fn old_model_without_corrections_still_loads() {
+        // SerializedModel from before the corrections field existed
+        let legacy = br#"{"unigrams":{"hi":1},"bigram_index":{},"trigrams":[],"total_words":1}"#;
+        let mut p = Predictor::new();
+        assert!(p.from_json(legacy));
+        assert_eq!(p.word_count(), 1);
+        assert_eq!(p.get_correction("teh"), None);
     }
 }

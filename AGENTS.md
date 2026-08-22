@@ -4,6 +4,35 @@
 
 ---
 
+## Multi-agent coordination (read this FIRST)
+
+This repo runs multiple AI agents in parallel on separate branches:
+
+| Agent | Branch | Territory |
+|-------|--------|-----------|
+| Claude engine agent | `claude-rs` | `engine/src/**`, `engine/tests/**`, jniLibs `.so` rebuilds |
+| Claude Android agent | `claude-android` | `app/src/main/java/com/akashboard/**` |
+| Codebuff | own branch off `main` (name it) | ANYTHING — unrestricted |
+| Other agents (Copilot, Cursor, you) | feature branch off `main` | assigned per task |
+
+Rules for every agent:
+
+1. **Read `HANDOFF.md` at repo root before starting** (last 3 entries on your
+   branch and `main`) and **append an entry before ending your session**
+   (did / in-flight / don't-touch).
+2. **Commit to your branch; never commit work directly to `main`.**
+3. Claude agents' territories are reserved: if you touch `engine/src/**` or the
+   other Claude branch's files, expect merge conflicts — check `HANDOFF.md`
+   first and reconcile instead of fighting.
+4. Git merge conflicts = collision. Stop, read the other branch's latest state,
+   reconcile.
+5. `.so` rebuilds land ONLY on `claude-rs`. Never hand-edit or rebuild the
+   binary from another branch.
+
+---
+
+---
+
 ## Project Identity
 
 **AkashBoard** is a FOSS Android keyboard app (GPLv3) that runs entirely on-device. It uses Kotlin for Android UI/IME and Rust compiled to ARM64 native code for the prediction/learning engine via JNI.
