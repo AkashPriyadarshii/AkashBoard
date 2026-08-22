@@ -8,7 +8,7 @@
     <meta name="keywords" content="android keyboard, foss keyboard, open source keyboard, privacy keyboard, swipe typing, keyboard prediction, rust keyboard, local ai keyboard, gboard alternative, swiftkey alternative, privacy focused keyboard, no tracking keyboard, offline keyboard, keyboard app 2026, best android keyboard">
     <meta name="author" content="Akash Priyadarshi">
     <meta name="robots" content="index, follow">
-    <meta name="theme-color" content="#0B0F0E">
+    <meta name="theme-color" content="#ffffff">
 
     <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website">
@@ -30,18 +30,10 @@
     <!-- Canonical -->
     <link rel="canonical" href="https://akashpriyadarshii.github.io/AkashBoard/">
 
-    <!-- Fonts -->
+    <!-- Fonts: mono only — a receipt is set entirely in mono -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
-
-    <!-- Theme: system by default, localStorage override. Inline to avoid flash -->
-    <script>
-        (function () {
-            var t = localStorage.getItem('kb-theme');
-            if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
-        })();
-    </script>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 
     <!-- Structured Data -->
     <script type="application/ld+json">
@@ -74,672 +66,273 @@
     <style>
         *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
+        /* Thermal receipt: black ink on white paper. One state, no theme. */
         :root {
-            --canvas: #0B0F0E;
-            --surface: #101513;
-            --line: rgba(255,255,255,0.08);
-            --text: #EDF1EF;
-            --text-2: #9BA5A0;
-            --text-3: #5C6662;
-            --accent: #00E5A0;
-            --accent-dim: rgba(0,229,160,0.12);
-            --nav-bg: rgba(11,15,14,0.82);
-            --font-display: 'Space Grotesk', sans-serif;
-            --font-mono: 'IBM Plex Mono', monospace;
-            color-scheme: dark;
-        }
-
-        /* Light mode — opt-in via toggle; system default stays dark */
-        @media (prefers-color-scheme: light) {
-            :root:not([data-theme]) {
-                --canvas: #FAFBFA;
-                --surface: #F0F3F1;
-                --line: rgba(10,20,16,0.12);
-                --text: #101614;
-                --text-2: #4A544F;
-                --text-3: #8C9691;
-                --accent: #00795A;
-                --accent-dim: rgba(0,121,90,0.10);
-                --nav-bg: rgba(250,251,250,0.85);
-                color-scheme: light;
-            }
-        }
-
-        :root[data-theme='light'] {
-            --canvas: #FAFBFA;
-            --surface: #F0F3F1;
-            --line: rgba(10,20,16,0.12);
-            --text: #101614;
-            --text-2: #4A544F;
-            --text-3: #8C9691;
-            --accent: #00795A;
-            --accent-dim: rgba(0,121,90,0.10);
-            --nav-bg: rgba(250,251,250,0.85);
+            --paper: #fdfdfb;
+            --ink: #17150f;
+            --ink-2: #565248;
+            --ink-3: #8a857a;
+            --red: #c2372e;
+            --line: #d9d5ca;
+            --font-mono: 'IBM Plex Mono', ui-monospace, 'Courier New', monospace;
             color-scheme: light;
         }
 
-        :root[data-theme='dark'] { color-scheme: dark; }
-
-        @media (prefers-color-scheme: light) {
-            :root:not([data-theme]) { --key-bg: #E4E8E5; --key-fn-bg: #DDE2DF; }
-        }
-        :root[data-theme='light'] { --key-bg: #E4E8E5; --key-fn-bg: #DDE2DF; }
-
-        html { scroll-behavior: smooth; }
-
         body {
-            font-family: var(--font-display);
-            background: var(--canvas);
-            color: var(--text);
+            font-family: var(--font-mono);
+            background: var(--paper);
+            color: var(--ink);
             line-height: 1.6;
             -webkit-font-smoothing: antialiased;
             overflow-x: hidden;
         }
 
-        ::selection { background: var(--accent); color: var(--canvas); }
+        ::selection { background: var(--red); color: #fff; }
 
+        a { color: inherit; }
         a:focus-visible, button:focus-visible {
-            outline: 2px solid var(--accent);
+            outline: 2px solid var(--red);
             outline-offset: 3px;
         }
 
-        /* ── Nav ─────────────────────────────── */
-        nav {
-            position: fixed;
-            top: 0; left: 0; right: 0;
-            z-index: 100;
-            padding: 14px 32px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            background: var(--nav-bg);
-            backdrop-filter: blur(16px);
-            border-bottom: 1px solid var(--line);
-        }
-
-        .logo {
-            font-family: var(--font-mono);
-            font-size: 15px;
-            font-weight: 500;
-            letter-spacing: -0.3px;
-            color: var(--text);
-            text-decoration: none;
-        }
-        .logo span { color: var(--accent); }
-
-        .nav-links { display: flex; gap: 28px; align-items: center; }
-        .nav-links a {
-            color: var(--text-2);
-            text-decoration: none;
-            font-size: 14px;
-            font-weight: 500;
-            transition: color 0.15s;
-        }
-        .nav-links a:hover { color: var(--text); }
-
-        .nav-cta {
-            font-family: var(--font-mono) !important;
-            font-size: 13px !important;
-            padding: 8px 18px;
-            border: 1px solid var(--accent);
-            border-radius: 4px;
-            transition: background 0.15s !important;
-        }
-        .nav-cta:hover { background: var(--accent); color: var(--canvas) !important; }
-
-        .theme-toggle {
-            font-family: var(--font-mono);
-            font-size: 15px;
-            background: none;
-            border: 1px solid var(--line);
-            border-radius: 4px;
-            color: var(--text-2);
-            padding: 6px 10px;
-            cursor: pointer;
-            transition: color 0.15s, border-color 0.15s;
-        }
-        .theme-toggle:hover { color: var(--accent); border-color: var(--accent); }
-
-        /* ── Hero ────────────────────────────── */
-        .hero {
-            min-height: 100svh;
-            max-width: 1100px;
+        .receipt {
+            max-width: 380px;
             margin: 0 auto;
-            padding: 140px 24px 80px;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
+            padding: 48px 24px 40px;
         }
 
-        .hero-tag {
-            font-family: var(--font-mono);
-            font-size: 13px;
-            color: var(--accent);
-            margin-bottom: 24px;
-        }
-        .hero-tag::before { content: '// '; color: var(--text-3); }
+        .rule { border: 0; border-top: 1px solid var(--ink); margin: 28px 0; }
+        .rule.dashed { border-top-style: dashed; }
 
-        h1 {
-            font-size: clamp(44px, 7vw, 88px);
+        /* ── Header block ───────────────────────────────────────────── */
+        .barcode {
+            height: 44px;
+            background: repeating-linear-gradient(
+                90deg,
+                var(--ink) 0 2px, transparent 2px 4px,
+                var(--ink) 4px 7px, transparent 7px 9px,
+                var(--ink) 9px 10px, transparent 10px 14px,
+                var(--ink) 14px 17px, transparent 17px 19px
+            );
+        }
+        .store-name {
+            text-align: center;
+            font-size: 26px;
             font-weight: 700;
-            letter-spacing: -3px;
-            line-height: 1.02;
-            max-width: 720px;
-            margin-bottom: 28px;
-            text-wrap: balance;
+            letter-spacing: 4px;
+            margin-top: 20px;
         }
-
-        .hero-sub {
-            font-size: clamp(17px, 2vw, 20px);
-            color: var(--text-2);
-            max-width: 520px;
-            margin-bottom: 40px;
-        }
-
-        .hero-actions { display: flex; gap: 14px; flex-wrap: wrap; }
-
-        .btn-primary {
-            display: inline-flex;
-            align-items: center;
-            gap: 10px;
-            padding: 14px 26px;
-            background: var(--accent);
-            color: var(--canvas);
-            text-decoration: none;
-            border-radius: 4px;
-            font-family: var(--font-mono);
-            font-size: 15px;
-            font-weight: 500;
-            transition: transform 0.15s, box-shadow 0.15s;
-        }
-        .btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 24px rgba(0,229,160,0.25);
-        }
-
-        .btn-secondary {
-            display: inline-flex;
-            align-items: center;
-            gap: 10px;
-            padding: 14px 26px;
-            border: 1px solid var(--line);
-            color: var(--text);
-            text-decoration: none;
-            border-radius: 4px;
-            font-family: var(--font-mono);
-            font-size: 15px;
-            font-weight: 500;
-            transition: border-color 0.15s;
-        }
-        .btn-secondary:hover { border-color: var(--text-2); }
-
-        /* ── Stats strip ─────────────────────── */
-        .stats-strip {
-            max-width: 1100px;
-            margin: 0 auto;
-            padding: 0 24px 100px;
-            display: flex;
-            flex-wrap: wrap;
-            gap: 40px 56px;
-        }
-        .stat-num {
-            font-family: var(--font-mono);
-            font-size: 30px;
-            font-weight: 500;
-            letter-spacing: -1px;
-            color: var(--text);
-        }
-        .stat-label {
-            font-family: var(--font-mono);
-            font-size: 12px;
-            color: var(--text-3);
-            text-transform: uppercase;
+        .store-meta {
+            text-align: center;
+            font-size: 11px;
+            color: var(--ink-2);
             letter-spacing: 1px;
-            margin-top: 2px;
         }
-
-        /* ── Sections ────────────────────────── */
-        section { max-width: 1100px; margin: 0 auto; padding: 90px 24px; }
-
-        .section-head { margin-bottom: 48px; max-width: 640px; }
-
-        .section-label {
-            font-family: var(--font-mono);
-            font-size: 12px;
-            color: var(--accent);
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            margin-bottom: 12px;
-        }
-
-        h2 {
-            font-size: clamp(28px, 4vw, 42px);
+        .download {
+            display: block;
+            width: max-content;
+            margin: 16px auto 0;
+            padding: 10px 24px;
+            border: 1.5px solid var(--ink);
+            border-radius: 2px;
+            font-size: 13px;
             font-weight: 700;
-            letter-spacing: -1.5px;
-            line-height: 1.1;
-            text-wrap: balance;
+            text-decoration: none;
+            letter-spacing: 2px;
         }
+        .download:hover { background: var(--ink); color: var(--paper); }
 
-        .section-sub {
-            font-size: 17px;
-            color: var(--text-2);
-            margin-top: 14px;
-        }
-
-        /* ── Keyboard mock ───────────────────── */
-        .keyboard-mock {
-            background: var(--surface);
-            border: 1px solid var(--line);
-            border-radius: 8px;
-            padding: 20px;
-            user-select: none;
-        }
-
-        .kb-suggestions {
-            display: flex;
+        /* ── Section headings ───────────────────────────────────────── */
+        .sec-label {
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            color: var(--red);
             margin-bottom: 14px;
         }
-        .kb-sug {
-            flex: 1;
-            padding: 12px 8px;
-            text-align: center;
-            font-family: var(--font-mono);
-            font-size: 14px;
-            color: var(--text-2);
-        }
-        .kb-sug:first-child { color: var(--accent); font-weight: 500; }
 
-        .kb-row { display: flex; gap: 5px; margin-bottom: 5px; }
-        .kb-key {
-            height: 46px;
-            flex: 1;
-            min-width: 0;
-            background: var(--key-bg, #1A201E);
-            border-radius: 5px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-family: var(--font-mono);
-            font-size: 17px;
-            font-weight: 500;
-            color: var(--text);
-            cursor: default;
-            transition: background 0.08s;
+        /* ── Features: line items ───────────────────────────────────── */
+        .items { font-size: 13px; }
+        .item {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            gap: 12px;
+            padding: 11px 0;
+            align-items: baseline;
         }
-        .kb-key.wide { flex: 1.6; }
-        .kb-key.space { flex: 4; }
-        .kb-key.fn { background: var(--key-fn-bg, #141A18); color: var(--text-2); font-size: 13px; }
-        .kb-key.accent { background: var(--accent); color: var(--canvas); }
-        .kb-key:active { background: var(--accent); color: var(--canvas); }
-
-        .kb-caption {
-            font-family: var(--font-mono);
-            font-size: 12px;
-            color: var(--text-3);
-            margin-top: 16px;
-            text-align: center;
+        .item + .item { border-top: 1px dotted var(--line); }
+        .item .label { color: var(--ink); overflow-wrap: break-word; }
+        .item .metric {
+            color: var(--red);
+            font-weight: 700;
+            white-space: nowrap;
+            font-feature-settings: "tnum";
         }
 
-        /* ── Compare: asymmetric split ───────── */
-        .compare-grid {
+        /* ── Compare: two columns ───────────────────────────────────── */
+        .compare {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            border-top: 1px solid var(--line);
-        }
-
-        .compare-col { padding: 36px 40px 36px 0; }
-        .compare-col + .compare-col { border-left: 1px solid var(--line); padding-left: 40px; padding-right: 0; }
-
-        .compare-col h3 {
-            font-family: var(--font-mono);
-            font-size: 13px;
-            font-weight: 500;
-            text-transform: uppercase;
-            letter-spacing: 1.5px;
-            margin-bottom: 20px;
-        }
-        .compare-col.us h3 { color: var(--accent); }
-        .compare-col.them h3 { color: var(--text-3); }
-
-        .compare-list { list-style: none; }
-        .compare-list li {
-            padding: 9px 0;
-            font-size: 15px;
-            color: var(--text-2);
-            display: flex;
-            align-items: baseline;
-            gap: 12px;
-            border-bottom: 1px solid var(--line);
-        }
-        .compare-list li:last-child { border-bottom: none; }
-
-        .icon-check, .icon-cross {
-            font-family: var(--font-mono);
-            font-size: 13px;
-            flex-shrink: 0;
-        }
-        .icon-check { color: var(--accent); }
-        .icon-cross { color: var(--text-3); }
-
-        /* ── Features: numbered rows, no cards ─ */
-        .feature-list { border-top: 1px solid var(--line); }
-
-        .feature-row {
-            display: grid;
-            grid-template-columns: 64px 240px minmax(0, 1fr);
-            gap: 24px;
-            padding: 28px 0;
-            border-bottom: 1px solid var(--line);
-            align-items: baseline;
-        }
-
-        .feature-index {
-            font-family: var(--font-mono);
-            font-size: 14px;
-            color: var(--text-3);
-        }
-
-        .feature-row h3 {
-            font-size: 19px;
-            font-weight: 600;
-            letter-spacing: -0.4px;
-        }
-
-        .feature-row p {
-            font-size: 15px;
-            color: var(--text-2);
-        }
-
-        @media (max-width: 800px) {
-            .feature-row { grid-template-columns: 48px 1fr; }
-            .feature-row p { grid-column: 2; }
-        }
-
-        /* ── Code block ──────────────────────── */
-        .code-block {
-            background: var(--surface);
-            border: 1px solid var(--line);
-            border-radius: 6px;
-            padding: 24px 28px;
-            font-family: var(--font-mono);
-            font-size: 14px;
-            line-height: 1.9;
-            overflow-x: auto;
-        }
-        .code-comment { color: var(--text-3); }
-        .code-cmd { color: var(--accent); }
-        .code-path { color: var(--text); }
-
-        /* ── Footer ──────────────────────────── */
-        footer {
-            border-top: 1px solid var(--line);
-            padding: 48px 24px;
-        }
-        .footer-inner {
-            max-width: 1100px;
-            margin: 0 auto;
-            display: flex;
-            justify-content: space-between;
-            align-items: baseline;
-            flex-wrap: wrap;
             gap: 20px;
+            font-size: 12px;
         }
+        .compare h3 {
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            margin-bottom: 10px;
+        }
+        .compare .us h3 { color: var(--red); }
+        .compare .them h3 { color: var(--ink-3); }
+        .compare ul { list-style: none; }
+        .compare li { padding: 5px 0; border-top: 1px dotted var(--line); }
+        .compare .them li { color: var(--ink-3); text-decoration: line-through; }
+        .compare li::before { content: "+ "; color: var(--red); }
+        .compare .them li::before { content: "- "; }
 
-        /* Wide screens: keep line lengths readable */
-        @media (min-width: 1400px) {
-            nav, .hero, .stats-strip, section { padding-left: calc((100vw - 1100px) / 2); padding-right: calc((100vw - 1100px) / 2); }
-            nav { max-width: none; }
+        /* ── Store policy: build commands ───────────────────────────── */
+        .policy {
+            font-size: 12px;
+            line-height: 1.8;
         }
-        .footer-links { display: flex; gap: 24px; flex-wrap: wrap; }
-        .footer-links a {
-            color: var(--text-2);
-            text-decoration: none;
-            font-family: var(--font-mono);
-            font-size: 13px;
-            transition: color 0.15s;
+        .policy pre {
+            margin-top: 12px;
+            padding: 14px 16px;
+            background: #f1efe8;
+            border-left: 3px solid var(--ink);
+            overflow-x: auto;
+            white-space: pre;
+            font-size: 11px;
+            line-height: 1.7;
         }
-        .footer-links a:hover { color: var(--accent); }
-        .footer-copy { font-family: var(--font-mono); font-size: 13px; color: var(--text-3); }
+        .policy a { color: var(--red); font-weight: 500; }
 
-        /* ── Responsive ──────────────────────── */
-        @media (max-width: 768px) {
-            nav { padding: 12px 16px; }
-            .nav-links { gap: 14px; }
-            .nav-links a:not(.nav-cta) { display: none; }
-            .stats-strip { gap: 28px 40px; }
-            .compare-grid { grid-template-columns: 1fr; }
-            .compare-col { padding: 28px 0; }
-            .compare-col + .compare-col { border-left: none; border-top: 1px solid var(--line); padding-left: 0; }
-            .kb-key { height: 40px; font-size: 14px; }
-            section { padding: 64px 16px; }
-            h1 { letter-spacing: -2px; }
+        /* ── Footer ─────────────────────────────────────────────────── */
+        .footer {
+            text-align: center;
+            font-size: 11px;
+            color: var(--ink-2);
         }
-
-        @media (max-width: 480px) {
-            .hero-actions { flex-direction: column; }
-            .btn-primary, .btn-secondary { width: 100%; justify-content: center; }
-            .hero { padding-top: 110px; }
-            .feature-row { grid-template-columns: 40px minmax(0, 1fr); row-gap: 6px; }
-            .feature-row p { grid-column: 2; }
-            .kb-sug { padding: 10px 4px; font-size: 13px; }
+        .qr {
+            width: 84px;
+            height: 84px;
+            margin: 0 auto 14px;
+            background:
+                conic-gradient(var(--ink) 25%, transparent 0 50%, var(--ink) 0 75%, transparent 0)
+                0 0 / 28px 28px,
+                repeating-linear-gradient(90deg, var(--ink) 0 7px, transparent 7px 14px),
+                repeating-linear-gradient(0deg, var(--ink) 0 7px, transparent 7px 14px);
+            border: 3px solid var(--ink);
         }
-
-        @media (max-width: 480px) {
-            .hero-actions { flex-direction: column; }
-            .btn-primary, .btn-secondary { width: 100%; justify-content: center; }
+        .thanks {
+            font-size: 15px;
+            font-weight: 700;
+            letter-spacing: 3px;
+            color: var(--ink);
+            margin-bottom: 8px;
         }
+        .fine-print { color: var(--ink-3); }
+        .footer-links { margin-top: 14px; display: flex; justify-content: center; gap: 18px; }
+        .footer-links a { color: var(--red); text-decoration: underline; text-underline-offset: 3px; }
 
-        /* ── Motion ──────────────────────────── */
+        /* ── Motion: one 400ms fade on load, then static ────────────── */
         @media (prefers-reduced-motion: no-preference) {
-            .fade-in {
-                opacity: 0;
-                transform: translateY(14px);
-                transition: opacity 0.5s ease-out, transform 0.5s ease-out;
+            .receipt { animation: print 400ms ease-out; }
+            @keyframes print {
+                from { opacity: 0; transform: translateY(10px); }
+                to   { opacity: 1; transform: none; }
             }
-            .fade-in.visible { opacity: 1; transform: translateY(0); }
+        }
+
+        @media (max-width: 480px) {
+            .receipt { padding: 32px 18px 32px; }
+            .compare { gap: 14px; }
         }
     </style>
 </head>
+
 <body>
+<main class="receipt">
 
-<nav>
-    <a href="#" class="logo">akash<span>board</span></a>
-    <div class="nav-links">
-        <a href="#features">Features</a>
-        <a href="#compare">Compare</a>
-        <a href="https://github.com/AkashPriyadarshii/AkashBoard">GitHub</a>
-        <a href="https://github.com/AkashPriyadarshii/AkashBoard/releases" class="nav-cta">Download v1.0</a>
-        <button id="theme-toggle" class="theme-toggle" aria-label="Toggle light mode">◐</button>
-    </div>
-</nav>
+    <header>
+        <div class="barcode" aria-hidden="true"></div>
+        <h1 class="store-name">AKASHBOARD</h1>
+        <p class="store-meta">v1.0.0 &middot; GPLv3 &middot; FOSS<br>NO CLOUD &middot; NO TRACKING &middot; NO ADS</p>
+        <a class="download" href="https://github.com/AkashPriyadarshii/AkashBoard/releases">DOWNLOAD APK &darr;</a>
+    </header>
 
-<header class="hero">
-    <div class="hero-tag">v1.0.0 · GPLv3 · FOSS · 0 network requests</div>
-    <h1>Your keystrokes stay yours.</h1>
-    <p class="hero-sub">
-        An open-source Android keyboard running a Rust prediction engine entirely on-device.
-        Swipe typing, autocorrect, personal learning. No cloud. No account. No telemetry.
-    </p>
-    <div class="hero-actions">
-        <a href="https://github.com/AkashPriyadarshii/AkashBoard/releases/latest/download/app-release.apk" class="btn-primary" download>
-            ↓ Download APK (~5MB)
-        </a>
-        <a href="https://github.com/AkashPriyadarshii/AkashBoard" class="btn-secondary">
-            Read the source
-        </a>
-    </div>
-</header>
+    <hr class="rule">
 
-<div class="stats-strip fade-in">
-    <div>
-        <div class="stat-num">227</div>
-        <div class="stat-label">Tests passing</div>
-    </div>
-    <div>
-        <div class="stat-num">&lt;1ms</div>
-        <div class="stat-label">Prediction</div>
-    </div>
-    <div>
-        <div class="stat-num">~5MB</div>
-        <div class="stat-label">APK size</div>
-    </div>
-    <div>
-        <div class="stat-num">0</div>
-        <div class="stat-label">Network calls</div>
-    </div>
-</div>
+    <section id="features" aria-label="Features">
+        <div class="sec-label">What you paid for: $0.00</div>
+        <div class="items">
+            <div class="item"><span class="label">Rust prediction engine</span><span class="metric">1ms</span></div>
+            <div class="item"><span class="label">Swipe typing at full refresh rate</span><span class="metric">120FPS</span></div>
+            <div class="item"><span class="label">Smart autocorrect fixes</span><span class="metric">25+</span></div>
+            <div class="item"><span class="label">Themes, JSON-shareable</span><span class="metric">5</span></div>
+            <div class="item"><span class="label">Clipboard history</span><span class="metric">50 items</span></div>
+            <div class="item"><span class="label">Network requests, provable</span><span class="metric">0</span></div>
+            <div class="item"><span class="label">Voice input &amp; analytics, on-device</span><span class="metric">100%</span></div>
+        </div>
+    </section>
 
-<section id="preview">
-    <div class="keyboard-mock fade-in">
-        <div class="kb-suggestions">
-            <div class="kb-sug">because</div>
-            <div class="kb-sug">tomorrow</div>
-            <div class="kb-sug">already</div>
-        </div>
-        <div class="kb-row">
-            <div class="kb-key">Q</div><div class="kb-key">W</div><div class="kb-key">E</div><div class="kb-key">R</div><div class="kb-key">T</div><div class="kb-key">Y</div><div class="kb-key">U</div><div class="kb-key">I</div><div class="kb-key">O</div><div class="kb-key">P</div>
-        </div>
-        <div class="kb-row">
-            <div class="kb-key">A</div><div class="kb-key">S</div><div class="kb-key">D</div><div class="kb-key">F</div><div class="kb-key">G</div><div class="kb-key">H</div><div class="kb-key">J</div><div class="kb-key">K</div><div class="kb-key">L</div>
-        </div>
-        <div class="kb-row">
-            <div class="kb-key wide fn">⇧</div><div class="kb-key">Z</div><div class="kb-key">X</div><div class="kb-key">C</div><div class="kb-key">V</div><div class="kb-key">B</div><div class="kb-key">N</div><div class="kb-key">M</div><div class="kb-key wide fn">⌫</div>
-        </div>
-        <div class="kb-row">
-            <div class="kb-key wide fn">?123</div><div class="kb-key fn">🌐</div><div class="kb-key fn">😊</div><div class="kb-key space"></div><div class="kb-key">,</div><div class="kb-key wide accent">⏎</div>
-        </div>
-        <p class="kb-caption">// tap a key — this is real CSS, not a screenshot</p>
-    </div>
-</section>
+    <hr class="rule">
 
-<section id="features">
-    <div class="section-head fade-in">
-        <div class="section-label">What's inside</div>
-        <h2>Every feature works. Nothing is vaporware.</h2>
-        <p class="section-sub">Each item below ships in v1.0.0 today — covered by tests, auditable in source.</p>
-    </div>
+    <section id="compare" aria-label="Comparison">
+        <div class="sec-label">Store policy: refunds vs competitors</div>
+        <div class="compare">
+            <div class="us">
+                <h3>AkashBoard</h3>
+                <ul>
+                    <li>Zero network requests, ever</li>
+                    <li>Learning stays on your phone</li>
+                    <li>GPLv3 — audit every line</li>
+                    <li>Full export/import</li>
+                    <li>~5MB, zero ads</li>
+                </ul>
+            </div>
+            <div class="them">
+                <h3>Gboard / SwiftKey</h3>
+                <ul>
+                    <li>Keystrokes sync to cloud</li>
+                    <li>Account required</li>
+                    <li>Ads &amp; sponsored suggestions</li>
+                    <li>Closed source</li>
+                    <li>80&ndash;200MB, tracker-laden</li>
+                </ul>
+            </div>
+        </div>
+    </section>
 
-    <div class="feature-list fade-in">
-        <div class="feature-row">
-            <span class="feature-index">01</span>
-            <h3>Rust prediction engine</h3>
-            <p>N-gram model (uni/bi/trigram) behind JNI. Predictions return in under a millisecond and learn from your own words — never leaving the device.</p>
-        </div>
-        <div class="feature-row">
-            <span class="feature-index">02</span>
-            <h3>Swipe typing</h3>
-            <p>Draw a path across letters. Bezier trail renders at up to 120fps. Order-preserving dictionary match finds your word without proprietary blobs.</p>
-        </div>
-        <div class="feature-row">
-            <span class="feature-index">03</span>
-            <h3>Smart autocorrect</h3>
-            <p>25+ built-in typo fixes plus edit-distance matching against your vocabulary. Backspace undoes a correction.</p>
-        </div>
-        <div class="feature-row">
-            <span class="feature-index">04</span>
-            <h3>Five themes, JSON format</h3>
-            <p>Dark, Light, Neon Cyber, Minimal, Sunset. Edit the JSON to make your own — live switching, shareable files.</p>
-        </div>
-        <div class="feature-row">
-            <span class="feature-index">05</span>
-            <h3>Clipboard history</h3>
-            <p>Room DB-backed. Pin items, search, tap to paste. 50-item history with configurable limits — stored locally only.</p>
-        </div>
-        <div class="feature-row">
-            <span class="feature-index">06</span>
-            <h3>Zero tracking, provable</h3>
-            <p>No INTERNET permission at all. Privacy dashboard shows exactly what's stored. Nuclear delete wipes everything in one tap.</p>
-        </div>
-        <div class="feature-row">
-            <span class="feature-index">07</span>
-            <h3>Voice input &amp; analytics</h3>
-            <p>Offline SpeechRecognizer wrapper. WPM, accuracy, session stats — computed on-device, exportable whenever you want out.</p>
-        </div>
-    </div>
-</section>
+    <hr class="rule">
 
-<section id="compare">
-    <div class="section-head fade-in">
-        <div class="section-label">Why switch</div>
-        <h2>Every major keyboard phones home.</h2>
-        <p class="section-sub">Your keyboard sees passwords, messages, searches. Ask where that text goes.</p>
-    </div>
-
-    <div class="compare-grid fade-in">
-        <div class="compare-col us">
-            <h3>AkashBoard</h3>
-            <ul class="compare-list">
-                <li><span class="icon-check">[ok]</span> Zero network requests — ever</li>
-                <li><span class="icon-check">[ok]</span> Learning happens on your phone only</li>
-                <li><span class="icon-check">[ok]</span> GPLv3 — audit every line yourself</li>
-                <li><span class="icon-check">[ok]</span> Export/import — full data portability</li>
-                <li><span class="icon-check">[ok]</span> ~5MB APK, no ads anywhere</li>
-            </ul>
+    <section id="build" aria-label="Build instructions">
+        <div class="policy">
+            <div class="sec-label">Store policy: build it yourself</div>
+            <pre>git clone https://github.com/AkashPriyadarshii/AkashBoard.git
+cd AkashBoard/engine
+cargo ndk -t arm64-v8a build --release
+cd ..
+./gradlew assembleRelease
+adb install app/build/outputs/apk/release/app-release.apk</pre>
+            <p>Source: <a href="https://github.com/AkashPriyadarshii/AkashBoard">github.com/AkashPriyadarshii/AkashBoard</a></p>
         </div>
-        <div class="compare-col them">
-            <h3>Gboard / SwiftKey / others</h3>
-            <ul class="compare-list">
-                <li><span class="icon-cross">[--]</span> Keystrokes sync to cloud servers</li>
-                <li><span class="icon-cross">[--]</span> Account required for full features</li>
-                <li><span class="icon-cross">[--]</span> Ads and sponsored suggestions</li>
-                <li><span class="icon-cross">[--]</span> Closed source — trust us, they say</li>
-                <li><span class="icon-cross">[--]</span> 80–200MB, tracker-laden</li>
-            </ul>
-        </div>
-    </div>
-</section>
+    </section>
 
-<section id="build">
-    <div class="section-head fade-in">
-        <div class="section-label">For developers</div>
-        <h2>Build it yourself in three commands.</h2>
-    </div>
+    <hr class="rule dashed" aria-hidden="true">
 
-    <div class="code-block fade-in">
-<span class="code-comment"># clone + build rust engine</span><br>
-<span class="code-cmd">git</span> <span class="code-path">clone https://github.com/AkashPriyadarshii/AkashBoard.git</span> &amp;&amp; cd AkashBoard<br>
-cd engine &amp;&amp; cargo ndk -t arm64-v8a build --release<br>
-<br>
-<span class="code-comment"># assemble + install</span><br>
-cd .. &amp;&amp; ./gradlew assembleRelease<br>
-adb install app/build/outputs/apk/release/app-release.apk
-    </div>
-</section>
-
-<footer>
-    <div class="footer-inner">
-        <div class="footer-links">
+    <footer class="footer">
+        <div class="qr" aria-hidden="true"></div>
+        <p class="thanks">THANK YOU COME AGAIN</p>
+        <p class="fine-print">BUILT BY AKASH PRIYADARSHI<br>227 TESTS &middot; 0 TRACKERS &middot; 100% FOSS</p>
+        <nav class="footer-links" aria-label="Footer">
             <a href="https://github.com/AkashPriyadarshii/AkashBoard">GitHub</a>
-            <a href="https://github.com/AkashPriyadarshii/AkashBoard/issues">Issues</a>
             <a href="https://github.com/AkashPriyadarshii/AkashBoard/releases">Releases</a>
-            <a href="https://www.gnu.org/licenses/gpl-3.0">GPLv3</a>
-            <a href="https://akashpriyadarshi.vercel.app">Author</a>
-        </div>
-        <p class="footer-copy">Built by Akash Priyadarshi · 227 tests · 0 trackers · 100% FOSS</p>
-    </div>
-</footer>
+        </nav>
+    </footer>
 
-<script>
-    const observer = new IntersectionObserver((entries) => {
-        entries.forEach(entry => {
-            if (entry.isIntersecting) {
-                entry.target.classList.add('visible');
-                observer.unobserve(entry.target);
-            }
-        });
-    }, { threshold: 0.1 });
-
-    document.querySelectorAll('.fade-in').forEach(el => observer.observe(el));
-
-    // Theme toggle: cycles light/dark, persists. Default = system (no data-theme attr)
-    const toggle = document.getElementById('theme-toggle');
-    toggle.addEventListener('click', () => {
-        const root = document.documentElement;
-        const next = root.dataset.theme === 'light' ? 'dark' : 'light';
-        root.dataset.theme = next;
-        localStorage.setItem('kb-theme', next);
-    });
-</script>
-
+</main>
 </body>
 </html>
