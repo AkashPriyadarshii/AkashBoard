@@ -181,7 +181,8 @@ class WordComposerTest {
 
     @Test
     fun `multiple finishWords build context`() {
-        composer.addCharacter('I')
+        // Shift is NONE by default, so addCharacter('I') produces 'i'
+        composer.addCharacter('i')
         composer.finishWord()
         composer.addCharacter('a')
         composer.addCharacter('m')
@@ -195,7 +196,7 @@ class WordComposerTest {
         assertEquals("happy", composer.getCurrentWord())
         val context = composer.getContextWords()
         assertEquals(2, context.size)
-        assertEquals("I", context[0])
+        assertEquals("i", context[0])
         assertEquals("am", context[1])
     }
 
