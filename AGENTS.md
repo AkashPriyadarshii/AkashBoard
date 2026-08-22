@@ -12,18 +12,20 @@ This repo runs multiple AI agents in parallel on separate branches:
 |-------|--------|-----------|
 | Claude engine agent | `claude-rs` | `engine/src/**`, `engine/tests/**`, jniLibs `.so` rebuilds |
 | Claude Android agent | `claude-android` | `app/src/main/java/com/akashboard/**` |
-| Codebuff + all other agents (Copilot, Cursor, you) | feature branch off `main` | assigned per task |
+| Codebuff | own branch off `main` (name it) | ANYTHING — unrestricted |
+| Other agents (Copilot, Cursor, you) | feature branch off `main` | assigned per task |
 
 Rules for every agent:
 
-1. **Work only in your territory.** If your task crosses into another agent's
-   files, note it in `HANDOFF.md` and coordinate instead of editing directly.
-2. **Read `HANDOFF.md` at repo root before starting** (last 3 entries on your
+1. **Read `HANDOFF.md` at repo root before starting** (last 3 entries on your
    branch and `main`) and **append an entry before ending your session**
    (did / in-flight / don't-touch).
-3. **Commit to your branch; never commit work directly to `main`.**
-4. Git merge conflicts = you crossed a boundary. Stop and reconcile with the
-   other branch's latest state.
+2. **Commit to your branch; never commit work directly to `main`.**
+3. Claude agents' territories are reserved: if you touch `engine/src/**` or the
+   other Claude branch's files, expect merge conflicts — check `HANDOFF.md`
+   first and reconcile instead of fighting.
+4. Git merge conflicts = collision. Stop, read the other branch's latest state,
+   reconcile.
 5. `.so` rebuilds land ONLY on `claude-rs`. Never hand-edit or rebuild the
    binary from another branch.
 

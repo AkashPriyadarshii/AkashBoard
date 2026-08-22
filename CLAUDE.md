@@ -29,7 +29,13 @@ follow this file plus HANDOFF.md.
 |-------|--------|-----------|------------------|
 | Claude engine agent | `claude-rs` | `engine/src/**`, `engine/tests/**`, jniLibs `.so` rebuilds | this file |
 | Claude Android agent | `claude-android` | `app/src/main/java/com/akashboard/**` | same CLAUDE.md content (this file syncs to both branches); skip Rust workflow section |
-| Codebuff + all non-Claude agents | any feature branch off `main` | assigned per task | `AGENTS.md` |
+| Codebuff | own branch off `main`, named per task | ANYTHING — unrestricted, may touch any file | `AGENTS.md` |
+| Other non-Claude agents | feature branch off `main` | assigned per task | `AGENTS.md` |
+
+Codebuff is unrestricted by design — the reserved territories above are
+one-way: Claude agents don't wander into each other's files; Codebuff can.
+When Codebuff edits files a Claude branch owns, expect merge conflicts at
+merge time and resolve in favor of the newer change.
 
 ## Rust workflow
 
