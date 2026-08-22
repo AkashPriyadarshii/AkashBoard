@@ -27,6 +27,7 @@ class OnboardingActivity : AppCompatActivity() {
     private lateinit var statusText: TextView
     private lateinit var actionButton: MaterialButton
     private lateinit var stepIndicator: TextView
+    private lateinit var instructionsText: TextView
     private var currentStep = 0
     private var allDone = false
 
@@ -138,9 +139,9 @@ class OnboardingActivity : AppCompatActivity() {
             }
             addView(statusText)
 
-            // Description
-            addView(TextView(context).apply {
-                text = "Go to Settings → System → Languages & Input →\nOn-screen keyboard → Manage keyboards\nThen enable AkashBoard."
+            // Description — per-step instructions, updated by updateStep()
+            instructionsText = TextView(context).apply {
+                text = ""
                 textSize = 14f
                 setTextColor(0xFF60656D.toInt())
                 gravity = Gravity.CENTER
@@ -149,7 +150,8 @@ class OnboardingActivity : AppCompatActivity() {
                     ViewGroup.LayoutParams.WRAP_CONTENT
                 )
                 setPadding(0, 0, 0, (32 * density).toInt())
-            })
+            }
+            addView(instructionsText)
 
             // Action button
             actionButton = MaterialButton(context).apply {
@@ -213,6 +215,8 @@ class OnboardingActivity : AppCompatActivity() {
                 stepIndicator.text = "Step 1 of 2"
                 statusText.text = "Enable AkashBoard"
                 actionButton.text = "Enable Keyboard"
+                instructionsText.text =
+                    "Tap the button below to open keyboard settings,\nthen toggle AkashBoard on."
             }
             !selected -> {
                 currentStep = 1
@@ -220,25 +224,23 @@ class OnboardingActivity : AppCompatActivity() {
                 stepIndicator.text = "Step 2 of 2"
                 statusText.text = "Switch to AkashBoard"
                 actionButton.text = "Switch Keyboard"
+                instructionsText.text =
+                    "Tap the button below, then pick AkashBoard\nfrom the input method picker."
             }
             else -> {
                 allDone = true
                 stepIndicator.text = "✓ Complete"
                 statusText.text = "You're all set!"
                 actionButton.text = "Start Typing →"
+                instructionsText.text =
+                    "AkashBoard is your active keyboard.\nOpen any text field and start typing."
             }
         }
     }
 
     private fun handleAction() {
         if (allDone) {
-            // Both steps done — try to open a text field
-            try {
-                val intent = Intent(android.provider.Settings.ACTION_INPUT_METHOD_SETTINGS)
-                startActivity(intent)
-            } catch (e: Exception) {
-                launchMainApp()
-            }
+            launchMainApp()
             return
         }
 
