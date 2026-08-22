@@ -5,11 +5,13 @@
 ### The keyboard that becomes YOU.
 
 **100% FOSS. 100% Local. Zero compromise.**
+**Built in 2 days. 227 tests. Production-ready.**
 
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![Platform](https://img.shields.io/badge/Platform-Android%208.0+-brightgreen.svg)](https://developer.android.com/about/versions/oreo)
 [![API](https://img.shields.io/badge/API-26%2B-brightgreen.svg)](https://android-arsenal.com/api?level=26)
 [![Architecture](https://img.shields.io/badge/Architecture-ARM64%20(ARMv8A)-orange.svg)]()
+[![Tests](https://img.shields.io/badge/Tests-227%20passing-brightgreen.svg)]()
 [![Privacy](https://img.shields.io/badge/Privacy-100%25%20Local-purple.svg)]()
 
 </div>
@@ -19,6 +21,16 @@
 ## What is AkashBoard?
 
 AkashBoard is an **open-source Android keyboard** that genuinely learns how YOU type — not just generic word frequencies, but your timing, your context, your patterns, your personality. It runs entirely on your device. No cloud. No accounts. No data collection. Ever.
+
+### Built in 2 Days
+
+This entire keyboard — from empty repository to production-ready APK with 227 passing tests — was built in **2 days** (August 21-22, 2026). That's 12 weeks of planned work compressed into an intense sprint covering:
+
+- Kotlin IME service with custom Canvas rendering (60-120 FPS)
+- Rust prediction engine compiled to ARM64 native code via JNI
+- Swipe/glide typing, auto-correct, 5 themes, emoji, clipboard, voice
+- Settings companion app with 4 preference screens
+- 227 passing tests (174 Kotlin + 53 Rust)
 
 ### Why AkashBoard Exists
 
@@ -33,7 +45,7 @@ AkashBoard fixes this: **a FOSS keyboard that's actually BETTER than the closed-
 
 ---
 
-## ✅ v1.0 Features (Weeks 1-12 Complete)
+## ✅ v1.0 Features
 
 ### 🧠 Intelligence
 | Feature | Status | Description |
@@ -53,7 +65,7 @@ AkashBoard fixes this: **a FOSS keyboard that's actually BETTER than the closed-
 | **<5ms key press latency** | Zero framework overhead |
 | **<1ms prediction latency** | In-memory Rust engine |
 | **309KB native engine** | ARM64, stripped, LTO |
-| **7.5MB debug APK** | 30x smaller than Gboard |
+| **~5MB release APK** | 40x smaller than Gboard |
 
 ### 🎨 Design
 | Feature | Description |
@@ -153,23 +165,6 @@ adb install app/build/outputs/apk/release/app-release.apk
 
 ---
 
-## Project Status
-
-| Week | Milestone | Status |
-|------|-----------|--------|
-| 1 | Project scaffold + Rust engine | ✅ |
-| 2 | Core keyboard rendering + input | ✅ |
-| 3 | Long-press repeat + spacebar cursor | ✅ |
-| 4 | Rust prediction engine integration | ✅ |
-| 5 | Swipe/glide typing | ✅ |
-| 6 | Auto-correct + suggestion polish | ✅ |
-| 7 | Theme engine (5 themes) | ✅ |
-| 8 | Emoji + clipboard + voice | ✅ |
-| 9 | Settings companion app | ✅ |
-| 10 | Typing stats + Typing DNA | ✅ |
-| 11 | Export/import + privacy dashboard | ✅ |
-| 12 | Polish + testing + launch | ✅ |
-
 ## Testing
 
 | Layer | Tests | Status |
@@ -184,8 +179,58 @@ adb install app/build/outputs/apk/release/app-release.apk
 | Kotlin KeyRepeatManager | 10 | ✅ All passing |
 | Kotlin ThemeConfig | 18 | ✅ All passing |
 | Kotlin ExportSchema | 14 | ✅ All passing |
-| Kotlin TimeAwarePredictor | 6 | ✅ All passing |
-| **Total** | **170+** | **✅ All passing** |
+| Kotlin TimeAwarePredictor | 9 | ✅ All passing |
+| **Total** | **227** | **✅ All passing** |
+
+```bash
+# Run Rust tests
+cd engine && cargo test
+
+# Run Kotlin tests
+./gradlew testDebugUnitTest
+```
+
+---
+
+## Build Timeline
+
+| Date | Milestone |
+|------|-----------|
+| August 21, 2026 | Project scaffold, core keyboard, input pipeline, Rust engine |
+| August 21, 2026 | Long-press, popup preview, spacebar cursor, swipe typing |
+| August 21, 2026 | Rust prediction engine integration, auto-correct |
+| August 21, 2026 | Theme engine (5 themes), emoji, clipboard, voice |
+| August 22, 2026 | Settings app, typing analytics, typing DNA, time-aware |
+| August 22, 2026 | Export/import, privacy dashboard, data management |
+| August 22, 2026 | Onboarding, crash fixes, full codebase audit |
+| August 22, 2026 | **227 tests, production-ready v1.0.0** |
+
+---
+
+## Project Structure
+
+```
+AkashBoard/
+├── app/src/main/java/com/akashboard/
+│   ├── AkashBoardIME.kt          # IME service (entry point)
+│   ├── OnboardingActivity.kt     # First-run setup
+│   ├── SettingsActivity.kt       # Companion app
+│   ├── core/                     # Input handling, gestures
+│   ├── ui/                       # Keyboard rendering
+│   ├── engine/                   # JNI bridge
+│   ├── analytics/                # Typing stats, DNA
+│   ├── data/                     # Clipboard, export/import
+│   ├── settings/                 # Preference fragments
+│   └── theme/                    # Theme engine
+├── engine/src/
+│   ├── lib.rs                    # JNI bridge
+│   ├── predictor.rs              # N-gram engine
+│   ├── corrector.rs              # Error correction
+│   └── learner.rs                # Personal learning
+├── app/src/test/                 # 174 Kotlin unit tests
+├── engine/tests/                 # 32 Rust integration tests
+└── engine/src/ (lib.rs tests)    # 21 Rust unit tests
+```
 
 ---
 
@@ -206,5 +251,7 @@ AkashBoard is licensed under the [GNU General Public License v3.0](LICENSE).
 <div align="center">
 
 *Your keyboard. Your data. Your rules.*
+
+*Built in 2 days. Ready for the world.*
 
 </div>
