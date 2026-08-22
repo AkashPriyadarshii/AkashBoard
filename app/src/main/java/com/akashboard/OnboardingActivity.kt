@@ -22,7 +22,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp\nimport androidx.compose.ui.res.stringResource\nimport com.akashboard.R
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.res.stringResource
+import com.akashboard.R
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.compose.ui.platform.LocalLifecycleOwner
@@ -142,7 +144,8 @@ fun OnboardingScreen(
         Spacer(modifier = Modifier.height(12.dp))
         
         Text(
-            text = "The keyboard that becomes YOU.\nFast, secure, and 100% offline.",
+            text = "The keyboard that becomes YOU.
+Fast, secure, and 100% offline.",
             fontSize = 16.sp,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center
