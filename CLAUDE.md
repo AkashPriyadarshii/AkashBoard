@@ -10,9 +10,26 @@ Privacy-first Android keyboard (IME) with a Rust prediction engine bridged via J
 
 ## Branches
 
-- `main` — releases
-- `claude-rs` — Rust engine work only
-- `claude-android` — Android/Kotlin work only; do NOT touch `engine/src/*.rs` there (another agent owns it)
+- `main` — releases only. Never commit work here directly.
+- `claude-rs` — Rust engine work only (`engine/src/**`, `.so` rebuilds). Owned by the Claude engine agent.
+- `claude-android` — Android/Kotlin work only (`app/src/main/java/com/akashboard/**`). Do NOT touch `engine/src/*.rs` there (another agent owns it).
+
+## Multi-agent coordination
+
+Read `HANDOFF.md` at repo root BEFORE starting any session, and append an entry
+(did / in-flight / don't-touch) BEFORE ending it. Git is the hard boundary — merge
+conflicts mean you crossed into another agent's territory; stop and reconcile.
+
+If your branch's agent section is missing below, you are a Claude Code agent:
+follow this file plus HANDOFF.md.
+
+### Agent → branch map
+
+| Agent | Branch | Territory | Coordination doc |
+|-------|--------|-----------|------------------|
+| Claude engine agent | `claude-rs` | `engine/src/**`, `engine/tests/**`, jniLibs `.so` rebuilds | this file |
+| Claude Android agent | `claude-android` | `app/src/main/java/com/akashboard/**` | same CLAUDE.md content (this file syncs to both branches); skip Rust workflow section |
+| Codebuff + all non-Claude agents | any feature branch off `main` | assigned per task | `AGENTS.md` |
 
 ## Rust workflow
 
