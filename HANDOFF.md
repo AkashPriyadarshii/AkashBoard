@@ -70,3 +70,32 @@ Rules:
 - NOTE: Kotlin side must add `external fun nativeLearnError(wrong: String,
   correct: String): Boolean` + `nativeGetCorrection(word: String): String?`
   to PredictorBridge.kt — that is claude-android territory, NOT done here.
+
+## 2026-08-22 | main | claude-android agent (session 3) — STOPPED MID-FIX, BUGS CONFIRMED NOT FIXED
+- Did: merged claude-android→main; wired corrections bridge
+  (a3c15e5); one-handed mode wired (dec8233); TalkBack a11y virtual key
+  nodes + press announce (a9f391a); onboarding fixes — Start Typing button
+  launched settings instead of app, per-step instructions (3782b21);
+  theme_preview dialog + suggestion_bar_height setting (544e212);
+  release APK rebuilt + v1.0.0 asset updated twice. All pushed to origin/main.
+- In-flight: **UI/UX bug audit DONE, FIXES NOT STARTED. User said stop.**
+  Confirmed bugs (fix these first next session):
+  1. STUCK ON NUMBERS SCREEN: SYMBOLS layout "ABC" key has
+     KeyType.SYMBOLS + code KeyCodes.QWERTY(-106). InputHandler.handleKeyPress
+     routes by KEY TYPE (`KeyType.SYMBOLS -> handleLayoutSwitch(SYMBOLS)`),
+     ignores code → pressing ABC re-switches to SYMBOLS. Dead end.
+     FIX: route by code when code==KeyCodes.QWERTY before the type-based
+     `when`, or give ABC its own KeyType.
+  2. EMOJI CLICKS DEAD: EmojiPanel gets fixed 300dp height from IME
+     (AkashBoardIME ~line 254), grid computes rects for ALL emojis with NO
+     scroll offset; onTouchEvent clamps y to view bounds so only visible-row
+     emojis clickable; rows below drawn outside view = unreachable.
+     FIX: add scrollable offset (GestureDetector/scroller) or page the grid;
+     also emojiRects must account for scrollY in hit-test AND draw.
+  3. SMALL LETTERS / SHIFT: handleLetter applies shiftState ONE then
+     clearShift — verify WordComposer.addCharacter actually lowercases
+     output when NONE; suspected related to #1 routing confusion. Repro
+     needed before fixing.
+  Files: InputHandler.kt:59-81 (routing), EmojiPanel.kt:121-210 (layout/
+  touch), AkashBoardIME.kt ~254 (panel height), WordComposer.kt (verify).
+- Don't-touch: none of the above files mid-fix; engine/ untouched as always.
