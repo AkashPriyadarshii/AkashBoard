@@ -43,7 +43,7 @@ class KeyboardView @JvmOverloads constructor(
 ) : View(context, attrs, defStyleAttr) {
 
     private val displayDensity = resources.displayMetrics.density
-    private val cornerRadius = 8f * displayDensity
+    private var cornerRadius = 8f * displayDensity
 
     private val keyBgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.FILL }
     private val keyBorderPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; strokeWidth = 1f * displayDensity }
@@ -59,7 +59,7 @@ class KeyboardView @JvmOverloads constructor(
     private var totalHeight = 0f
     private var popupState: PopupState = PopupState()
 
-    private val keyRepeatManager = KeyRepeatManager { onRepeatTick() }
+    private val keyRepeatManager = KeyRepeatManager(onRepeat = { onRepeatTick() })
     private val popupPreviewManager = PopupPreviewManager()
     private val spacebarCursorManager = SpacebarCursorManager()
     private val swipeTrail = SwipeTrail(displayDensity)
@@ -279,6 +279,8 @@ class KeyboardView @JvmOverloads constructor(
     fun setLayout(type: KeyboardLayoutType) { if (type != currentLayoutType) { currentLayoutType = type; requestLayout(); invalidate() } }
     fun setShiftState(state: ShiftState) { if (state != shiftState) { shiftState = state; invalidate() } }
     fun getCurrentLayoutType(): KeyboardLayoutType = currentLayoutType
+    fun updateRepeatTiming(delayMs: Long, rateMs: Long) { keyRepeatManager.updateTiming(delayMs, rateMs) }
+    fun setCornerRadius(radiusDp: Int) { cornerRadius = radiusDp * displayDensity; invalidate() }
     fun destroy() { keyRepeatManager.destroy() }
 
     interface OnKeyPressedListener { fun onKeyPressed(key: KeyData) }

@@ -27,7 +27,9 @@ import android.os.Looper
  * @param onRepeat Callback invoked on each repeat tick
  */
 class KeyRepeatManager(
-    private val onRepeat: () -> Unit
+    private val onRepeat: () -> Unit,
+    private var initialDelay: Long = INITIAL_DELAY,
+    private var repeatRate: Long = REPEAT_RATE_INITIAL
 ) {
     private val handler = Handler(Looper.getMainLooper())
 
@@ -36,7 +38,7 @@ class KeyRepeatManager(
         private set
 
     /** Current repeat delay (decreases over time for acceleration) */
-    private var currentRepeatRate = REPEAT_RATE_INITIAL
+    private var currentRepeatRate = repeatRate
 
     /** The repeat runnable */
     private val repeatRunnable = object : Runnable {
@@ -65,10 +67,10 @@ class KeyRepeatManager(
         if (isRepeating) return
 
         isRepeating = true
-        currentRepeatRate = REPEAT_RATE_INITIAL
+        currentRepeatRate = repeatRate
 
         // Initial delay before repeat starts
-        handler.postDelayed(repeatRunnable, INITIAL_DELAY)
+        handler.postDelayed(repeatRunnable, initialDelay)
     }
 
     /**
@@ -79,7 +81,7 @@ class KeyRepeatManager(
     fun stop() {
         isRepeating = false
         handler.removeCallbacks(repeatRunnable)
-        currentRepeatRate = REPEAT_RATE_INITIAL
+        currentRepeatRate = repeatRate
     }
 
     /**
@@ -109,6 +111,14 @@ class KeyRepeatManager(
     /**
      * Clean up resources.
      */
+    /**
+     * Update repeat timing from settings.
+     */
+    fun updateTiming(newDelay: Long, newRate: Long) {
+        initialDelay = newDelay
+        repeatRate = newRate
+    }
+
     fun destroy() {
         stop()
         handler.removeCallbacksAndMessages(null)

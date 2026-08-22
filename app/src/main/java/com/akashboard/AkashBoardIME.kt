@@ -292,6 +292,13 @@ class AkashBoardIME : InputMethodService() {
             keyboardView?.setShiftState(inputHandler?.getShiftState() ?: com.akashboard.core.ShiftState.NONE)
             typingStats?.startSession()
 
+            // Wire settings to keyboard components
+            settingsProvider?.let { sp ->
+                keyboardView?.updateRepeatTiming(sp.keyRepeatDelay.toLong(), sp.keyRepeatRate.toLong())
+                keyboardView?.setCornerRadius(sp.keyCornerRadius)
+                hapticFeedback?.setEnabled(sp.vibrateOnKeypress)
+            }
+
             // Load clipboard items
             val db = clipboardDB
             if (db != null) {
