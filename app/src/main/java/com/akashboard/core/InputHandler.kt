@@ -267,11 +267,33 @@ class InputHandler(
     // Each one delegates to the existing private handler so autocorrect, learning,
     // TypingDNA, and suggestions all fire normally.
 
+    fun handleSwipe(word: String) {
+        val connection = inputConnection ?: return
+        val currentWord = wordComposer.getCurrentWord()
+        if (currentWord.isNotEmpty()) {
+            connection.deleteSurroundingText(currentWord.length, 0)
+        }
+        connection.commitText("$word ", 1)
+        wordComposer.finishWord()
+        wordComposer.clearShift()
+        
+        if (shouldLearn()) {
+            val context = wordComposer.getContextWords().joinToString(" ")
+            PredictorBridge.learn(word, context, System.currentTimeMillis())
+        }
+        
+        hapticFeedback.selection()
+        onSuggestionsUpdate(emptyList())
+    }
+
     /** Commit a single alphabetic or punctuation character. */
     fun handleCharacter(char: Char) {
         val connection = inputConnection ?: return
-        // Replicate handleLetter logic without constructing a full KeyData.
-        // wordComposer.addCharacter handles shift-state and returns the committed char.
+        if (char == '.' || char == ',' || char == '!' || char == '?') {
+            handlePunctuation(connection, char.toString())
+            return
+        }
+        
         val committed = wordComposer.addCharacter(char)
         connection.commitText(committed.toString(), 1)
         hapticFeedback.keyPress()

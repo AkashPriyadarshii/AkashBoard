@@ -61,7 +61,7 @@ fun KeyboardLayout(ime: AkashBoardIME, modifier: Modifier = Modifier) {
                                         val topWord = suggestions[0]
                                         SuggestionsGlobalState.value = suggestions
                                         // Commit top swipe result + space
-                                        ime.currentInputConnection?.commitText("$topWord ", 1)
+                                        ime.inputHandler?.handleSwipe(topWord)
                                     }
                                 } catch (e: Exception) {
                                     android.util.Log.e("KeyboardLayout", "Swipe JNI crash", e)

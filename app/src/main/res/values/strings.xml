@@ -1,5 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!-- AkashBoard string resources -->
+<?xml version='1.0' encoding='utf-8'?>
 <resources>
     <string name="app_name">AkashBoard</string>
     <string name="ime_name">AkashBoard</string>
@@ -8,13 +7,13 @@
     <string name="switch_keyboard">Switch to AkashBoard</string>
     <string name="subtitle">The keyboard that becomes YOU.</string>
 
-    <!-- Settings categories -->
+    
     <string name="pref_category_typing">Typing</string>
     <string name="pref_category_appearance">Appearance</string>
     <string name="pref_category_privacy">Privacy</string>
     <string name="pref_category_about">About</string>
 
-    <!-- Autocorrect strength -->
+    
     <string-array name="autocorrect_strength_entries">
         <item>Off</item>
         <item>Light</item>
@@ -28,7 +27,7 @@
         <item>aggressive</item>
     </string-array>
 
-    <!-- Repeat delay -->
+    
     <string-array name="repeat_delay_entries">
         <item>Fast (200ms)</item>
         <item>Normal (300ms)</item>
@@ -40,7 +39,7 @@
         <item>500</item>
     </string-array>
 
-    <!-- Repeat rate -->
+    
     <string-array name="repeat_rate_entries">
         <item>Fast (30ms)</item>
         <item>Normal (50ms)</item>
@@ -52,7 +51,7 @@
         <item>80</item>
     </string-array>
 
-    <!-- Themes -->
+    
     <string-array name="theme_entries">
         <item>Akash Dark</item>
         <item>Akash Light</item>
@@ -68,7 +67,7 @@
         <item>sunset</item>
     </string-array>
 
-    <!-- One-handed mode -->
+    
     <string-array name="one_handed_entries">
         <item>Off</item>
         <item>Left</item>
@@ -80,7 +79,7 @@
         <item>right</item>
     </string-array>
 
-    <!-- Clipboard max items -->
+    
     <string-array name="clipboard_max_entries">
         <item>25 items</item>
         <item>50 items</item>
@@ -93,4 +92,4 @@
         <item>100</item>
         <item>200</item>
     </string-array>
-</resources>
+<string name="onboarding_welcome_title">Welcome to AkashBoard</string><string name="onboarding_welcome_subtitle">The keyboard that becomes YOU.\nFast, secure, and 100% offline.</string><string name="onboarding_step_enable_title">Enable in Settings</string><string name="onboarding_step_enable_desc">First, activate AkashBoard in your system settings.</string><string name="onboarding_step_enable_btn">Enable Keyboard</string><string name="onboarding_step_select_title">Select Keyboard</string><string name="onboarding_step_select_desc">Now, set AkashBoard as your active input method.</string><string name="onboarding_step_select_btn">Switch Keyboard</string><string name="onboarding_step_done_title">You're All Set! 🎉</string><string name="onboarding_step_done_desc">AkashBoard is now ready to use.</string><string name="onboarding_step_done_btn">Go to Settings</string><string name="onboarding_skip">Skip for now</string></resources>

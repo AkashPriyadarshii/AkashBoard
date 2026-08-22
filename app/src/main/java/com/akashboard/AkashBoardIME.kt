@@ -89,7 +89,7 @@ class AkashBoardIME : InputMethodService() {
 
     override fun onCreateInputView(): View {
         Log.d(TAG, "onCreateInputView (Returning ComposeImeRootView)")
-        return ComposeImeRootView(this, this)
+        return ComposeImeRootView(this, this).apply { layoutParams = android.widget.FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT) }
     }
 
     override fun onStartInputView(info: EditorInfo?, restarting: Boolean) {

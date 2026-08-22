@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -21,7 +22,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import androidx.compose.ui.unit.sp\nimport androidx.compose.ui.res.stringResource\nimport com.akashboard.R
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.compose.ui.platform.LocalLifecycleOwner
@@ -131,7 +132,7 @@ fun OnboardingScreen(
         Spacer(modifier = Modifier.height(32.dp))
 
         Text(
-            text = "Welcome to AkashBoard",
+            text = stringResource(R.string.onboarding_welcome_title),
             fontSize = 28.sp,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onBackground,
@@ -177,14 +178,14 @@ fun OnboardingScreen(
                 when (currentStep) {
                     1 -> {
                         Text(
-                            text = "Enable in Settings",
+                            text = stringResource(R.string.onboarding_step_enable_title),
                             fontSize = 20.sp,
                             fontWeight = FontWeight.SemiBold,
                             color = MaterialTheme.colorScheme.onSurface
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            text = "First, activate AkashBoard in your system settings.",
+                            text = stringResource(R.string.onboarding_step_enable_desc),
                             fontSize = 14.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             textAlign = TextAlign.Center
@@ -195,19 +196,19 @@ fun OnboardingScreen(
                             modifier = Modifier.fillMaxWidth().height(56.dp),
                             shape = RoundedCornerShape(16.dp)
                         ) {
-                            Text("Enable Keyboard", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                            Text(stringResource(R.string.onboarding_step_enable_btn), fontSize = 16.sp, fontWeight = FontWeight.Bold)
                         }
                     }
                     2 -> {
                         Text(
-                            text = "Select Keyboard",
+                            text = stringResource(R.string.onboarding_step_select_title),
                             fontSize = 20.sp,
                             fontWeight = FontWeight.SemiBold,
                             color = MaterialTheme.colorScheme.onSurface
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            text = "Now, set AkashBoard as your active input method.",
+                            text = stringResource(R.string.onboarding_step_select_desc),
                             fontSize = 14.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             textAlign = TextAlign.Center
@@ -218,30 +219,46 @@ fun OnboardingScreen(
                             modifier = Modifier.fillMaxWidth().height(56.dp),
                             shape = RoundedCornerShape(16.dp)
                         ) {
-                            Text("Switch Keyboard", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                            Text(stringResource(R.string.onboarding_step_select_btn), fontSize = 16.sp, fontWeight = FontWeight.Bold)
                         }
                     }
                     3 -> {
+                        var testText by remember { mutableStateOf("") }
                         Text(
-                            text = "You're All Set! 🎉",
+                            text = stringResource(R.string.onboarding_step_done_title),
                             fontSize = 20.sp,
                             fontWeight = FontWeight.SemiBold,
                             color = MaterialTheme.colorScheme.onSurface
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            text = "AkashBoard is now ready to use.",
+                            text = stringResource(R.string.onboarding_step_done_desc),
                             fontSize = 14.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             textAlign = TextAlign.Center
                         )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        
+                        OutlinedTextField(
+                            value = testText,
+                            onValueChange = { testText = it },
+                            placeholder = { Text("Tap here to test AkashBoard!") },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true,
+                            shape = RoundedCornerShape(12.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                unfocusedBorderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f)
+                            )
+                        )
+                        
                         Spacer(modifier = Modifier.height(24.dp))
                         Button(
                             onClick = onFinish,
                             modifier = Modifier.fillMaxWidth().height(56.dp),
                             shape = RoundedCornerShape(16.dp)
                         ) {
-                            Text("Go to Settings", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                            Text(stringResource(R.string.onboarding_step_done_btn), fontSize = 16.sp, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
@@ -254,7 +271,7 @@ fun OnboardingScreen(
             onClick = onFinish,
             modifier = Modifier.padding(bottom = 16.dp)
         ) {
-            Text("Skip for now", color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f))
+            Text(stringResource(R.string.onboarding_skip), color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f))
         }
     }
 }

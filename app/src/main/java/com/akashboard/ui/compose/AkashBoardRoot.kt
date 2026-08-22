@@ -45,7 +45,7 @@ fun AkashBoardRoot(ime: AkashBoardIME) {
                         modifier = Modifier
                             .padding(horizontal = 8.dp)
                             .clickable {
-                                ime.currentInputConnection?.commitText(word + " ", 1)
+                                ime.inputHandler?.acceptSuggestion(word)
                                 SuggestionsGlobalState.value = emptyList() // clear after tap
                             }
                     )
