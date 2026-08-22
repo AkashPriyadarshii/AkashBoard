@@ -32,3 +32,19 @@ Rules:
 - Mood detection (`nativeDetectMood`) stub
 - Learner/Corrector tested but not wired into JNI
 - nativePrune stub (needs per-word timestamps in Predictor)
+
+## 2026-08-22 | claude-android | Android agent
+- Did: ported final Android file states to claude-android (0dde84e) after
+  d3e8b65 swept in-flight edits; wired all ~20 settings, fixed dead clipboard
+  clear, clipboard_max_items, @Volatile flags, VoiceInput leak; removed inert
+  network_access setting. 174 unit tests green.
+- Commits: 0dde84e, 47a9bbb (on claude-android)
+- In-flight: none
+- Don't-touch: nothing open
+- NOTE: collision cause = shared working dir + git add -A. Worktree now:
+  claude-rs agent works ONLY in C:\Users\saves\Desktop\AkashBoard-rs;
+  claude-android agent stays in C:\Users\saves\Desktop\AkashBoard.
+
+## 2026-08-22 | claude-android | Android agent (session close)
+- Wrapped clean at 47a9bbb. Next candidates: one-handed mode wiring,
+  androidTest stale API drift, restore stash pre-claude-android rust+android WIP.
