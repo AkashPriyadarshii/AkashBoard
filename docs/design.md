@@ -1,93 +1,52 @@
 ---
-version: 1.0
-name: AkashBoard-site-design-system
+version: 1.0.0
+name: repair-manual-marketing
 description: >
-  Marketing design language for AkashBoard, a privacy-first Android keyboard
-  with a Rust prediction engine. The site is built from the product's own
-  atoms: keycaps. Every surface references mechanical-keyboard construction —
-  double-shot legends, press-travel shadows, artisan accent keys. Palette and
-  geometry come from keycap-set culture (carbon mods, warm-gray alphas, one
-  Serika-taxi-yellow artisan key), not from generic SaaS decoration.
+  AkashBoard site as a vintage factory service manual. The product is shown as an
+  exploded diagram with part numbers; docs are torque specs and procedures.
+  Enhanced with maximum SEO, structured metadata, and direct conversion UX.
+  BEST FOR: Hardware-grade, offline-first, native Android tools.
+---
 
-anti-brief:
-  - "No cream #F4F1EA + serif + terracotta"
-  - "No near-black + acid-mint/acid-green accent"
-  - "No broadsheet hairline newspaper layout"
-  - "No purple-gradient SaaS hero with floating phone mockup"
-  - "No Inter-everywhere typography"
+# AkashBoard Factory Repair Manual + High-Converting UX
 
-colors:
-  carbon: "#17191D"        # page canvas — matches app Canvas family
-  carbon-deep: "#101216"   # pressed key underside / terminal card
-  slate: "#262A31"         # modifier-keycap face, card surfaces
-  slate-lift: "#2C3038"    # keycap top gradient stop
-  hairline: "#33383F"      # borders on dark
-  alpha: "#E9E7E2"         # light keycap face (contrast moments, sparingly)
-  alpha-edge: "#B9B6AE"    # underside of alpha keys
-  ink: "#141518"           # legends on alpha keys, text on light
-  legend: "#F2F1ED"        # primary text on dark
-  mute: "#9BA0AA"          # secondary text on dark
-  serika: "#FFCF3F"        # THE accent — artisan key. CTAs, focus, highlights.
-                           # One accent only. Never gradients of it.
+## Concept
+The site is the OEM service manual for AkashBoard, doubling as a high-conversion marketing landing page. Sections are CHAPTER and SECTION numbered. Exploded diagrams show the architecture as parts. 
 
-typography:
-  display:
-    fontFamily: "Archivo, system-ui, sans-serif"
-    usage: headlines, hero. Weight 800–900, tight tracking (-0.03em),
-           sentence case. Keycap-legend energy scaled up.
-  body:
-    fontFamily: "Archivo, system-ui, sans-serif"
-    usage: paragraphs. Weight 400/500, line-height 1.6, max-width 62ch.
-  mono:
-    fontFamily: "'JetBrains Mono', ui-monospace, monospace"
-    usage: keycap legends, eyebrows, spec chips, stats, code, timestamps.
-           Uppercase for labels, tracking +0.08em. Never for long prose.
+Crucially, **the UX removes friction**: a direct "DOWNLOAD APK" button is prominently injected into the manual's navigation structure, allowing users to acquire the software instantly without leaving the fiction or jumping through GitHub release pages.
 
-geometry:
-  keycap-radius: 10px
-  keycap-shadow: "0 4px 0 {carbon-deep}, 0 5px 10px rgba(0,0,0,.45)"
-  keycap-pressed: "translateY(3px) + 0 1px 0 shadow — physical key travel"
-  alpha-shadow: "same recipe with {alpha-edge} underside"
-  radius-scale: 10px (keycaps) / 14px (cards) / 999px (chips)
-  spacing: 8px base grid; section rhythm 96–128px desktop, 64px mobile
+## SEO & Metadata (Mandatory)
+- **Title**: High-intent, exact keywords (`AkashBoard | The Ultimate Offline Android Keyboard`).
+- **Meta Description**: Compelling, keyword-rich (offline open-source Android keyboard, Rust engine, zero telemetry, absolute privacy).
+- **OpenGraph**: Rich social sharing cards.
+- **JSON-LD Schema**: `SoftwareApplication` structured data injected into `<head>` to dominate Google Rich Snippets for Android apps.
+- **Semantic HTML**: `<main>`, `<aside>`, `<section>`, proper `<h1>` through `<h3>` hierarchy.
 
-signature:
-  element: Live keyboard hero — a real QWERTY rendered in CSS keycaps that
-           the visitor can type on (tap or physical keyboard). A suggestion
-           strip runs prefix prediction and teh→the autocorrect in-page,
-           labeled honestly: demo runs in your browser, nothing sent
-           anywhere. The hero IS the product mockup; no fake screenshots.
-  supporting: nav is a keycap row ending in one serika artisan key (Download);
-              section eyebrows are mono spec-chips stating verifiable facts
-              (PERMISSIONS: NONE · ENGINE TESTS: 203); feature cards wear
-              keycap glyphs instead of icons.
+## Colors
+- **manual paper**: `#f2efe9` (Base background)
+- **age tint**: `#e7e2d6` (Alternate sections/panels)
+- **ink**: `#1f2321` (Primary text)
+- **procedure gray**: `#565b57` (Secondary text, metadata)
+- **warning amber panel**: `#f5c518` at 18% opacity + black hazard stripe
+- **part-callout orange**: `#d34e24` (Highlights, part numbers)
+- **diagram line**: `#2c4a6e` (SVG diagrams)
+- **download button**: Heavy industrial styling, contrasting border, interactive hover state.
 
-motion:
-  - keycap press travel on hover/active (80ms ease-out) — the core feel
-  - hero keyboard staggers in with a single left-to-right key wave on load
-  - suggestion strip caret blinks while demo focused
-  - prefers-reduced-motion: all travel/wave/blink disabled, opacity only
+## Typography
+- **Headings**: `Archivo` (700 weight, condensed)
+- **Body**: `Inter` (400 weight)
+- **Data/Monospace**: `IBM Plex Mono` (12px, tabular)
 
-layout-map:
-  nav:       keycap row — logo key, section keys, serika Download key
-  hero:      headline → subhead → live demo module → hint line
-  privacy:   3 spec cards (NO SOCKET / ON-DEVICE RUST / YOUR MODEL),
-             each states a repo-verifiable fact, no marketing adjectives
-  features:  6 keycap-glyph cards — swipe, corrections, clipboard,
-             emoji, themes, one-handed
-  engine:    copy left, terminal card right ($ cargo test … 203 passed;
-             model.json path shown as-is)
-  install:   3-step numbered sequence (genuine process — numbering earned)
-  footer:    blank keycap divider row, GPL-3.0, built in Patna India, links
+## Layout Grammar & Direct Conversion
+- **Left Margin Column (200px)**: Holds the Brand, the **Direct Download Button**, and section tabs.
+- **Direct Download UX**: 
+  - A prominent, high-contrast block button at the top of the sidebar.
+  - Skips GitHub releases: links directly to the `.apk` asset.
+  - Subtext clearly states file size and requirements (e.g., `2.0 MB • Android 8.0+`).
+- **Exploded diagram hero**: SVG of architecture.
+- **Procedures**: Boxed step lists.
 
-voice:
-  - Plain verbs, sentence case, spec-sheet register. Facts, not adjectives.
-  - Every claim must be checkable in the repo (permissions, test counts, paths).
-  - Errors/states explained plainly; no apology, no hype.
-  - The privacy promise is stated once, mechanically, then proven by demo.
-
-accessibility-floor:
-  - All demo keys are real <button> elements with aria-labels
-  - Visible focus ring in serika yellow (3px outline + 2px offset)
-  - Contrast: legend on carbon ≥ 12:1, mute ≥ 5.5:1, ink on alpha ≥ 13:1
-  - Demo operable by keyboard alone (physical keydown mapped to keys)
+## Signature Interaction
+- **Part Highlighting**: Hovering a part number in text highlights BOTH the diagram part AND its spec-table row.
+- **Hazard Stripes**: Animated background stripes for warnings.
+- **Tactile Feedback**: Web Audio API mechanical switch clicks on interactive elements (tabs, buttons).
