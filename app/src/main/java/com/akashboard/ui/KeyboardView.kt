@@ -15,9 +15,13 @@ import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.PointF
 import android.graphics.RectF
+import android.os.Bundle
 import android.util.AttributeSet
 import android.view.MotionEvent
 import android.view.View
+import android.view.accessibility.AccessibilityNodeInfo
+import android.view.accessibility.AccessibilityNodeProvider
+import java.lang.ref.WeakReference
 import com.akashboard.core.KeyData
 import com.akashboard.core.KeyType
 import com.akashboard.core.KeyRepeatManager
@@ -74,6 +78,7 @@ class KeyboardView @JvmOverloads constructor(
 
     /** Current theme colors — set via setThemeColors() */
     private var themeColors: ThemeColors? = null
+    private var a11yProvider: KeyboardAccessibilityNodeProvider? = null
 
     init {
         setLayerType(LAYER_TYPE_HARDWARE, null)
@@ -204,6 +209,61 @@ class KeyboardView @JvmOverloads constructor(
         return true
     }
 
+    // ── Accessibility ─────────────────────────────────────────────────────
+
+    /** Expose keys to screen readers via virtual node hierarchy. */
+    override fun getAccessibilityNodeProvider(): AccessibilityNodeProvider {
+        if (a11yProvider == null) a11yProvider = KeyboardAccessibilityNodeProvider(this)
+        return a11yProvider!!
+    }
+
+    /** Announce the pressed key's label for TalkBack users. */
+    private fun announceKey(key: KeyData) {
+        contentDescription = key.accessibilityLabel
+        announceForAccessibility(key.accessibilityLabel)
+    }
+
+    private class KeyboardAccessibilityNodeProvider(view: KeyboardView) :
+        AccessibilityNodeProvider() {
+
+        private val viewRef = WeakReference(view)
+
+        override fun createAccessibilityNodeInfo(virtualViewId: Int): AccessibilityNodeInfo? {
+            val view = viewRef.get() ?: return null
+            if (virtualViewId == HOST_VIEW_ID) {
+                return AccessibilityNodeInfo.obtain(view).apply {
+                    className = view.javaClass.name
+                    contentDescription = "Keyboard"
+                    // ponytail: single flat node list; add grouping/rows only if TalkBack navigation demands it
+                }
+            }
+            val key = view.keys.getOrNull(virtualViewId) ?: return null
+            val node = AccessibilityNodeInfo.obtain(view, virtualViewId)
+            node.className = "android.widget.Button"
+            node.contentDescription = key.accessibilityLabel
+            node.setBoundsInParent(
+                android.graphics.Rect(
+                    key.rect.left.toInt(), key.rect.top.toInt(),
+                    key.rect.right.toInt(), key.rect.bottom.toInt()
+                )
+            )
+            node.isClickable = true
+            node.addAction(AccessibilityNodeInfo.ACTION_CLICK)
+            return node
+        }
+
+        override fun performAction(virtualViewId: Int, action: Int, arguments: Bundle?): Boolean {
+            val view = viewRef.get() ?: return false
+            if (action == AccessibilityNodeInfo.ACTION_CLICK) {
+                val key = view.keys.getOrNull(virtualViewId) ?: return false
+                view.onKeyPressedListener?.onKeyPressed(key)
+                view.invalidate()
+                return true
+            }
+            return false
+        }
+    }
+
     private fun handleTouchDown(event: MotionEvent) {
         val x = event.x; val y = event.y
         touchStartX = x; touchStartY = y; longPressTriggered = false; isSwipeGesture = false
@@ -261,7 +321,7 @@ class KeyboardView @JvmOverloads constructor(
         if (isSpacebarGesture) { spacebarCursorManager.endTracking(); isSpacebarGesture = false }
         if (popupState.visible) popupPreviewManager.dismiss()
         keyRepeatManager.stop()
-        pressedKey?.let { key -> onKeyPressedListener?.onKeyPressed(key) }
+        pressedKey?.let { key -> announceKey(key); onKeyPressedListener?.onKeyPressed(key) }
         pressedKey = null; longPressTriggered = false; invalidate()
     }
 
