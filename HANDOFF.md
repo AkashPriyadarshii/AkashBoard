@@ -71,31 +71,20 @@ Rules:
   correct: String): Boolean` + `nativeGetCorrection(word: String): String?`
   to PredictorBridge.kt — that is claude-android territory, NOT done here.
 
-## 2026-08-22 | main | claude-android agent (session 3) — STOPPED MID-FIX, BUGS CONFIRMED NOT FIXED
-- Did: merged claude-android→main; wired corrections bridge
-  (a3c15e5); one-handed mode wired (dec8233); TalkBack a11y virtual key
-  nodes + press announce (a9f391a); onboarding fixes — Start Typing button
-  launched settings instead of app, per-step instructions (3782b21);
-  theme_preview dialog + suggestion_bar_height setting (544e212);
-  release APK rebuilt + v1.0.0 asset updated twice. All pushed to origin/main.
-- In-flight: **UI/UX bug audit DONE, FIXES NOT STARTED. User said stop.**
-  Confirmed bugs (fix these first next session):
-  1. STUCK ON NUMBERS SCREEN: SYMBOLS layout "ABC" key has
-     KeyType.SYMBOLS + code KeyCodes.QWERTY(-106). InputHandler.handleKeyPress
-     routes by KEY TYPE (`KeyType.SYMBOLS -> handleLayoutSwitch(SYMBOLS)`),
-     ignores code → pressing ABC re-switches to SYMBOLS. Dead end.
-     FIX: route by code when code==KeyCodes.QWERTY before the type-based
-     `when`, or give ABC its own KeyType.
-  2. EMOJI CLICKS DEAD: EmojiPanel gets fixed 300dp height from IME
-     (AkashBoardIME ~line 254), grid computes rects for ALL emojis with NO
-     scroll offset; onTouchEvent clamps y to view bounds so only visible-row
-     emojis clickable; rows below drawn outside view = unreachable.
-     FIX: add scrollable offset (GestureDetector/scroller) or page the grid;
-     also emojiRects must account for scrollY in hit-test AND draw.
-  3. SMALL LETTERS / SHIFT: handleLetter applies shiftState ONE then
-     clearShift — verify WordComposer.addCharacter actually lowercases
-     output when NONE; suspected related to #1 routing confusion. Repro
-     needed before fixing.
-  Files: InputHandler.kt:59-81 (routing), EmojiPanel.kt:121-210 (layout/
-  touch), AkashBoardIME.kt ~254 (panel height), WordComposer.kt (verify).
-- Don't-touch: none of the above files mid-fix; engine/ untouched as always.
+## 2026-08-22 | main | claude-android agent (session 4, post-compact)
+- Did: FIXED bugs #1 and #3 from session 3 audit + swipe root cause,
+  commit `4b993cb` on main:
+  - ABC key routing by code before type-based when (stuck-on-numbers fixed)
+  - symbols-layout keys commit literally, no shift mangling
+  - SwipeDetector MAX_KEY_DISTANCE was fixed 50px (~16dp @3x) — smaller
+    than key spacing on real devices, findClosestKey returned null
+    everywhere → swipe never matched anything. Now half min key gap,
+    clamped [40,200]px. Test swapped for behavioral far-from-keys check.
+  All 176 unit tests green.
+- In-flight: **EMOJI PANEL STILL BROKEN (bug #2)** — fixed 300dp height in
+  AkashBoardIME (~line 254), EmojiPanel computes rects for ALL emojis with
+  no scroll offset, only visible row clickable. Fix = scrollable offset or
+  paging in EmojiPanel.kt:121-210 + hit-test/draw must use scrollY.
+  After fix: rebuild release APK, update v1.0.0 asset (gh release upload
+  v1.0.0 app/build/outputs/apk/release/app-release.apk --clobber).
+- Don't-touch: nothing open; engine/ always off-limits.
