@@ -88,3 +88,15 @@ Rules:
   After fix: rebuild release APK, update v1.0.0 asset (gh release upload
   v1.0.0 app/build/outputs/apk/release/app-release.apk --clobber).
 - Don't-touch: nothing open; engine/ always off-limits.
+
+## 2026-08-22 | main | claude-android agent (session 5, post-compact)
+- Did: FIXED bug #2 (emoji panel), commit 532cd47 on main:
+  EmojiPanel now scrollable — vertical drag scrolls via touch-slop-gated
+  scrollY, calculateLayout offsets draw+hit-test rects together, tab tap
+  resets scroll + explicit relayout. All rows clickable now.
+  176 unit tests green, release APK rebuilt, v1.0.0 GH asset updated
+  (--clobber, asset timestamp 2026-08-22T13:51Z).
+- In-flight: none
+- Don't-touch: nothing open; engine/ always off-limits.
+- Next candidates: rs-agent gap nativeUnlearnError for autocorrect-undo,
+  androidTest stale API drift, restore stash pre-claude-android WIP.
