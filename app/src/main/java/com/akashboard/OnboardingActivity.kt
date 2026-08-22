@@ -144,8 +144,7 @@ fun OnboardingScreen(
         Spacer(modifier = Modifier.height(12.dp))
         
         Text(
-            text = "The keyboard that becomes YOU.
-Fast, secure, and 100% offline.",
+            text = stringResource(R.string.onboarding_welcome_subtitle),
             fontSize = 16.sp,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center
@@ -319,3 +318,4 @@ fun StepLine(isActive: Boolean) {
             )
     )
 }
+
