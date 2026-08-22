@@ -290,6 +290,32 @@ class KeyboardView @JvmOverloads constructor(
         requestLayout(); invalidate()
     }
 
+    /**
+     * One-handed mode: keyboard shrinks to [fraction] of screen width,
+     * shifted toward the given side ("off", "left", "right").
+     */
+    fun setOneHandedMode(mode: String) {
+        when (mode.lowercase()) {
+            "left" -> {
+                LayoutCalculator.keyboardWidthFractionOverride = ONE_HANDED_WIDTH_FRACTION
+                LayoutCalculator.keyboardSideOffsetFraction = 0f
+            }
+            "right" -> {
+                LayoutCalculator.keyboardWidthFractionOverride = ONE_HANDED_WIDTH_FRACTION
+                LayoutCalculator.keyboardSideOffsetFraction = 1f
+            }
+            else -> {
+                LayoutCalculator.keyboardWidthFractionOverride = null
+                LayoutCalculator.keyboardSideOffsetFraction = 0f
+            }
+        }
+        requestLayout(); invalidate()
+    }
+
+    private companion object {
+        const val ONE_HANDED_WIDTH_FRACTION = 0.8f
+    }
+
     /** Feature gates wired from settings */
     var swipeTypingEnabled = true
     var spacebarCursorEnabled = true

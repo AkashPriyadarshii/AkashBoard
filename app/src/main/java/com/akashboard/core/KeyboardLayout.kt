@@ -71,6 +71,10 @@ object LayoutCalculator {
     @Volatile var keyGapOverrideDp: Float? = null
     @Volatile var keyHeightOverrideDp: Float? = null
 
+    /** One-handed mode: fraction of screen width the keyboard occupies, and side offset */
+    @Volatile var keyboardWidthFractionOverride: Float? = null
+    @Volatile var keyboardSideOffsetFraction: Float = 0f
+
     /**
      * Calculate key positions for a given screen width.
      *
@@ -80,6 +84,11 @@ object LayoutCalculator {
      * @return CalculatedLayout with positioned keys
      */
     fun calculate(layout: KeyboardLayoutDef, screenWidth: Float, density: Float): CalculatedLayout {
+        // One-handed mode: shrink usable width, shift toward thumb side
+        val widthFraction = keyboardWidthFractionOverride ?: 1f
+        val sideOffset = (screenWidth - screenWidth * widthFraction) * keyboardSideOffsetFraction
+        val usableWidth = screenWidth * widthFraction
+
         val keyGap = (keyGapOverrideDp ?: DEFAULT_KEY_GAP_DP) * density
         val keyHeight = (keyHeightOverrideDp ?: DEFAULT_KEY_HEIGHT_DP) * density
         val bottomRowHeight = BOTTOM_ROW_HEIGHT_DP * density
@@ -97,11 +106,11 @@ object LayoutCalculator {
             val rowWeight = row.keys.sumOf { it.width.toDouble() }.toFloat()
 
             // Key width = available space / row weight
-            // Available = screen minus gaps (gap before first key + gap after each key)
-            val availableWidth = screenWidth - keyGap * (row.keys.size + 1)
+            // Available = usable width minus gaps (gap before first key + gap after each key)
+            val availableWidth = usableWidth - keyGap * (row.keys.size + 1)
             val standardKeyWidth = availableWidth / rowWeight
 
-            var xOffset = keyGap
+            var xOffset = sideOffset + keyGap
 
             for (spec in row.keys) {
                 val keyWidth = standardKeyWidth * spec.width

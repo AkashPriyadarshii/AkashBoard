@@ -302,6 +302,7 @@ class AkashBoardIME : InputMethodService() {
                 keyboardView?.setCornerRadius(sp.keyCornerRadius)
                 keyboardView?.setKeySpacing(sp.keySpacing)
                 keyboardView?.setKeyboardHeight(sp.keyboardHeight)
+                keyboardView?.setOneHandedMode(sp.oneHandedMode)
                 keyboardView?.swipeTypingEnabled = sp.swipeTypingEnabled
                 keyboardView?.spacebarCursorEnabled = sp.spacebarCursorEnabled
                 keyboardView?.longPressRepeatEnabled = sp.longPressRepeatEnabled

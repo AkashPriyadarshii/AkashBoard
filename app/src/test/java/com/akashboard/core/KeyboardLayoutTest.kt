@@ -119,6 +119,28 @@ class KeyboardLayoutTest {
     }
 
     @Test
+    fun `one-handed mode narrows keyboard to thumb side`() {
+        val screenWidth = 1080f
+        LayoutCalculator.keyboardWidthFractionOverride = 0.8f
+        try {
+            LayoutCalculator.keyboardSideOffsetFraction = 1f // right side
+            val right = LayoutCalculator.calculate(KeyboardLayouts.QWERTY, screenWidth, 3.0f)
+            val rightWidth = right.keys.maxOf { it.rect.right } - right.keys.minOf { it.rect.left }
+            assertEquals("Keys span usable width minus edge gaps",
+                screenWidth * 0.8f - 2 * 18f, rightWidth, 5f) // 6dp gap × 3 density × ~2 edges
+            assertTrue("Right mode should shift keys toward right edge",
+                right.keys.maxOf { it.rect.right } > screenWidth * 0.95f)
+
+            LayoutCalculator.keyboardSideOffsetFraction = 0f // left side
+            val left = LayoutCalculator.calculate(KeyboardLayouts.QWERTY, screenWidth, 3.0f)
+            assertTrue("Left mode should hug left edge", left.keys.minOf { it.rect.left } < 30f)
+        } finally {
+            LayoutCalculator.keyboardWidthFractionOverride = null
+            LayoutCalculator.keyboardSideOffsetFraction = 0f
+        }
+    }
+
+    @Test
     fun `calculator hitRect is larger than visual rect`() {
         val calculated = LayoutCalculator.calculate(
             KeyboardLayouts.QWERTY,
