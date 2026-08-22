@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>AkashBoard</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- Navigation: keycap row -->
+  <nav aria-label="Main" role="navigation">
+    <ul>
+      <li><a href="#privacy" class="keycap">☰</a></li>
+      <li><a href="#features" class="keycap">⁽⁾</a></li>
+      <li><a href="#engine" class="keycap accent">📦</a></li>
+    </ul>
+    <a href="https://github.com/AkashPriyadarshii/AkashBoard" class="keycap serika" download>⇣</a>
+  </nav>
+
+  <!-- Hero -->
+  <header id="hero">
+    <h1>AkashBoard</h1>
+    <p class="subtitle">Privacy-first Android keyboard with a Rust prediction engine<br>bridged via JNI/NDK</p>
+    <div id="demo-module">
+      <p>Type on the keys below (hardware or mouse — nothing leaves your browser).</p>
+      <div class="keyboard-hero">
+        <button class="keycap-base" aria-label="Caps Lock">Caps</button>
+        <button class="keycap-base" aria-label="Shift">⇧</button>
+        <button class="keycap-base accent" aria-label="Tab">Tab</button>
+        <button class="keycap-base" aria-label="Q">Q</button>
+        <button class="keycap-base" aria-label="W">W</button>
+        <button class="keycap-base" aria-label="E">E</button>
+        <button class="keycap-base" aria-label="R">R</button>
+        <button class="keycap-base" aria-label="T">T</button>
+        <button class="keycap-base" aria-label="Y">Y</button>
+        <button class="keycap-base" aria-label="U">U</button>
+        <button class="keycap-base" aria-label="I">I</button>
+        <button class="keycap-base" aria-label="O">O</button>
+        <button class="keycap-base" aria-label="P">P</button>
+        <button class="keycap-base" aria-label="Enter">Enter</button>
+        <button class="keycap-base accent" aria-label="Backspace">⌫</button>
+        <button class="keycap-base" aria-label="A">A</button>
+        <button class="keycap-base" aria-label="S">S</button>
+        <button class="keycap-base" aria-label="D">D</button>
+        <button class="keycap-base" aria-label="F">F</button>
+        <button class="keycap-base" aria-label="G">G</button>
+        <button class="keycap-base" aria-label="H">H</button>
+        <button class="keycap-base" aria-label="J">J</button>
+        <button class="keycap-base" aria-label="K">K</button>
+        <button class="keycap-base" aria-label="L">L</button>
+        <button class="keycap-base" aria-label=";">;</button>
+        <button class="keycap-base" aria-label="Enter">Enter</button>
+        <button class="keycap-base accent" aria-label="Shift">⇧</button>
+        <button class="keycap-base" aria-label="Z">Z</button>
+        <button class="keycap-base" aria-label="X">X</button>
+        <button class="keycap-base" aria-label="C">C</button>
+        <button class="keycap-base" aria-label="V">V</button>
+        <button class="keycap-base" aria-label="B">B</button>
+        <button class="keycap-base" aria-label="N">N</button>
+        <button class="keycap-base" aria-label="M">M</button>
+        <button class="keycap-base" aria-label=",">,</button>
+        <button class="keycap-base" aria-label=".">.</button>
+        <button class="keycap-base" aria-label="←">←</button>
+      </div>
+      <p class="hint">Suggestion: demo runs in your browser, nothing sent anywhere</p>
+    </div>
+    <p class="keycap-focus">Focus visible: serika-yellow ring (3px outline)</p>
+  </header>
+
+  <main>
+
+    <section id="privacy">
+      <h2 class="keycap-base">Privacy</h2>
+      <div class="card">
+        <p><strong>No Internet.</strong> The IME lives entirely on device. Zero network traffic. No telemetry. No cloud uploads. All prediction happens in a Rust engine compiled to <code>.so</code>.</p>
+        <p><strong>Your model.</strong> <code>{config_dir}/model.json</code> is your personal corrections ledger — <code>serde(default)</code> loads old files, backs up personal corrections persistently.</p>
+      </div>
+      <div class="card">
+        <p><strong>203 engine tests.</strong> Full test suite runs locally (<code>cargo test --release</code>) — 100% offline, every commit. No CI-only gates.</p>
+      </div>
+    </section>
+
+    <section id="features">
+      <h2 class="keycap-base">Features</h2>
+
+      <div class="grid" aria-label="Feature cards">
+        <article class="card">
+          <h3 class="card-title keycap-base accent">Swipe</h3>
+          <p>Glide-type across keys — path matching against a dictionary, closest-key fallback.</p>
+        </article>
+        <article class="card">
+          <h3 class="card-title keycap-base accent">Corrections</h3>
+          <p>On space/punct, if the word differs from what you typed, it's replaced silently and learned as an error pattern.</p>
+        </article>
+        <article class="card">
+          <h3 class="card-title keycap-base accent">Emoji</h3>
+          <p>Scrollable grid — drag vertically to see all rows. Fixed-height panel clamps to visible rows.</p>
+        </article>
+        <article class="card">
+          <h3 class="card-title keycap-base accent">One-handed</h3>
+          <p>Shift width fraction to 0.8f, offset thumb side. Off clears. A11y node provider present.</p>
+        </article>
+        <article class="card">
+          <h3 class="card-title keycap-base accent">Clipboard</h3>
+          <p>Copy text to clipboard from the keyboard panel. No internet — local clipboard bridge only.</p>
+        </article>
+        <article class="card">
+          <h3 class="card-title keycap-base accent">Themes</h3>
+          <p>Canvas slate, keycap carbon, serika accent on focus. 4-colors only. No gradients. No decorative chrome.</p>
+        </article>
+      </div>
+    </section>
+
+    <section id="engine">
+      <h2 class="keycap-base">Engine</h2>
+      <div class="card terminal-card">
+        <pre><code class="mono">$ cargo test --release
+   Testing AkashBoard 0.1.0
+     running 203 tests
+test result: ok. 203 passed.
+$ nativeBuild --release
+  -> jniLibs/<ab arch>/libpredictor.so</code></pre>
+        <p class="footnote mono">Terminal: test parity confirmed between main and rs worktree via md5sum (both <code>a8a4891f61c294cf5e3d37cb678f337b</code>)</p>
+      </div>
+    </section>
+
+  </main>
+
+  <footer id="footer">
+    <div class="keycap-row">
+      <span class="keycap-base">Built in Patna, India</span>
+      <span class="keycap-base">GPL-3.0</span>
+      <span class="keycap-base accent serika" aria-label="Download APK">⇣</span>
+    </div>
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+</html>
