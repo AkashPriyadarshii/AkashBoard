@@ -15,6 +15,34 @@
 
 ---
 
+## Multi-agent coordination (read this FIRST)
+
+This repo runs multiple AI agents in parallel on separate branches:
+
+| Agent | Branch | Territory |
+|-------|--------|-----------|
+| Claude engine agent | `claude-rs` | `engine/src/**`, `engine/tests/**`, jniLibs `.so` rebuilds |
+| Claude Android agent | `claude-android` | `app/src/main/java/com/akashboard/**` |
+| Codebuff | own branch off `main` (name it) | ANYTHING — unrestricted |
+| Other agents (Copilot, Cursor, you) | feature branch off `main` | assigned per task |
+
+Rules for every agent:
+
+1. **Read `HANDOFF.md` at repo root before starting** and **append an entry
+   before ending your session** (did / in-flight / don't-touch).
+2. **Commit to your branch; never commit work directly to `main`.**
+3. Territories are reserved: touching another agent's files invites merge
+   conflicts — check `HANDOFF.md` first and reconcile instead of fighting.
+4. `.so` rebuilds land ONLY on `claude-rs`.
+5. **Worktrees, not one working dir.** The `claude-rs` agent works in
+   `C:\Users\saves\Desktop\AkashBoard-rs` (`git worktree add ../AkashBoard-rs
+   claude-rs`). The `claude-android` agent works in the main dir
+   `C:\Users\saves\Desktop\AkashBoard`. NEVER run `git add -A` / checkout
+   branches in a directory another agent is actively using — that ate a commit
+   once already. Commit only files from your territory.
+
+---
+
 ## Golden Rules
 
 1. **NEVER add network permissions or make HTTP requests.** The keyboard is 100% offline. No analytics, no telemetry, no cloud.
