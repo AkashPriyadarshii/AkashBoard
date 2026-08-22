@@ -1,11 +1,13 @@
 <div align="center">
 
-# 🔥 AkashBoard
+# 🔥 AkashBoard — Free Open Source Android Keyboard
 
 ### The keyboard that becomes YOU.
 
 **100% FOSS. 100% Local. Zero compromise.**
 **Built in 2 days. 227 tests. Production-ready.**
+
+*Keywords: android keyboard, foss keyboard, open source keyboard, privacy keyboard, swipe typing, keyboard prediction, rust keyboard, local ai keyboard, gboard alternative, swiftkey alternative, no tracking keyboard, offline keyboard, best android keyboard 2026, free keyboard app, keyboard with ai*
 
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![Platform](https://img.shields.io/badge/Platform-Android%208.0+-brightgreen.svg)](https://developer.android.com/about/versions/oreo)
@@ -20,7 +22,9 @@
 
 ## What is AkashBoard?
 
-AkashBoard is an **open-source Android keyboard** that genuinely learns how YOU type — not just generic word frequencies, but your timing, your context, your patterns, your personality. It runs entirely on your device. No cloud. No accounts. No data collection. Ever.
+AkashBoard is a **free, open-source Android keyboard** (FOSS) with a **Rust prediction engine** that genuinely learns how YOU type — not just generic word frequencies, but your timing, your context, your patterns, your personality. It runs entirely on your device. No cloud. No accounts. No data collection. Ever.
+
+**AkashBoard** is the best alternative to Gboard, SwiftKey, and Samsung Keyboard for privacy-conscious users. It's a **no-tracking keyboard** with **swipe typing**, **autocorrect**, **emoji support**, **clipboard history**, and **voice input** — all running 100% locally on your Android device.
 
 ### Built in 2 Days
 
@@ -245,6 +249,36 @@ AkashBoard is licensed under the [GNU General Public License v3.0](LICENSE).
 ## Author
 
 **Akash Priyadarshi** — [GitHub](https://github.com/AkashPriyadarshii) | [Twitter](https://twitter.com/Akash__ydv001) | [Website](https://akashpriyadarshi.vercel.app)
+
+---
+
+---
+
+## SEO — What AkashBoard Is
+
+**AkashBoard** is a **free open-source Android keyboard** (FOSS) written in **Kotlin** with a **Rust prediction engine**. It is the best **Gboard alternative** and **SwiftKey alternative** for users who care about **privacy**.
+
+### Search Terms
+
+| Category | Keywords |
+|----------|----------|
+| **Primary** | android keyboard, open source keyboard, foss keyboard, free keyboard app |
+| **Privacy** | privacy keyboard, no tracking keyboard, no ads keyboard, offline keyboard, local keyboard |
+| **Features** | swipe typing keyboard, autocorrect keyboard, prediction keyboard, emoji keyboard, clipboard keyboard, voice keyboard |
+| **Tech** | rust keyboard, kotlin keyboard, arm64 keyboard, jni keyboard, canvas keyboard |
+| **Alternatives** | gboard alternative, swiftkey alternative, samsung keyboard alternative, openboard alternative, florisboard alternative, heliboard alternative |
+| **Use Cases** | best android keyboard 2026, private keyboard app, secure keyboard, no cloud keyboard, keyboard without internet |
+
+### Also Known As
+
+- AkashBoard keyboard
+- Akash keyboard app
+- Free FOSS Android keyboard
+- Open source keyboard with AI
+- Privacy keyboard no tracking
+- Swipe typing keyboard free
+- Rust prediction keyboard
+- Local AI keyboard android
 
 ---
 
