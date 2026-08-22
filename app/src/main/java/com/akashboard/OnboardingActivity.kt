@@ -1,257 +1,57 @@
-/*
- * Copyright (C) 2026 Akash Priyadarshi
- * Licensed under the GNU General Public License v3.0
- *
- * OnboardingActivity.kt — First-run onboarding.
- */
-
 package com.akashboard
 
 import android.content.Context
 import android.content.Intent
-import android.graphics.Color
-
 import android.os.Bundle
 import android.provider.Settings
-import android.view.Gravity
-import android.view.View
-import android.view.ViewGroup
 import android.view.inputmethod.InputMethodManager
-import android.widget.LinearLayout
-import android.widget.TextView
-import androidx.appcompat.app.AppCompatActivity
-import com.google.android.material.button.MaterialButton
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.compose.ui.platform.LocalLifecycleOwner
+import com.akashboard.ui.theme.AkashBoardTheme
 
-class OnboardingActivity : AppCompatActivity() {
-
-    private lateinit var statusText: TextView
-    private lateinit var actionButton: MaterialButton
-    private lateinit var stepIndicator: TextView
-    private lateinit var instructionsText: TextView
-    private var currentStep = 0
-    private var allDone = false
+class OnboardingActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
-        if (isKeyboardEnabled() && isKeyboardSelected()) {
-            launchMainApp()
-            return
-        }
-
-        setContentView(createLayout())
-        updateStep()
-    }
-
-    override fun onResume() {
-        super.onResume()
-        updateStep()
-    }
-
-    private fun createLayout(): View {
-        val density = resources.displayMetrics.density
-
-        return LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            layoutParams = ViewGroup.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.MATCH_PARENT
-            )
-            setPadding(
-                (32 * density).toInt(),
-                (48 * density).toInt(),
-                (32 * density).toInt(),
-                (32 * density).toInt()
-            )
-            gravity = Gravity.CENTER_HORIZONTAL
-            setBackgroundColor(0xFF111214.toInt())
-
-            // Spacer top
-            addView(View(context).apply {
-                layoutParams = LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT,
-                    0, 1f
-                )
-            })
-
-            // App icon
-            addView(TextView(context).apply {
-                text = "⌨️"
-                textSize = 64f
-                gravity = Gravity.CENTER
-                layoutParams = LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT,
-                    ViewGroup.LayoutParams.WRAP_CONTENT
-                )
-                setPadding(0, 0, 0, (16 * density).toInt())
-            })
-
-            // Title
-            addView(TextView(context).apply {
-                text = "AkashBoard"
-                textSize = 32f
-                setTextColor(0xFFF2F3F5.toInt())
-                gravity = Gravity.CENTER
-                layoutParams = LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT,
-                    ViewGroup.LayoutParams.WRAP_CONTENT
-                )
-            })
-
-            // Subtitle
-            addView(TextView(context).apply {
-                text = "The keyboard that becomes YOU."
-                textSize = 16f
-                setTextColor(0xFFA6ABB4.toInt())
-                gravity = Gravity.CENTER
-                layoutParams = LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT,
-                    ViewGroup.LayoutParams.WRAP_CONTENT
-                )
-                setPadding(0, (8 * density).toInt(), 0, (48 * density).toInt())
-            })
-
-            // Step indicator
-            stepIndicator = TextView(context).apply {
-                text = "Step 1 of 2"
-                textSize = 14f
-                setTextColor(0xFF6C63FF.toInt())
-                gravity = Gravity.CENTER
-                layoutParams = LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT,
-                    ViewGroup.LayoutParams.WRAP_CONTENT
-                )
-                setPadding(0, 0, 0, (16 * density).toInt())
-            }
-            addView(stepIndicator)
-
-            // Status text
-            statusText = TextView(context).apply {
-                text = "Enable AkashBoard in your keyboard settings"
-                textSize = 18f
-                setTextColor(0xFFF2F3F5.toInt())
-                gravity = Gravity.CENTER
-                layoutParams = LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT,
-                    ViewGroup.LayoutParams.WRAP_CONTENT
-                )
-                setPadding(0, 0, 0, (8 * density).toInt())
-            }
-            addView(statusText)
-
-            // Description — per-step instructions, updated by updateStep()
-            instructionsText = TextView(context).apply {
-                text = ""
-                textSize = 14f
-                setTextColor(0xFF60656D.toInt())
-                gravity = Gravity.CENTER
-                layoutParams = LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT,
-                    ViewGroup.LayoutParams.WRAP_CONTENT
-                )
-                setPadding(0, 0, 0, (32 * density).toInt())
-            }
-            addView(instructionsText)
-
-            // Action button
-            actionButton = MaterialButton(context).apply {
-                text = "Enable Keyboard"
-                textSize = 16f
-                setTextColor(Color.WHITE)
-                // Use backgroundTintList instead of setBackground for MaterialButton
-                backgroundTintList = android.content.res.ColorStateList.valueOf(0xFF6C63FF.toInt())
-                cornerRadius = (12 * density).toInt()
-                insetTop = 0
-                insetBottom = 0
-                layoutParams = LinearLayout.LayoutParams(
-                    (280 * density).toInt(),
-                    (52 * density).toInt()
-                )
-                setOnClickListener { handleAction() }
-            }
-            addView(actionButton)
-
-            // Skip button
-            addView(TextView(context).apply {
-                text = "Skip for now"
-                textSize = 14f
-                setTextColor(0xFF60656D.toInt())
-                gravity = Gravity.CENTER
-                layoutParams = LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.WRAP_CONTENT,
-                    ViewGroup.LayoutParams.WRAP_CONTENT
-                ).apply {
-                    topMargin = (16 * density).toInt()
+        setContent {
+            AkashBoardTheme {
+                Surface(
+                    modifier = Modifier.fillMaxSize(),
+                    color = MaterialTheme.colorScheme.background
+                ) {
+                    OnboardingScreen(
+                        onEnableKeyboard = {
+                            startActivity(Intent(Settings.ACTION_INPUT_METHOD_SETTINGS))
+                        },
+                        onSelectKeyboard = {
+                            val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+                            imm.showInputMethodPicker()
+                        },
+                        onFinish = {
+                            launchMainApp()
+                        },
+                        isKeyboardEnabled = ::isKeyboardEnabled,
+                        isKeyboardSelected = ::isKeyboardSelected
+                    )
                 }
-                setPadding(
-                    (16 * density).toInt(),
-                    (8 * density).toInt(),
-                    (16 * density).toInt(),
-                    (8 * density).toInt()
-                )
-                isClickable = true
-                isFocusable = true
-                setOnClickListener { launchMainApp() }
-            })
-
-            // Spacer bottom
-            addView(View(context).apply {
-                layoutParams = LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT,
-                    0, 1f
-                )
-            })
-        }
-    }
-
-    private fun updateStep() {
-        val enabled = isKeyboardEnabled()
-        val selected = isKeyboardSelected()
-
-        when {
-            !enabled -> {
-                currentStep = 0
-                allDone = false
-                stepIndicator.text = "Step 1 of 2"
-                statusText.text = "Enable AkashBoard"
-                actionButton.text = "Enable Keyboard"
-                instructionsText.text =
-                    "Tap the button below to open keyboard settings,\nthen toggle AkashBoard on."
-            }
-            !selected -> {
-                currentStep = 1
-                allDone = false
-                stepIndicator.text = "Step 2 of 2"
-                statusText.text = "Switch to AkashBoard"
-                actionButton.text = "Switch Keyboard"
-                instructionsText.text =
-                    "Tap the button below, then pick AkashBoard\nfrom the input method picker."
-            }
-            else -> {
-                allDone = true
-                stepIndicator.text = "✓ Complete"
-                statusText.text = "You're all set!"
-                actionButton.text = "Start Typing →"
-                instructionsText.text =
-                    "AkashBoard is your active keyboard.\nOpen any text field and start typing."
-            }
-        }
-    }
-
-    private fun handleAction() {
-        if (allDone) {
-            launchMainApp()
-            return
-        }
-
-        when (currentStep) {
-            0 -> {
-                val intent = Intent(Settings.ACTION_INPUT_METHOD_SETTINGS)
-                startActivity(intent)
-            }
-            1 -> {
-                val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
-                imm.showInputMethodPicker()
             }
         }
     }
@@ -271,8 +71,231 @@ class OnboardingActivity : AppCompatActivity() {
             .edit()
             .putBoolean("onboarding_complete", true)
             .apply()
-
         startActivity(Intent(this, SettingsActivity::class.java))
         finish()
     }
+}
+
+@Composable
+fun OnboardingScreen(
+    onEnableKeyboard: () -> Unit,
+    onSelectKeyboard: () -> Unit,
+    onFinish: () -> Unit,
+    isKeyboardEnabled: () -> Boolean,
+    isKeyboardSelected: () -> Boolean
+) {
+    val lifecycleOwner = LocalLifecycleOwner.current
+    var isEnabled by remember { mutableStateOf(isKeyboardEnabled()) }
+    var isSelected by remember { mutableStateOf(isKeyboardSelected()) }
+
+    // Re-check status when returning to the activity
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                isEnabled = isKeyboardEnabled()
+                isSelected = isKeyboardSelected()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    val currentStep = when {
+        !isEnabled -> 1
+        !isSelected -> 2
+        else -> 3
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Spacer(modifier = Modifier.weight(1f))
+
+        // Hero Icon
+        Box(
+            modifier = Modifier
+                .size(100.dp)
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.primaryContainer),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = "✨",
+                fontSize = 48.sp
+            )
+        }
+
+        Spacer(modifier = Modifier.height(32.dp))
+
+        Text(
+            text = "Welcome to AkashBoard",
+            fontSize = 28.sp,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onBackground,
+            textAlign = TextAlign.Center
+        )
+        
+        Spacer(modifier = Modifier.height(12.dp))
+        
+        Text(
+            text = "The keyboard that becomes YOU.\nFast, secure, and 100% offline.",
+            fontSize = 16.sp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center
+        )
+
+        Spacer(modifier = Modifier.height(48.dp))
+
+        // Progress indicator
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            StepCircle(step = 1, isActive = currentStep == 1, isCompleted = currentStep > 1)
+            StepLine(isActive = currentStep > 1)
+            StepCircle(step = 2, isActive = currentStep == 2, isCompleted = currentStep > 2)
+        }
+
+        Spacer(modifier = Modifier.height(32.dp))
+
+        // Action Card
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+            shape = RoundedCornerShape(20.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                when (currentStep) {
+                    1 -> {
+                        Text(
+                            text = "Enable in Settings",
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "First, activate AkashBoard in your system settings.",
+                            fontSize = 14.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Center
+                        )
+                        Spacer(modifier = Modifier.height(24.dp))
+                        Button(
+                            onClick = onEnableKeyboard,
+                            modifier = Modifier.fillMaxWidth().height(56.dp),
+                            shape = RoundedCornerShape(16.dp)
+                        ) {
+                            Text("Enable Keyboard", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                    2 -> {
+                        Text(
+                            text = "Select Keyboard",
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "Now, set AkashBoard as your active input method.",
+                            fontSize = 14.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Center
+                        )
+                        Spacer(modifier = Modifier.height(24.dp))
+                        Button(
+                            onClick = onSelectKeyboard,
+                            modifier = Modifier.fillMaxWidth().height(56.dp),
+                            shape = RoundedCornerShape(16.dp)
+                        ) {
+                            Text("Switch Keyboard", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                    3 -> {
+                        Text(
+                            text = "You're All Set! 🎉",
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "AkashBoard is now ready to use.",
+                            fontSize = 14.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Center
+                        )
+                        Spacer(modifier = Modifier.height(24.dp))
+                        Button(
+                            onClick = onFinish,
+                            modifier = Modifier.fillMaxWidth().height(56.dp),
+                            shape = RoundedCornerShape(16.dp)
+                        ) {
+                            Text("Go to Settings", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.weight(1f))
+        
+        TextButton(
+            onClick = onFinish,
+            modifier = Modifier.padding(bottom = 16.dp)
+        ) {
+            Text("Skip for now", color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f))
+        }
+    }
+}
+
+@Composable
+fun StepCircle(step: Int, isActive: Boolean, isCompleted: Boolean) {
+    val color = when {
+        isCompleted -> MaterialTheme.colorScheme.primary
+        isActive -> MaterialTheme.colorScheme.primary
+        else -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f)
+    }
+    
+    val textColor = when {
+        isCompleted || isActive -> MaterialTheme.colorScheme.onPrimary
+        else -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+    }
+
+    Box(
+        modifier = Modifier
+            .size(36.dp)
+            .clip(CircleShape)
+            .background(color),
+        contentAlignment = Alignment.Center
+    ) {
+        if (isCompleted) {
+            Text("✓", color = textColor, fontWeight = FontWeight.Bold)
+        } else {
+            Text("$step", color = textColor, fontWeight = FontWeight.Bold)
+        }
+    }
+}
+
+@Composable
+fun StepLine(isActive: Boolean) {
+    Box(
+        modifier = Modifier
+            .width(60.dp)
+            .height(4.dp)
+            .background(
+                if (isActive) MaterialTheme.colorScheme.primary 
+                else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f)
+            )
+    )
 }

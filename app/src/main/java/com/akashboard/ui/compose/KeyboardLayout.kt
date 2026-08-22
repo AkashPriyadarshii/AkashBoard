@@ -28,7 +28,7 @@ fun KeyboardLayout(ime: AkashBoardIME, modifier: Modifier = Modifier) {
     val scope = remember { CoroutineScope(Dispatchers.Default) }
 
     Box(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxSize()
             .background(Color(0xFF1E1E1E))
             .pointerInput(Unit) {
