@@ -82,20 +82,20 @@ object LayoutCalculator {
         val suggestionBarHeight = SUGGESTION_BAR_HEIGHT_DP * density
         val hitboxExpansion = HITBOX_EXPANSION_DP * density
 
-        // Calculate total weight of all keys
-        val totalWeight = layout.rows.sumOf { row ->
-            row.keys.sumOf { it.width.toDouble() }
-        }.toFloat()
-
-        // Standard key width = screen width divided by total weight
-        val standardKeyWidth = (screenWidth - keyGap * (totalWeight + 1)) / totalWeight
-
         val keys = mutableListOf<KeyData>()
         var yOffset = suggestionBarHeight
 
         for ((rowIndex, row) in layout.rows.withIndex()) {
             val isBottomRow = rowIndex == layout.rows.size - 1
             val rowHeight = if (isBottomRow) bottomRowHeight else keyHeight
+
+            // Calculate this row's total weight independently
+            val rowWeight = row.keys.sumOf { it.width.toDouble() }.toFloat()
+
+            // Key width = available space / row weight
+            // Available = screen minus gaps (gap before first key + gap after each key)
+            val availableWidth = screenWidth - keyGap * (row.keys.size + 1)
+            val standardKeyWidth = availableWidth / rowWeight
 
             var xOffset = keyGap
 

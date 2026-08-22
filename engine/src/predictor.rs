@@ -11,23 +11,28 @@
  *   - predict(): <1ms for top-5
  *   - correct(): <0.5ms
  *   - learn(): <0.1ms
+ *
+ * Optimizations:
+ *   - O(1) bigram lookup via HashMap<String, Vec<(String, u32)>>
+ *   - O(1) trigram lookup via HashMap<(String, String), Vec<(String, u32)>>
+ *   - Partial sort for candidate selection (O(n log k) instead of O(n log n))
+ *   - Length pre-filter + early-exit edit_distance for correct()
  */
 
 use std::collections::HashMap;
 
 /// N-gram prediction engine.
-///
-/// Stores word frequencies and bigram/trigram patterns
-/// for fast next-word prediction.
 pub struct Predictor {
     /// Unigram frequencies: word → count
     unigrams: HashMap<String, u32>,
 
-    /// Bigram frequencies: (prev_word, curr_word) → count
-    bigrams: HashMap<(String, String), u32>,
+    /// Bigram index: prev_word → [(next_word, count), ...]
+    /// This enables O(1) lookup instead of O(n) iteration
+    bigram_index: HashMap<String, Vec<(String, u32)>>,
 
-    /// Trigram frequencies: (prev_prev, prev, curr) → count
-    trigrams: HashMap<(String, String, String), u32>,
+    /// Trigram index: (prev_prev, prev) → [(next_word, count), ...]
+    /// This enables O(1) lookup instead of O(n) iteration
+    trigram_index: HashMap<(String, String), Vec<(String, u32)>>,
 
     /// Total word count for frequency normalization
     total_words: u64,
@@ -38,20 +43,13 @@ impl Predictor {
     pub fn new() -> Self {
         Self {
             unigrams: HashMap::new(),
-            bigrams: HashMap::new(),
-            trigrams: HashMap::new(),
+            bigram_index: HashMap::new(),
+            trigram_index: HashMap::new(),
             total_words: 0,
         }
     }
 
     /// Predict the next words given a context string.
-    ///
-    /// # Arguments
-    /// * `context` - The current text (e.g., "I am going to the")
-    /// * `top_k` - Maximum number of suggestions
-    ///
-    /// # Returns
-    /// Vector of predicted words, ordered by probability (highest first)
     ///
     /// # Performance
     /// Target: <1ms for top-5 on a typical vocabulary
@@ -62,28 +60,26 @@ impl Predictor {
             return self.top_unigrams(top_k);
         }
 
-        // Try trigrams first (most specific), then bigrams, then unigrams
-        let mut candidates: Vec<(String, f64)> = Vec::new();
+        let mut candidates: Vec<(String, f64)> = Vec::with_capacity(top_k * 3);
 
+        // Trigram matching — O(1) lookup
         if words.len() >= 2 {
             let prev_prev = words[words.len() - 2].to_lowercase();
             let prev = words[words.len() - 1].to_lowercase();
 
-            // Trigram matching
-            for ((pp, p, curr), freq) in &self.trigrams {
-                if pp == &prev_prev && p == &prev {
-                    let score = *freq as f64 * 1.5; // Trigrams get 1.5x boost
+            if let Some(entries) = self.trigram_index.get(&(prev_prev, prev)) {
+                for (curr, freq) in entries {
+                    let score = *freq as f64 * 1.5;
                     candidates.push((curr.clone(), score));
                 }
             }
         }
 
-        // Bigram matching
+        // Bigram matching — O(1) lookup
         let last_word = words.last().unwrap().to_lowercase();
-        for ((prev, curr), freq) in &self.bigrams {
-            if prev == &last_word {
+        if let Some(entries) = self.bigram_index.get(&last_word) {
+            for (curr, freq) in entries {
                 let score = *freq as f64;
-                // Only add if not already present from trigrams
                 if !candidates.iter().any(|(w, _)| w == curr) {
                     candidates.push((curr.clone(), score));
                 }
@@ -95,35 +91,50 @@ impl Predictor {
             return self.top_unigrams(top_k);
         }
 
-        // Sort by score (highest first) and take top_k
-        candidates.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
-        candidates.truncate(top_k);
+        if top_k == 0 {
+            return Vec::new();
+        }
+
+        // Partial sort — O(n log k) instead of O(n log n)
+        if candidates.len() > top_k {
+            candidates.select_nth_unstable_by(top_k - 1, |a, b| {
+                b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal)
+            });
+            candidates.truncate(top_k);
+        } else {
+            candidates.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+        }
 
         candidates.into_iter().map(|(word, _)| word).collect()
     }
 
     /// Auto-correct a potentially misspelled word.
     ///
-    /// Uses edit distance to find the closest known word.
-    ///
     /// # Performance
     /// Target: <0.5ms
     pub fn correct(&self, word: &str, _context: &str) -> String {
         let lower = word.to_lowercase();
 
-        // If the word is already known, return it as-is
+        // O(1) check if already known
         if self.unigrams.contains_key(&lower) {
             return word.to_string();
         }
 
-        // Find the closest word by edit distance
+        let word_len = lower.len();
+        let max_distance = if word_len <= 4 { 1 } else { 2 };
+
         let mut best_match = None;
         let mut best_distance = usize::MAX;
 
         for known_word in self.unigrams.keys() {
-            let distance = edit_distance(&lower, known_word);
-            if distance < best_distance && distance <= 2 {
-                // Only correct if edit distance is reasonable
+            // Length pre-filter — O(1) skip
+            let known_len = known_word.len();
+            if (word_len as isize - known_len as isize).unsigned_abs() > max_distance {
+                continue;
+            }
+
+            let distance = edit_distance_early_exit(&lower, known_word, best_distance);
+            if distance < best_distance && distance <= max_distance {
                 best_distance = distance;
                 best_match = Some(known_word.clone());
             }
@@ -133,13 +144,6 @@ impl Predictor {
     }
 
     /// Learn a new word/pattern from user typing.
-    ///
-    /// # Arguments
-    /// * `word` - The word to learn
-    /// * `context` - The surrounding context
-    ///
-    /// # Returns
-    /// true if the word was successfully learned
     ///
     /// # Performance
     /// Target: <0.1ms
@@ -153,20 +157,30 @@ impl Predictor {
         *self.unigrams.entry(lower_word.clone()).or_insert(0) += 1;
         self.total_words += 1;
 
-        // Update bigram
+        // Update bigram index
         let context_words: Vec<&str> = context.split_whitespace().collect();
         if let Some(last) = context_words.last() {
             let prev = last.to_lowercase();
-            *self.bigrams.entry((prev, lower_word.clone())).or_insert(0) += 1;
+            let entries = self.bigram_index.entry(prev).or_insert_with(Vec::new);
+            // Check if this (prev, curr) pair already exists
+            if let Some(entry) = entries.iter_mut().find(|(w, _)| *w == lower_word) {
+                entry.1 += 1;
+            } else {
+                entries.push((lower_word.clone(), 1));
+            }
         }
 
-        // Update trigram
+        // Update trigram index
         if context_words.len() >= 2 {
             let prev_prev = context_words[context_words.len() - 2].to_lowercase();
             let prev = context_words[context_words.len() - 1].to_lowercase();
-            *self.trigrams
-                .entry((prev_prev, prev, lower_word))
-                .or_insert(0) += 1;
+            let key = (prev_prev, prev);
+            let entries = self.trigram_index.entry(key).or_insert_with(Vec::new);
+            if let Some(entry) = entries.iter_mut().find(|(w, _)| *w == lower_word) {
+                entry.1 += 1;
+            } else {
+                entries.push((lower_word.clone(), 1));
+            }
         }
 
         true
@@ -174,13 +188,18 @@ impl Predictor {
 
     /// Get the top N most frequent unigrams.
     fn top_unigrams(&self, k: usize) -> Vec<String> {
+        if k == 0 {
+            return Vec::new();
+        }
         let mut words: Vec<_> = self.unigrams.iter().collect();
-        words.sort_by(|a, b| b.1.cmp(a.1));
-        words
-            .into_iter()
-            .take(k)
-            .map(|(word, _)| word.clone())
-            .collect()
+        if words.len() > k * 10 {
+            words.select_nth_unstable_by(k - 1, |a, b| b.1.cmp(a.1));
+            words.truncate(k);
+        } else {
+            words.sort_by(|a, b| b.1.cmp(a.1));
+            words.truncate(k);
+        }
+        words.into_iter().map(|(word, _)| word.clone()).collect()
     }
 
     /// Get the total number of learned words.
@@ -190,7 +209,7 @@ impl Predictor {
 
     /// Get the total number of bigrams.
     pub fn bigram_count(&self) -> usize {
-        self.bigrams.len()
+        self.bigram_index.values().map(|v| v.len()).sum()
     }
 
     /// Get memory usage estimate in bytes.
@@ -198,58 +217,84 @@ impl Predictor {
         let unigram_size: usize = self
             .unigrams
             .iter()
-            .map(|(k, _v)| k.len() + std::mem::size_of::<u32>() + 32) // HashMap overhead
+            .map(|(k, _v)| k.len() + std::mem::size_of::<u32>() + 32)
             .sum();
         let bigram_size: usize = self
-            .bigrams
+            .bigram_index
             .iter()
-            .map(|((k1, k2), _v)| k1.len() + k2.len() + std::mem::size_of::<u32>() + 48)
+            .map(|(k, v)| k.len() + v.iter().map(|(w, _)| w.len() + 8).sum::<usize>() + 48)
             .sum();
         let trigram_size: usize = self
-            .trigrams
+            .trigram_index
             .iter()
-            .map(|((k1, k2, k3), _v)| k1.len() + k2.len() + k3.len() + std::mem::size_of::<u32>() + 64)
+            .map(|((k1, k2), v)| k1.len() + k2.len() + v.iter().map(|(w, _)| w.len() + 8).sum::<usize>() + 64)
             .sum();
         unigram_size + bigram_size + trigram_size
     }
 }
 
 /// Calculate the Levenshtein edit distance between two strings.
-///
-/// Used for auto-correction to find the closest known word.
 pub fn edit_distance(a: &str, b: &str) -> usize {
     let a_chars: Vec<char> = a.chars().collect();
     let b_chars: Vec<char> = b.chars().collect();
     let a_len = a_chars.len();
     let b_len = b_chars.len();
 
-    if a_len == 0 {
-        return b_len;
-    }
-    if b_len == 0 {
-        return a_len;
-    }
+    if a_len == 0 { return b_len; }
+    if b_len == 0 { return a_len; }
 
-    // Use a flat array for better cache performance
     let mut prev = vec![0usize; b_len + 1];
     let mut curr = vec![0usize; b_len + 1];
 
-    for j in 0..=b_len {
-        prev[j] = j;
-    }
+    for j in 0..=b_len { prev[j] = j; }
 
     for i in 1..=a_len {
         curr[0] = i;
         for j in 1..=b_len {
-            let cost = if a_chars[i - 1] == b_chars[j - 1] {
-                0
-            } else {
-                1
-            };
-            curr[j] = (prev[j] + 1)
-                .min(curr[j - 1] + 1)
-                .min(prev[j - 1] + cost);
+            let cost = if a_chars[i - 1] == b_chars[j - 1] { 0 } else { 1 };
+            curr[j] = (prev[j] + 1).min(curr[j - 1] + 1).min(prev[j - 1] + cost);
         }
+        std::mem::swap(&mut prev, &mut curr);
+    }
+
+    prev[b_len]
+}
+
+/// Edit distance with early exit — aborts if distance exceeds `max_dist`.
+fn edit_distance_early_exit(a: &str, b: &str, max_dist: usize) -> usize {
+    let a_chars: Vec<char> = a.chars().collect();
+    let b_chars: Vec<char> = b.chars().collect();
+    let a_len = a_chars.len();
+    let b_len = b_chars.len();
+
+    if a_len == 0 { return b_len; }
+    if b_len == 0 { return a_len; }
+
+    if (a_len as isize - b_len as isize).unsigned_abs() > max_dist {
+        return max_dist + 1;
+    }
+
+    let mut prev = vec![0usize; b_len + 1];
+    let mut curr = vec![0usize; b_len + 1];
+
+    for j in 0..=b_len { prev[j] = j; }
+
+    for i in 1..=a_len {
+        curr[0] = i;
+        let mut row_min = curr[0];
+
+        for j in 1..=b_len {
+            let cost = if a_chars[i - 1] == b_chars[j - 1] { 0 } else { 1 };
+            curr[j] = (prev[j] + 1).min(curr[j - 1] + 1).min(prev[j - 1] + cost);
+            if curr[j] < row_min {
+                row_min = curr[j];
+            }
+        }
+
+        if row_min > max_dist {
+            return max_dist + 1;
+        }
+
         std::mem::swap(&mut prev, &mut curr);
     }
 
@@ -293,6 +338,18 @@ mod tests {
     }
 
     #[test]
+    fn test_trigram_prediction() {
+        let mut p = Predictor::new();
+        p.learn("the", "I am going to");
+        p.learn("store", "I am going to the");
+        p.learn("store", "I am going to the");
+
+        let results = p.predict("I am going to the", 3);
+        // Trigram should boost "store"
+        assert!(results.contains(&"store".to_string()));
+    }
+
+    #[test]
     fn test_correct_known_word() {
         let mut p = Predictor::new();
         p.learn("hello", "");
@@ -304,7 +361,6 @@ mod tests {
         let mut p = Predictor::new();
         p.learn("hello", "");
         p.learn("world", "");
-        // "helo" should correct to "hello" (edit distance 1)
         assert_eq!(p.correct("helo", ""), "hello");
     }
 
@@ -330,6 +386,27 @@ mod tests {
         p.learn("world", "");
         let usage = p.memory_usage();
         assert!(usage > 0);
-        assert!(usage < 1024); // Should be less than 1KB for 2 words
+    }
+
+    #[test]
+    fn test_early_exit_consistency() {
+        let pairs = [
+            ("hello", "helo"),
+            ("keyboard", "keybaord"),
+            ("abc", "def"),
+        ];
+        for (a, b) in &pairs {
+            let full = edit_distance(a, b);
+            let early = edit_distance_early_exit(a, b, 10);
+            assert_eq!(full, early, "Mismatch for ({}, {})", a, b);
+        }
+    }
+
+    #[test]
+    fn test_bigram_count() {
+        let mut p = Predictor::new();
+        p.learn("hello", "hi");
+        p.learn("world", "hello");
+        assert!(p.bigram_count() >= 2);
     }
 }

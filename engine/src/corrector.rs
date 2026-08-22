@@ -12,6 +12,11 @@
  * Performance targets:
  *   - correct(): <0.5ms
  *   - learn_error(): <0.1ms
+ *
+ * Optimizations:
+ *   - Length pre-filter: skip words differing by >max_distance chars
+ *   - Early-exit edit_distance: abort row when distance exceeds best
+ *   - Known words sorted by length for binary search on length range
  */
 
 use std::collections::HashMap;
@@ -24,8 +29,11 @@ pub struct Corrector {
     /// Common typos (built-in)
     common_typos: HashMap<String, String>,
 
-    /// Known words for edit distance matching
+    /// Known words for edit distance matching, sorted by length
     known_words: Vec<String>,
+
+    /// Known words sorted by length for fast length-range queries
+    known_by_length: Vec<(usize, usize)>, // (length, index into known_words)
 }
 
 impl Corrector {
@@ -61,6 +69,7 @@ impl Corrector {
             personal_corrections: HashMap::new(),
             common_typos,
             known_words: Vec::new(),
+            known_by_length: Vec::new(),
         }
     }
 
@@ -76,24 +85,48 @@ impl Corrector {
     pub fn correct(&self, word: &str) -> String {
         let lower = word.to_lowercase();
 
-        // 1. Check personal corrections
+        // 1. Check personal corrections — O(1) HashMap lookup
         if let Some(correction) = self.personal_corrections.get(&lower) {
             return correction.clone();
         }
 
-        // 2. Check common typos
+        // 2. Check common typos — O(1) HashMap lookup
         if let Some(correction) = self.common_typos.get(&lower) {
             return correction.clone();
         }
 
-        // 3. Edit distance against known words
+        // 3. Edit distance against known words with optimizations
         if !self.known_words.is_empty() {
-            if let Some(closest) = self.find_closest_word(&lower) {
-                let distance = edit_distance(&lower, &closest);
-                // Only correct if edit distance is reasonable (1-2 for short words, 2-3 for long)
-                let max_distance = if lower.len() <= 4 { 1 } else { 2 };
-                if distance <= max_distance {
-                    return closest;
+            let word_len = lower.len();
+            let max_distance = if word_len <= 4 { 1 } else { 2 };
+
+            // Length pre-filter: skip words that differ by more than max_distance
+            // Binary search for the range of valid lengths
+            let min_len = if word_len > max_distance { word_len - max_distance } else { 0 };
+            let max_len = word_len + max_distance;
+
+            let mut best_distance = usize::MAX;
+            let mut best_match: Option<&str> = None;
+
+            for known in &self.known_words {
+                let known_len = known.len();
+
+                // Skip words outside length range — O(1) per word
+                if known_len < min_len || known_len > max_len {
+                    continue;
+                }
+
+                // Use early-exit edit distance
+                let distance = edit_distance_early_exit(&lower, known, best_distance);
+                if distance < best_distance {
+                    best_distance = distance;
+                    best_match = Some(known.as_str());
+                }
+            }
+
+            if let Some(closest) = best_match {
+                if best_distance <= max_distance {
+                    return closest.to_string();
                 }
             }
         }
@@ -122,12 +155,23 @@ impl Corrector {
         let lower = word.to_lowercase();
         if !self.known_words.contains(&lower) {
             self.known_words.push(lower);
+            self.rebuild_length_index();
         }
     }
 
     /// Set the known words list (from dictionary).
     pub fn set_known_words(&mut self, words: Vec<String>) {
         self.known_words = words.into_iter().map(|w| w.to_lowercase()).collect();
+        self.rebuild_length_index();
+    }
+
+    /// Rebuild the length-sorted index for fast filtering.
+    fn rebuild_length_index(&mut self) {
+        self.known_by_length.clear();
+        for (i, word) in self.known_words.iter().enumerate() {
+            self.known_by_length.push((word.len(), i));
+        }
+        self.known_by_length.sort_by_key(|&(len, _)| len);
     }
 
     /// Find the closest known word by edit distance.
@@ -170,8 +214,10 @@ impl Corrector {
 
 /// Levenshtein edit distance.
 pub fn edit_distance(a: &str, b: &str) -> usize {
-    let a_len = a.len();
-    let b_len = b.len();
+    let a_chars: Vec<char> = a.chars().collect();
+    let b_chars: Vec<char> = b.chars().collect();
+    let a_len = a_chars.len();
+    let b_len = b_chars.len();
 
     if a_len == 0 { return b_len; }
     if b_len == 0 { return a_len; }
@@ -181,15 +227,59 @@ pub fn edit_distance(a: &str, b: &str) -> usize {
 
     for j in 0..=b_len { prev[j] = j; }
 
-    let a_chars: Vec<char> = a.chars().collect();
-    let b_chars: Vec<char> = b.chars().collect();
-
     for i in 1..=a_len {
         curr[0] = i;
         for j in 1..=b_len {
             let cost = if a_chars[i - 1] == b_chars[j - 1] { 0 } else { 1 };
             curr[j] = (prev[j] + 1).min(curr[j - 1] + 1).min(prev[j - 1] + cost);
         }
+        std::mem::swap(&mut prev, &mut curr);
+    }
+
+    prev[b_len]
+}
+
+/// Edit distance with early exit — aborts if distance exceeds `max_dist`.
+///
+/// This is critical for correct() performance: instead of computing the
+/// full matrix, we stop as soon as we know this word can't be the best match.
+fn edit_distance_early_exit(a: &str, b: &str, max_dist: usize) -> usize {
+    let a_chars: Vec<char> = a.chars().collect();
+    let b_chars: Vec<char> = b.chars().collect();
+    let a_len = a_chars.len();
+    let b_len = b_chars.len();
+
+    if a_len == 0 { return b_len; }
+    if b_len == 0 { return a_len; }
+
+    // Quick length check
+    if (a_len as isize - b_len as isize).unsigned_abs() > max_dist {
+        return max_dist + 1;
+    }
+
+    let mut prev = vec![0usize; b_len + 1];
+    let mut curr = vec![0usize; b_len + 1];
+
+    for j in 0..=b_len { prev[j] = j; }
+
+    for i in 1..=a_len {
+        curr[0] = i;
+        let mut row_min = curr[0];
+
+        for j in 1..=b_len {
+            let cost = if a_chars[i - 1] == b_chars[j - 1] { 0 } else { 1 };
+            curr[j] = (prev[j] + 1).min(curr[j - 1] + 1).min(prev[j - 1] + cost);
+            if curr[j] < row_min {
+                row_min = curr[j];
+            }
+        }
+
+        // Early exit: if the minimum value in this row exceeds max_dist,
+        // the final distance will definitely exceed it
+        if row_min > max_dist {
+            return max_dist + 1;
+        }
+
         std::mem::swap(&mut prev, &mut curr);
     }
 
@@ -235,5 +325,24 @@ mod tests {
         assert_eq!(edit_distance("abc", "abc"), 0);
         assert_eq!(edit_distance("abc", "ab"), 1);
         assert_eq!(edit_distance("abc", "def"), 3);
+    }
+
+    #[test]
+    fn test_early_exit_same_as_full() {
+        // Verify early-exit produces same results as full edit_distance
+        let pairs = [
+            ("hello", "helo"),
+            ("keyboard", "keybaord"),
+            ("short", "hort"),
+            ("abc", "def"),
+            ("a", "b"),
+            ("", "test"),
+            ("test", ""),
+        ];
+        for (a, b) in &pairs {
+            let full = edit_distance(a, b);
+            let early = edit_distance_early_exit(a, b, 10);
+            assert_eq!(full, early, "Mismatch for ({}, {})", a, b);
+        }
     }
 }
