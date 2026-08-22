@@ -387,3 +387,76 @@ mod persistence_tests {
         assert_eq!(p.word_count(), before);
     }
 }
+
+// ── Personal correction JNI (Learner-backed) ─────────────────────────────
+
+/// Learn a personal error pattern: user typed `wrong`, meant `correct`.
+#[no_mangle]
+pub extern "system" fn Java_com_akashboard_engine_PredictorBridge_nativeLearnError(
+    mut env: JNIEnv,
+    _class: JClass,
+    wrong: JString,
+    correct: JString,
+) -> jboolean {
+    let wrong: String = match env.get_string(&wrong) {
+        Ok(s) => s.into(),
+        Err(_) => return 0,
+    };
+    let correct: String = match env.get_string(&correct) {
+        Ok(s) => s.into(),
+        Err(_) => return 0,
+    };
+    if wrong.is_empty() || correct.is_empty() {
+        return 0;
+    }
+    let mut engine = engine();
+    engine.learn_error(&wrong, &correct);
+    1
+}
+
+/// Get the learned correction for a word, or "" if none.
+#[no_mangle]
+pub extern "system" fn Java_com_akashboard_engine_PredictorBridge_nativeGetCorrection(
+    mut env: JNIEnv,
+    _class: JClass,
+    word: JString,
+) -> jstring {
+    let word: String = match env.get_string(&word) {
+        Ok(s) => s.into(),
+        Err(_) => return empty_string(&mut env),
+    };
+    let engine = engine();
+    let result = engine.get_correction(&word).unwrap_or("").to_string();
+    match env.new_string(&result) {
+        Ok(s) => s.into_raw(),
+        Err(_) => empty_string(&mut env),
+    }
+}
+
+#[cfg(test)]
+mod correction_tests {
+    use crate::predictor::Predictor;
+
+    #[test]
+    fn learn_error_roundtrip_and_persistence() {
+        let mut p = Predictor::new();
+        p.learn_error("teh", "the");
+        assert_eq!(p.get_correction("TEH"), Some("the"));
+        assert_eq!(p.get_correction("hello"), None);
+
+        // Survives persistence
+        let mut restored = Predictor::new();
+        assert!(restored.from_json(&p.to_json()));
+        assert_eq!(restored.get_correction("teh"), Some("the"));
+    }
+
+    #[test]
+    fn old_model_without_corrections_still_loads() {
+        // SerializedModel from before the corrections field existed
+        let legacy = br#"{"unigrams":{"hi":1},"bigram_index":{},"trigrams":[],"total_words":1}"#;
+        let mut p = Predictor::new();
+        assert!(p.from_json(legacy));
+        assert_eq!(p.word_count(), 1);
+        assert_eq!(p.get_correction("teh"), None);
+    }
+}

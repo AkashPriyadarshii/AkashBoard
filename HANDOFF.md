@@ -48,3 +48,15 @@ Rules:
 ## 2026-08-22 | claude-android | Android agent (session close)
 - Wrapped clean at 47a9bbb. Next candidates: one-handed mode wiring,
   androidTest stale API drift, restore stash pre-claude-android rust+android WIP.
+
+## 2026-08-22 | claude-rs | engine agent (session 2, worktree)
+- Did: personal corrections wired into Predictor (learn_error/get_correction,
+  persisted in model.json with serde default for old files), JNI exports
+  nativeLearnError/nativeGetCorrection added to lib.rs, +2 tests (203 total
+  green), rebuilt .so into jniLibs. HANDOFF updated with android session.
+- Commits: fffaab8 (handoff log), this commit
+- In-flight: none
+- Don't-touch: nothing open
+- NOTE: Kotlin side must add `external fun nativeLearnError(wrong: String,
+  correct: String): Boolean` + `nativeGetCorrection(word: String): String?`
+  to PredictorBridge.kt — that is claude-android territory, NOT done here.

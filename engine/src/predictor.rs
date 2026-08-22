@@ -38,6 +38,9 @@ struct SerializedModel {
     bigram_index: HashMap<String, Vec<(String, u32)>>,
     trigrams: Vec<TrigramRow>,
     total_words: u64,
+    /// Personal error patterns; default keeps old model.json files loadable.
+    #[serde(default)]
+    corrections: HashMap<String, String>,
 }
 
 /// N-gram prediction engine.
@@ -55,6 +58,9 @@ pub struct Predictor {
 
     /// Total word count for frequency normalization
     total_words: u64,
+
+    /// Personal error patterns learned from user corrections: wrong → right
+    corrections: HashMap<String, String>,
 }
 
 impl Predictor {
@@ -65,6 +71,7 @@ impl Predictor {
             bigram_index: HashMap::new(),
             trigram_index: HashMap::new(),
             total_words: 0,
+            corrections: HashMap::new(),
         }
     }
 
@@ -231,6 +238,19 @@ impl Predictor {
         self.bigram_index.values().map(|v| v.len()).sum()
     }
 
+    /// Learn a personal error pattern (user typed X, meant Y).
+    pub fn learn_error(&mut self, wrong: &str, correct: &str) {
+        let (wrong, correct) = (wrong.to_lowercase(), correct.to_lowercase());
+        if !wrong.is_empty() && !correct.is_empty() {
+            self.corrections.insert(wrong, correct);
+        }
+    }
+
+    /// Get the learned correction for a word.
+    pub fn get_correction(&self, word: &str) -> Option<&str> {
+        self.corrections.get(&word.to_lowercase()).map(|s| s.as_str())
+    }
+
     /// Serialize engine state to JSON bytes (for persistence).
     /// ponytail: trigram tuple-keys can't be JSON map keys, so they're
     /// flattened to [prev_prev, prev, next, count] arrays. Upgrade path:
@@ -253,6 +273,7 @@ impl Predictor {
             bigram_index: self.bigram_index.clone(),
             trigrams,
             total_words: self.total_words,
+            corrections: self.corrections.clone(),
         };
         serde_json::to_vec(&payload).unwrap_or_default()
     }
@@ -273,6 +294,7 @@ impl Predictor {
                 self.bigram_index = m.bigram_index;
                 self.trigram_index = trigram_index;
                 self.total_words = m.total_words;
+                self.corrections = m.corrections;
                 true
             }
             Err(_) => false,
