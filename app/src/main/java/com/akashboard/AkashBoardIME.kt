@@ -292,19 +292,28 @@ class AkashBoardIME : InputMethodService() {
             keyboardView?.setShiftState(inputHandler?.getShiftState() ?: com.akashboard.core.ShiftState.NONE)
             typingStats?.startSession()
 
-            // Wire settings to keyboard components
+            // Wire ALL settings to keyboard components
             settingsProvider?.let { sp ->
+                inputHandler?.setAutoCorrect(sp.autoCorrectEnabled)
+                inputHandler?.setPredictiveText(sp.predictiveTextEnabled)
+                inputHandler?.setIncognito(sp.incognitoMode)
+                inputHandler?.setLearningEnabled(sp.learningEnabled)
                 keyboardView?.updateRepeatTiming(sp.keyRepeatDelay.toLong(), sp.keyRepeatRate.toLong())
                 keyboardView?.setCornerRadius(sp.keyCornerRadius)
+                keyboardView?.setKeySpacing(sp.keySpacing)
+                keyboardView?.swipeTypingEnabled = sp.swipeTypingEnabled
+                keyboardView?.spacebarCursorEnabled = sp.spacebarCursorEnabled
+                keyboardView?.longPressRepeatEnabled = sp.longPressRepeatEnabled
                 hapticFeedback?.setEnabled(sp.vibrateOnKeypress)
             }
 
-            // Load clipboard items
+            // Load clipboard items (respects max-items + history toggle)
             val db = clipboardDB
             if (db != null) {
                 scope.launch(Dispatchers.IO) {
                     try {
-                        val items = db.clipboardDao().getItems(20)
+                        val max = settingsProvider?.clipboardMaxItems ?: 50
+                        val items = db.clipboardDao().getItems(max)
                         scope.launch(Dispatchers.Main) {
                             clipboardPanel?.setItems(items)
                         }
@@ -331,6 +340,7 @@ class AkashBoardIME : InputMethodService() {
     override fun onDestroy() {
         try {
             scope.cancel()
+            voiceInput?.destroy()
             PredictorBridge.destroy()
             keyboardView?.destroy()
         } catch (e: Exception) {
@@ -341,6 +351,7 @@ class AkashBoardIME : InputMethodService() {
         emojiPanel = null
         clipboardPanel = null
         voiceInput = null
+        clipboardDB = null
         super.onDestroy()
     }
 
@@ -378,7 +389,8 @@ class AkashBoardIME : InputMethodService() {
                     if (db != null) {
                         scope.launch(Dispatchers.IO) {
                             try {
-                                val items = db.clipboardDao().getItems(20)
+                                val max = settingsProvider?.clipboardMaxItems ?: 50
+                                val items = db.clipboardDao().getItems(max)
                                 scope.launch(Dispatchers.Main) {
                                     clipboardPanel?.setItems(items)
                                 }

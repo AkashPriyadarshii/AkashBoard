@@ -125,10 +125,6 @@ class KeyboardSettingsProvider(context: Context) {
         get() = prefs.getBoolean(KEY_CLIPBOARD_AUTO_CLEAR, false)
         set(value) = prefs.edit().putBoolean(KEY_CLIPBOARD_AUTO_CLEAR, value).apply()
 
-    var networkAccess: Boolean
-        get() = prefs.getBoolean(KEY_NETWORK, false)
-        set(value) = prefs.edit().putBoolean(KEY_NETWORK, value).apply()
-
     // ── Bulk Operations ───────────────────────────────────────────────────
 
     fun resetToDefaults() {
@@ -158,7 +154,6 @@ class KeyboardSettingsProvider(context: Context) {
         editor.remove(KEY_CLIPBOARD_HISTORY)
         editor.remove(KEY_CLIPBOARD_MAX)
         editor.remove(KEY_CLIPBOARD_AUTO_CLEAR)
-        editor.remove(KEY_NETWORK)
         editor.apply()
     }
 
@@ -218,6 +213,5 @@ class KeyboardSettingsProvider(context: Context) {
         private const val KEY_CLIPBOARD_HISTORY = "clipboard_history_enabled"
         private const val KEY_CLIPBOARD_MAX = "clipboard_max_items"
         private const val KEY_CLIPBOARD_AUTO_CLEAR = "clipboard_auto_clear"
-        private const val KEY_NETWORK = "network_access"
     }
 }

@@ -82,13 +82,6 @@
             app:summary="See what data is collected"
             app:iconSpaceReserved="false" />
 
-        <SwitchPreferenceCompat
-            app:key="network_access"
-            app:title="Network access"
-            app:summary="Allow network for voice input and updates"
-            app:defaultValue="false"
-            app:iconSpaceReserved="false" />
-
     </PreferenceCategory>
 
 </PreferenceScreen>
