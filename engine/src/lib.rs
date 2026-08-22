@@ -15,9 +15,9 @@
  *   - recognizeSwipe(): <5ms
  */
 
-mod predictor;
-mod learner;
-mod corrector;
+pub mod predictor;
+pub mod learner;
+pub mod corrector;
 
 use jni::JNIEnv;
 use jni::objects::{JClass, JString};

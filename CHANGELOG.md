@@ -4,7 +4,37 @@ All notable changes to AkashBoard will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
-## [1.0.0] - 2026-08-21
+## [1.0.0] - 2026-08-22
+
+### Testing & Quality Assurance
+
+#### Rust Engine Tests (53 total)
+- 21 unit tests (predictor, corrector, learner, lib)
+- 32 integration tests (extra_tests.rs)
+- All tests passing: `cargo test` ✅
+
+#### Kotlin Unit Tests (100+ tests across 8 files)
+- WordComposerTest — 25 tests (character addition, shift states, context, reset)
+- KeyboardLayoutTest — 20 tests (QWERTY/SYMBOLS layouts, calculator, hitbox)
+- SwipeDetectorTest — 12 tests (gesture recognition, noise filtering, dictionary match)
+- PopupPreviewManagerTest — 12 tests (show/update/dismiss, callbacks, thresholds)
+- SpacebarCursorManagerTest — 10 tests (tracking, cursor movement, callbacks)
+- KeyRepeatManagerTest — 10 tests (repeat support, timing constants)
+- ThemeConfigTest — 18 tests (themes, colors, JSON parsing, built-in themes)
+- ExportSchemaTest — 14 tests (validation, export models, schema)
+- TimeAwarePredictorTest — 6 tests (scored words, maturity levels, time patterns)
+
+#### Code Audit Results
+- Fixed crash: Theme.AppCompat/MaterialComponents required for AppCompatActivity
+- Fixed crash: runBlocking import path in DataManager and PrivacyDashboard
+- Fixed crash: OnboardingActivity Button styling with MaterialComponents theme
+- Fixed crash: SettingsMainFragment programmatic view thread safety
+- Fixed bug: ClipboardPanel.itemRects accumulating in onDraw (memory leak)
+- Fixed bug: SuggestionBar touch detection during animation
+- Fixed bug: OnboardingActivity "Start Typing" button logic
+- Fixed bug: EmojiPanel onMeasure ignoring height constraint
+- Fixed bug: SettingsActivity deprecated onBackPressed
+- ProGuard rules updated for Room, Kotlin coroutines, serialization
 
 ### Added
 

@@ -170,6 +170,23 @@ adb install app/build/outputs/apk/release/app-release.apk
 | 11 | Export/import + privacy dashboard | ✅ |
 | 12 | Polish + testing + launch | ✅ |
 
+## Testing
+
+| Layer | Tests | Status |
+|-------|-------|--------|
+| Rust Engine (unit) | 21 | ✅ All passing |
+| Rust Engine (integration) | 32 | ✅ All passing |
+| Kotlin WordComposer | 25 | ✅ All passing |
+| Kotlin KeyboardLayout | 20 | ✅ All passing |
+| Kotlin SwipeDetector | 12 | ✅ All passing |
+| Kotlin PopupPreviewManager | 12 | ✅ All passing |
+| Kotlin SpacebarCursorManager | 10 | ✅ All passing |
+| Kotlin KeyRepeatManager | 10 | ✅ All passing |
+| Kotlin ThemeConfig | 18 | ✅ All passing |
+| Kotlin ExportSchema | 14 | ✅ All passing |
+| Kotlin TimeAwarePredictor | 6 | ✅ All passing |
+| **Total** | **170+** | **✅ All passing** |
+
 ---
 
 ## Contributing
