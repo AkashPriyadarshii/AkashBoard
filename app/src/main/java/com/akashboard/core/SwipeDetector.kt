@@ -20,7 +20,6 @@
 package com.akashboard.core
 
 import android.graphics.PointF
-import kotlin.math.abs
 import kotlin.math.sqrt
 
 /**

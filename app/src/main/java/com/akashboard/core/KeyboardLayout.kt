@@ -11,7 +11,6 @@
 package com.akashboard.core
 
 import android.graphics.RectF
-import kotlin.math.floor
 
 /**
  * A row of keys in the keyboard.

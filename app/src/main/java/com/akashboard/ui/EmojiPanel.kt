@@ -179,10 +179,13 @@ class EmojiPanel @JvmOverloads constructor(
             val x = event.x
             val y = event.y
 
+            // Clamp y to view bounds to prevent phantom touches
+            val clampedY = y.coerceIn(0f, height.toFloat())
+
             // Check tabs
             for (i in categories.indices) {
                 val rect = tabRects.getOrNull(i) ?: continue
-                if (rect.contains(x, y)) {
+                if (rect.contains(x, clampedY)) {
                     selectedCategoryIndex = i
                     currentEmojis = categories[i].second
                     requestLayout()
@@ -191,12 +194,15 @@ class EmojiPanel @JvmOverloads constructor(
                 }
             }
 
-            // Check emojis
-            for (i in currentEmojis.indices) {
-                val rect = emojiRects.getOrNull(i) ?: continue
-                if (rect.contains(x, y)) {
-                    onEmojiClickListener?.onEmojiClicked(currentEmojis[i])
-                    return true
+            // Check emojis (only if within visible area)
+            if (clampedY >= tabHeight) {
+                for (i in currentEmojis.indices) {
+                    val rect = emojiRects.getOrNull(i) ?: continue
+                    // Only process if the emoji rect is within the visible view area
+                    if (rect.top < height && rect.contains(x, clampedY)) {
+                        onEmojiClickListener?.onEmojiClicked(currentEmojis[i])
+                        return true
+                    }
                 }
             }
         }

@@ -188,7 +188,7 @@ class DataManager(
      *
      * This is irreversible. Shows confirmation dialog before calling.
      */
-    fun nuclearDelete(): Boolean {
+    suspend fun nuclearDelete(): Boolean {
         return try {
             // Clear all preferences
             prefs.edit().clear().apply()
@@ -196,9 +196,7 @@ class DataManager(
             // Clear clipboard database via Room DAO
             try {
                 val db = ClipboardDB.getDatabase(context)
-                kotlinx.coroutines.runBlocking {
-                    db.clipboardDao().clearAll()
-                }
+                db.clipboardDao().clearAll()
             } catch (e: Exception) {
                 // DB might not exist yet
             }

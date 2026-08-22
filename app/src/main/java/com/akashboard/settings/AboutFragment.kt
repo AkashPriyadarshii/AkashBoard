@@ -67,7 +67,7 @@ class AboutFragment : Fragment() {
             })
 
             // Version
-            addView(createInfoRow(density, "Version", "1.0.0 (Week 9)"))
+            addView(createInfoRow(density, "Version", "1.0.0"))
 
             // License
             addView(createInfoRow(density, "License", "GNU General Public License v3.0"))

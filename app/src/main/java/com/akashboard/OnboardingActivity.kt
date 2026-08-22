@@ -10,7 +10,7 @@ package com.akashboard
 import android.content.Context
 import android.content.Intent
 import android.graphics.Color
-import android.graphics.drawable.GradientDrawable
+
 import android.os.Bundle
 import android.provider.Settings
 import android.view.Gravity
@@ -152,16 +152,13 @@ class OnboardingActivity : AppCompatActivity() {
             })
 
             // Action button
-            val btnBg = GradientDrawable().apply {
-                shape = GradientDrawable.RECTANGLE
-                setColor(0xFF6C63FF.toInt())
-                cornerRadius = 12f * density
-            }
             actionButton = MaterialButton(context).apply {
                 text = "Enable Keyboard"
                 textSize = 16f
                 setTextColor(Color.WHITE)
-                background = btnBg
+                // Use backgroundTintList instead of setBackground for MaterialButton
+                backgroundTintList = android.content.res.ColorStateList.valueOf(0xFF6C63FF.toInt())
+                cornerRadius = (12 * density).toInt()
                 insetTop = 0
                 insetBottom = 0
                 layoutParams = LinearLayout.LayoutParams(

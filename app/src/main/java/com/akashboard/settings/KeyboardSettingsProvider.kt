@@ -132,7 +132,34 @@ class KeyboardSettingsProvider(context: Context) {
     // ── Bulk Operations ───────────────────────────────────────────────────
 
     fun resetToDefaults() {
-        prefs.edit().clear().apply()
+        // Only clear keyboard-specific keys, not all SharedPreferences
+        val editor = prefs.edit()
+        editor.remove(KEY_AUTOCORRECT)
+        editor.remove(KEY_PREDICTIVE)
+        editor.remove(KEY_AUTOCORRECT_STRENGTH)
+        editor.remove(KEY_SWIPE)
+        editor.remove(KEY_SPACEBAR_CURSOR)
+        editor.remove(KEY_LONG_PRESS_REPEAT)
+        editor.remove(KEY_REPEAT_DELAY)
+        editor.remove(KEY_REPEAT_RATE)
+        editor.remove(KEY_VIBRATE)
+        editor.remove(KEY_SOUND)
+        editor.remove(KEY_THEME)
+        editor.remove(KEY_HEIGHT)
+        editor.remove(KEY_ONE_HANDED)
+        editor.remove(KEY_CORNER_RADIUS)
+        editor.remove(KEY_SPACING)
+        editor.remove(KEY_SHOW_EMOJI)
+        editor.remove(KEY_SHOW_VOICE)
+        editor.remove(KEY_SHOW_CLIPBOARD)
+        editor.remove(KEY_SHOW_NUMBER_ROW)
+        editor.remove(KEY_INCOGNITO)
+        editor.remove(KEY_LEARNING)
+        editor.remove(KEY_CLIPBOARD_HISTORY)
+        editor.remove(KEY_CLIPBOARD_MAX)
+        editor.remove(KEY_CLIPBOARD_AUTO_CLEAR)
+        editor.remove(KEY_NETWORK)
+        editor.apply()
     }
 
     fun exportSettings(): Map<String, *> = prefs.all

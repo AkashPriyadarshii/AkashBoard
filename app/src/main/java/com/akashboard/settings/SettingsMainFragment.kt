@@ -143,10 +143,12 @@ class SettingsMainFragment : Fragment() {
             isClickable = true
             isFocusable = true
             try {
-                val outValue = android.util.TypedValue()
-                context.theme.resolveAttribute(android.R.attr.selectableItemBackground, outValue, true)
-                if (outValue.resourceId != 0) {
-                    foreground = context.getDrawable(outValue.resourceId)
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+                    val outValue = android.util.TypedValue()
+                    context.theme.resolveAttribute(android.R.attr.selectableItemBackground, outValue, true)
+                    if (outValue.resourceId != 0) {
+                        foreground = context.getDrawable(outValue.resourceId)
+                    }
                 }
             } catch (_: Exception) { }
 

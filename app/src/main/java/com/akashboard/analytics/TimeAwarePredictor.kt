@@ -226,9 +226,16 @@ class TimeAwarePredictor(context: Context) {
         dailyPatterns.clear()
         appPatterns.clear()
         patternDaysActive = 0
-        prefs.edit()
-            .clear()
-            .apply()
+        // Only remove time_ prefixed keys, not all SharedPreferences
+        val editor = prefs.edit()
+        for (hour in 0..23) {
+            editor.remove("time_hourly_$hour")
+        }
+        for (day in 1..7) {
+            editor.remove("time_daily_$day")
+        }
+        editor.remove("time_days_active")
+        editor.apply()
     }
 
     // ── Data Models ───────────────────────────────────────────────────────

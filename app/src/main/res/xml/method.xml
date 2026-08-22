@@ -8,7 +8,7 @@
         android:languageTag="en" />
     <subtype
         android:imeSubtypeMode="keyboard"
-        android:isAsciiCapable="true"
+        android:isAsciiCapable="false"
         android:languageTag="hi" />
     <subtype
         android:imeSubtypeMode="keyboard"

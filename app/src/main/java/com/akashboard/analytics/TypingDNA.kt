@@ -15,7 +15,6 @@ import android.content.Context
 import android.content.SharedPreferences
 import androidx.preference.PreferenceManager
 import java.security.MessageDigest
-import kotlin.math.abs
 import kotlin.math.sqrt
 
 /**
