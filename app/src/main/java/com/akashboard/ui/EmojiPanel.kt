@@ -49,6 +49,7 @@ class EmojiPanel @JvmOverloads constructor(
 
     private var selectedCategoryIndex = 0
     private var currentEmojis = smileys
+    private var scrollY = 0f
 
     // ── Layout ────────────────────────────────────────────────────────────
 
@@ -90,8 +91,23 @@ class EmojiPanel @JvmOverloads constructor(
 
     // ── Initialization ────────────────────────────────────────────────────
 
+    private val touchSlop = android.view.ViewConfiguration.get(context).scaledTouchSlop
+    private var downY = 0f
+    private var isDrag = false
+
     init {
         setLayerType(LAYER_TYPE_HARDWARE, null)
+    }
+
+    /** Max pixels the grid can scroll (content taller than view). */
+    private fun maxScroll(): Float {
+        val rows = (currentEmojis.size + columns - 1) / columns
+        val contentHeight = tabHeight + rows * (emojiSize + emojiPadding) + emojiPadding
+        return (contentHeight - height).coerceAtLeast(0f)
+    }
+
+    private fun clampScroll() {
+        scrollY = scrollY.coerceIn(0f, maxScroll())
     }
 
     // ── Layout ────────────────────────────────────────────────────────────
@@ -128,7 +144,7 @@ class EmojiPanel @JvmOverloads constructor(
 
         emojiRects.clear()
         val emojiWidth = width / columns
-        val startY = tabHeight
+        val startY = tabHeight - scrollY
 
         for (i in currentEmojis.indices) {
             val row = i / columns
@@ -175,35 +191,62 @@ class EmojiPanel @JvmOverloads constructor(
     // ── Touch ─────────────────────────────────────────────────────────────
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
-        if (event.action == MotionEvent.ACTION_UP) {
-            val x = event.x
-            val y = event.y
-
-            // Clamp y to view bounds to prevent phantom touches
-            val clampedY = y.coerceIn(0f, height.toFloat())
-
-            // Check tabs
-            for (i in categories.indices) {
-                val rect = tabRects.getOrNull(i) ?: continue
-                if (rect.contains(x, clampedY)) {
-                    selectedCategoryIndex = i
-                    currentEmojis = categories[i].second
-                    requestLayout()
-                    invalidate()
-                    return true
-                }
+        when (event.actionMasked) {
+            MotionEvent.ACTION_DOWN -> {
+                downY = event.y
+                isDrag = false
+                parent?.requestDisallowInterceptTouchEvent(true)
+                return true
             }
 
-            // Check emojis (only if within visible area)
-            if (clampedY >= tabHeight) {
-                for (i in currentEmojis.indices) {
-                    val rect = emojiRects.getOrNull(i) ?: continue
-                    // Only process if the emoji rect is within the visible view area
-                    if (rect.top < height && rect.contains(x, clampedY)) {
-                        onEmojiClickListener?.onEmojiClicked(currentEmojis[i])
-                        return true
+            MotionEvent.ACTION_MOVE -> {
+                // Vertical drag scrolls; small jitter stays a tap.
+                if (isDrag || kotlin.math.abs(event.y - downY) > touchSlop) {
+                    isDrag = true
+                    scrollY -= event.y - downY
+                    downY = event.y
+                    clampScroll()
+                    calculateLayout(width.toFloat())
+                    invalidate()
+                }
+                return true
+            }
+
+            MotionEvent.ACTION_UP -> {
+                if (!isDrag) {
+                    val x = event.x
+                    val y = event.y
+
+                    // Tabs (fixed at top)
+                    for (i in categories.indices) {
+                        val rect = tabRects.getOrNull(i) ?: continue
+                        if (rect.contains(x, y)) {
+                            selectedCategoryIndex = i
+                            currentEmojis = categories[i].second
+                            scrollY = 0f
+                            requestLayout()
+                            // onSizeChanged won't fire if height didn't change —
+                            // relayout explicitly or larger categories stay undrawn.
+                            calculateLayout(width.toFloat())
+                            invalidate()
+                            return true
+                        }
+                    }
+
+                    // Emojis — rects are already scroll-offset by calculateLayout,
+                    // so hit-test works for any row, visible or not.
+                    if (y >= tabHeight) {
+                        for (i in currentEmojis.indices) {
+                            val rect = emojiRects.getOrNull(i) ?: continue
+                            if (rect.top < height && rect.bottom > tabHeight && rect.contains(x, y)) {
+                                onEmojiClickListener?.onEmojiClicked(currentEmojis[i])
+                                return true
+                            }
+                        }
                     }
                 }
+                isDrag = false
+                return true
             }
         }
         return super.onTouchEvent(event)
