@@ -83,9 +83,47 @@
             --text-3: #5C6662;
             --accent: #00E5A0;
             --accent-dim: rgba(0,229,160,0.12);
+            --nav-bg: rgba(11,15,14,0.82);
             --font-display: 'Space Grotesk', sans-serif;
             --font-mono: 'IBM Plex Mono', monospace;
+            color-scheme: dark;
         }
+
+        /* Light mode — opt-in via toggle; system default stays dark */
+        @media (prefers-color-scheme: light) {
+            :root:not([data-theme]) {
+                --canvas: #FAFBFA;
+                --surface: #F0F3F1;
+                --line: rgba(10,20,16,0.12);
+                --text: #101614;
+                --text-2: #4A544F;
+                --text-3: #8C9691;
+                --accent: #00795A;
+                --accent-dim: rgba(0,121,90,0.10);
+                --nav-bg: rgba(250,251,250,0.85);
+                color-scheme: light;
+            }
+        }
+
+        :root[data-theme='light'] {
+            --canvas: #FAFBFA;
+            --surface: #F0F3F1;
+            --line: rgba(10,20,16,0.12);
+            --text: #101614;
+            --text-2: #4A544F;
+            --text-3: #8C9691;
+            --accent: #00795A;
+            --accent-dim: rgba(0,121,90,0.10);
+            --nav-bg: rgba(250,251,250,0.85);
+            color-scheme: light;
+        }
+
+        :root[data-theme='dark'] { color-scheme: dark; }
+
+        @media (prefers-color-scheme: light) {
+            :root:not([data-theme]) { --key-bg: #E4E8E5; --key-fn-bg: #DDE2DF; }
+        }
+        :root[data-theme='light'] { --key-bg: #E4E8E5; --key-fn-bg: #DDE2DF; }
 
         html { scroll-behavior: smooth; }
 
@@ -114,7 +152,7 @@
             display: flex;
             align-items: center;
             justify-content: space-between;
-            background: rgba(11,15,14,0.82);
+            background: var(--nav-bg);
             backdrop-filter: blur(16px);
             border-bottom: 1px solid var(--line);
         }
@@ -148,6 +186,19 @@
             transition: background 0.15s !important;
         }
         .nav-cta:hover { background: var(--accent); color: var(--canvas) !important; }
+
+        .theme-toggle {
+            font-family: var(--font-mono);
+            font-size: 15px;
+            background: none;
+            border: 1px solid var(--line);
+            border-radius: 4px;
+            color: var(--text-2);
+            padding: 6px 10px;
+            cursor: pointer;
+            transition: color 0.15s, border-color 0.15s;
+        }
+        .theme-toggle:hover { color: var(--accent); border-color: var(--accent); }
 
         /* ── Hero ────────────────────────────── */
         .hero {
@@ -304,7 +355,7 @@
             height: 46px;
             min-width: 34px;
             padding: 0 10px;
-            background: #1A201E;
+            background: var(--key-bg, #1A201E);
             border-radius: 5px;
             display: flex;
             align-items: center;
@@ -318,7 +369,7 @@
         }
         .kb-key.wide { min-width: 50px; padding: 0 14px; }
         .kb-key.space { flex: 4; }
-        .kb-key.fn { background: #141A18; color: var(--text-2); font-size: 13px; }
+        .kb-key.fn { background: var(--key-fn-bg, #141A18); color: var(--text-2); font-size: 13px; }
         .kb-key.accent { background: var(--accent); color: var(--canvas); }
         .kb-key:active { background: var(--accent); color: var(--canvas); }
 
@@ -484,6 +535,7 @@
         <a href="#compare">Compare</a>
         <a href="https://github.com/AkashPriyadarshii/AkashBoard">GitHub</a>
         <a href="https://github.com/AkashPriyadarshii/AkashBoard/releases" class="nav-cta">Download v1.0</a>
+        <button id="theme-toggle" class="theme-toggle" aria-label="Toggle light mode">◐</button>
     </div>
 </nav>
 
@@ -664,6 +716,15 @@ adb install app/build/outputs/apk/release/app-release.apk
     }, { threshold: 0.1 });
 
     document.querySelectorAll('.fade-in').forEach(el => observer.observe(el));
+
+    // Theme toggle: cycles light/dark, persists. Default = system (no data-theme attr)
+    const toggle = document.getElementById('theme-toggle');
+    toggle.addEventListener('click', () => {
+        const root = document.documentElement;
+        const next = root.dataset.theme === 'light' ? 'dark' : 'light';
+        root.dataset.theme = next;
+        localStorage.setItem('kb-theme', next);
+    });
 </script>
 
 </body>
