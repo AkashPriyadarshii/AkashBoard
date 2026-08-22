@@ -57,11 +57,20 @@ object PredictorBridge {
         else result.split(",").filter { it.isNotBlank() }
     }
 
-    /** Auto-correct a word */
+    /** Auto-correct a word; personal learned corrections take priority over built-in */
     fun correct(word: String, context: String = ""): String {
         if (!isLoaded || !isInitialized) return word
         if (word.isBlank()) return word
+        val personal = nativeGetCorrection(word)
+        if (!personal.isNullOrBlank()) return personal
         return nativeCorrect(word, context) ?: word
+    }
+
+    /** Learn a personal error pattern: user typed [wrong], meant [correct] */
+    fun learnError(wrong: String, correct: String): Boolean {
+        if (!isLoaded || !isInitialized) return false
+        if (wrong.isBlank() || correct.isBlank() || wrong == correct) return false
+        return nativeLearnError(wrong, correct)
     }
 
     /** Learn a new word/pattern */
@@ -116,6 +125,8 @@ object PredictorBridge {
     private external fun nativeDestroy()
     private external fun nativePredict(context: String, topK: Int): String?
     private external fun nativeCorrect(word: String, context: String): String?
+    private external fun nativeLearnError(wrong: String, correct: String): Boolean
+    private external fun nativeGetCorrection(word: String): String?
     private external fun nativeLearn(word: String, context: String, timestamp: Long): Boolean
     private external fun nativeDetectMood(text: String): Float
     private external fun nativeSaveModel(): Boolean

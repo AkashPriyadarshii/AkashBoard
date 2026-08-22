@@ -108,8 +108,9 @@ class InputHandler(
                 lastAutoCorrectedWord = corrected
                 lastOriginalWord = word
 
-                // Learn the correction
+                // Learn the correction + the user's error pattern
                 PredictorBridge.learn(corrected, wordComposer.getContext(), System.currentTimeMillis())
+                if (shouldLearn()) PredictorBridge.learnError(word, corrected)
 
                 hapticFeedback.selection()
                 onSuggestionsUpdate(emptyList())
