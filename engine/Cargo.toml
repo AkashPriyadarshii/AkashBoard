@@ -7,6 +7,7 @@ authors = ["Akash Priyadarshi"]
 license = "GPL-3.0"
 
 [lib]
+name = "predictor"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
