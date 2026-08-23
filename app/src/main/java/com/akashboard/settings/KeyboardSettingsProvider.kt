@@ -50,20 +50,28 @@ class KeyboardSettingsProvider(context: Context) {
         set(value) = prefs.edit().putBoolean(KEY_LONG_PRESS_REPEAT, value).apply()
 
     var keyRepeatDelay: Int
-        get() = prefs.getString(KEY_REPEAT_DELAY, "300")?.toIntOrNull() ?: 300
-        set(value) = prefs.edit().putString(KEY_REPEAT_DELAY, value.toString()).apply()
+        get() = (prefs.getString(KEY_REPEAT_DELAY, "300")?.toIntOrNull() ?: 300).coerceAtLeast(0)
+        set(value) = prefs.edit().putString(KEY_REPEAT_DELAY, value.coerceAtLeast(0).toString()).apply()
 
     var keyRepeatRate: Int
-        get() = prefs.getString(KEY_REPEAT_RATE, "50")?.toIntOrNull() ?: 50
-        set(value) = prefs.edit().putString(KEY_REPEAT_RATE, value.toString()).apply()
+        get() = (prefs.getString(KEY_REPEAT_RATE, "50")?.toIntOrNull() ?: 50).coerceAtLeast(0)
+        set(value) = prefs.edit().putString(KEY_REPEAT_RATE, value.coerceAtLeast(0).toString()).apply()
 
     var vibrateOnKeypress: Boolean
         get() = prefs.getBoolean(KEY_VIBRATE, true)
         set(value) = prefs.edit().putBoolean(KEY_VIBRATE, value).apply()
 
+    var vibrateEnabled: Boolean
+        get() = vibrateOnKeypress
+        set(value) { vibrateOnKeypress = value }
+
     var soundOnKeypress: Boolean
         get() = prefs.getBoolean(KEY_SOUND, false)
         set(value) = prefs.edit().putBoolean(KEY_SOUND, value).apply()
+
+    var soundEnabled: Boolean
+        get() = soundOnKeypress
+        set(value) { soundOnKeypress = value }
 
     // ── Appearance ────────────────────────────────────────────────────────
 
@@ -71,25 +79,33 @@ class KeyboardSettingsProvider(context: Context) {
         get() = prefs.getString(KEY_THEME, "akash_dark") ?: "akash_dark"
         set(value) = prefs.edit().putString(KEY_THEME, value).apply()
 
+    var themeIndex: Int
+        get() = prefs.getInt(KEY_THEME_INDEX, 0).coerceIn(0, 4)
+        set(value) = prefs.edit().putInt(KEY_THEME_INDEX, value.coerceIn(0, 4)).apply()
+
+    var followSystemTheme: Boolean
+        get() = prefs.getBoolean(KEY_FOLLOW_SYSTEM_THEME, true)
+        set(value) = prefs.edit().putBoolean(KEY_FOLLOW_SYSTEM_THEME, value).apply()
+
     var keyboardHeight: Int
-        get() = prefs.getInt(KEY_HEIGHT, 280)
-        set(value) = prefs.edit().putInt(KEY_HEIGHT, value).apply()
+        get() = prefs.getInt(KEY_HEIGHT, 280).coerceAtLeast(0)
+        set(value) = prefs.edit().putInt(KEY_HEIGHT, value.coerceAtLeast(0)).apply()
 
     var oneHandedMode: String
         get() = prefs.getString(KEY_ONE_HANDED, "off") ?: "off"
         set(value) = prefs.edit().putString(KEY_ONE_HANDED, value).apply()
 
     var suggestionBarHeight: Int
-        get() = prefs.getInt(KEY_SUGGESTION_BAR_HEIGHT, 48)
-        set(value) = prefs.edit().putInt(KEY_SUGGESTION_BAR_HEIGHT, value).apply()
+        get() = prefs.getInt(KEY_SUGGESTION_BAR_HEIGHT, 48).coerceAtLeast(0)
+        set(value) = prefs.edit().putInt(KEY_SUGGESTION_BAR_HEIGHT, value.coerceAtLeast(0)).apply()
 
     var keyCornerRadius: Int
-        get() = prefs.getInt(KEY_CORNER_RADIUS, 8)
-        set(value) = prefs.edit().putInt(KEY_CORNER_RADIUS, value).apply()
+        get() = prefs.getInt(KEY_CORNER_RADIUS, 8).coerceAtLeast(0)
+        set(value) = prefs.edit().putInt(KEY_CORNER_RADIUS, value.coerceAtLeast(0)).apply()
 
     var keySpacing: Int
-        get() = prefs.getInt(KEY_SPACING, 6)
-        set(value) = prefs.edit().putInt(KEY_SPACING, value).apply()
+        get() = prefs.getInt(KEY_SPACING, 6).coerceAtLeast(0)
+        set(value) = prefs.edit().putInt(KEY_SPACING, value.coerceAtLeast(0)).apply()
 
     var showEmojiKey: Boolean
         get() = prefs.getBoolean(KEY_SHOW_EMOJI, true)
@@ -122,8 +138,8 @@ class KeyboardSettingsProvider(context: Context) {
         set(value) = prefs.edit().putBoolean(KEY_CLIPBOARD_HISTORY, value).apply()
 
     var clipboardMaxItems: Int
-        get() = prefs.getString(KEY_CLIPBOARD_MAX, "50")?.toIntOrNull() ?: 50
-        set(value) = prefs.edit().putString(KEY_CLIPBOARD_MAX, value.toString()).apply()
+        get() = (prefs.getString(KEY_CLIPBOARD_MAX, "50")?.toIntOrNull() ?: 50).coerceAtLeast(1)
+        set(value) = prefs.edit().putString(KEY_CLIPBOARD_MAX, value.coerceAtLeast(1).toString()).apply()
 
     var clipboardAutoClear: Boolean
         get() = prefs.getBoolean(KEY_CLIPBOARD_AUTO_CLEAR, false)
@@ -145,8 +161,11 @@ class KeyboardSettingsProvider(context: Context) {
         editor.remove(KEY_VIBRATE)
         editor.remove(KEY_SOUND)
         editor.remove(KEY_THEME)
+        editor.remove(KEY_THEME_INDEX)
+        editor.remove(KEY_FOLLOW_SYSTEM_THEME)
         editor.remove(KEY_HEIGHT)
         editor.remove(KEY_ONE_HANDED)
+        editor.remove(KEY_SUGGESTION_BAR_HEIGHT)
         editor.remove(KEY_CORNER_RADIUS)
         editor.remove(KEY_SPACING)
         editor.remove(KEY_SHOW_EMOJI)
@@ -202,6 +221,8 @@ class KeyboardSettingsProvider(context: Context) {
 
         // Appearance
         private const val KEY_THEME = "theme_id"
+        private const val KEY_THEME_INDEX = "theme_index"
+        private const val KEY_FOLLOW_SYSTEM_THEME = "follow_system_theme"
         private const val KEY_HEIGHT = "keyboard_height"
         private const val KEY_ONE_HANDED = "one_handed_mode"
         private const val KEY_SUGGESTION_BAR_HEIGHT = "suggestion_bar_height"

@@ -53,7 +53,7 @@ object PredictorBridge {
 
         val k = topK.coerceIn(1, 5)
         val result = nativePredict(context, k)
-        return result?.filterNotNull()?.filter { it.isNotBlank() } ?: emptyList()
+        return result?.split(",")?.filter { it.isNotBlank() } ?: emptyList()
     }
 
     /** Auto-correct a word; personal learned corrections take priority over built-in */
@@ -70,6 +70,13 @@ object PredictorBridge {
         if (!isLoaded || !isInitialized) return false
         if (wrong.isBlank() || correct.isBlank() || wrong == correct) return false
         return nativeLearnError(wrong, correct)
+    }
+
+    /** Unlearn a personal error pattern for [wrong] */
+    fun unlearnError(wrong: String): Boolean {
+        if (!isLoaded || !isInitialized) return false
+        if (wrong.isBlank()) return false
+        return nativeUnlearnError(wrong)
     }
 
     /** Learn a new word/pattern */
@@ -123,17 +130,18 @@ object PredictorBridge {
         if (!isLoaded || !isInitialized) return emptyList()
         val k = topK.coerceIn(1, 5)
         val result = nativeRecognizeSwipe(path, keys, k)
-        return result?.filterNotNull()?.filter { it.isNotBlank() } ?: emptyList()
+        return result?.split(",")?.filter { it.isNotBlank() } ?: emptyList()
     }
 
     // ---------------- Native Methods ----------------
 
     private external fun nativeInit(configPath: String)
     private external fun nativeDestroy()
-    private external fun nativePredict(context: String, topK: Int): Array<String>?
-    private external fun nativeRecognizeSwipe(path: FloatArray, keys: FloatArray, topK: Int): Array<String>?
+    private external fun nativePredict(context: String, topK: Int): String?
+    private external fun nativeRecognizeSwipe(path: FloatArray, keys: FloatArray, topK: Int): String?
     private external fun nativeCorrect(word: String, context: String): String?
     private external fun nativeLearnError(wrong: String, correct: String): Boolean
+    private external fun nativeUnlearnError(wrong: String): Boolean
     private external fun nativeGetCorrection(word: String): String?
     private external fun nativeLearn(word: String, context: String, timestamp: Long): Boolean
     private external fun nativeDetectMood(text: String): Float

@@ -414,6 +414,25 @@ pub extern "system" fn Java_com_akashboard_engine_PredictorBridge_nativeLearnErr
     1
 }
 
+/// Unlearn a personal error pattern.
+#[no_mangle]
+pub extern "system" fn Java_com_akashboard_engine_PredictorBridge_nativeUnlearnError(
+    mut env: JNIEnv,
+    _class: JClass,
+    wrong: JString,
+) -> jboolean {
+    let wrong: String = match env.get_string(&wrong) {
+        Ok(s) => s.into(),
+        Err(_) => return 0,
+    };
+    if wrong.is_empty() {
+        return 0;
+    }
+    let mut engine = engine();
+    engine.unlearn_error(&wrong);
+    1
+}
+
 /// Get the learned correction for a word, or "" if none.
 #[no_mangle]
 pub extern "system" fn Java_com_akashboard_engine_PredictorBridge_nativeGetCorrection(

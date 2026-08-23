@@ -268,6 +268,11 @@ impl Predictor {
         }
     }
 
+    /// Unlearn a personal error pattern.
+    pub fn unlearn_error(&mut self, wrong: &str) {
+        self.corrections.remove(&wrong.to_lowercase());
+    }
+
     /// Get the learned correction for a word.
     pub fn get_correction(&self, word: &str) -> Option<&str> {
         self.corrections.get(&word.to_lowercase()).map(|s| s.as_str())

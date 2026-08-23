@@ -176,7 +176,11 @@ class InputHandler(
     private fun handleEnter(connection: InputConnection): KeyPressResult {
         val action = editorInfo?.imeOptions?.and(EditorInfo.IME_MASK_ACTION) ?: EditorInfo.IME_ACTION_UNSPECIFIED
         wordComposer.finishWord()
-        connection.performEditorAction(action)
+        if (action == EditorInfo.IME_ACTION_NONE || action == EditorInfo.IME_ACTION_UNSPECIFIED) {
+            connection.commitText("\n", 1)
+        } else {
+            connection.performEditorAction(action)
+        }
         hapticFeedback.modifier()
         lastAutoCorrectedWord = null
         lastOriginalWord = null
@@ -197,6 +201,10 @@ class InputHandler(
             KeyboardLayoutType.EMOJI -> KeyPressResult.Emoji
             else -> KeyPressResult.LayoutChanged(layout)
         }
+    }
+
+    fun switchLayout(layout: KeyboardLayoutType) {
+        handleLayoutSwitch(layout)
     }
 
     private fun handleLanguageSwitch(): KeyPressResult {
@@ -291,6 +299,12 @@ class InputHandler(
         val connection = inputConnection ?: return
         if (char == '.' || char == ',' || char == '!' || char == '?') {
             handlePunctuation(connection, char.toString())
+            return
+        }
+        
+        if (currentLayout != KeyboardLayoutType.QWERTY) {
+            connection.commitText(char.toString(), 1)
+            hapticFeedback.keyPress()
             return
         }
         

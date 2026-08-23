@@ -29,8 +29,8 @@ import com.akashboard.settings.KeyboardSettingsProvider
  */
 class PrivacyDashboard(
     private val context: Context,
-    private val settingsProvider: KeyboardSettingsProvider,
-    private val typingStats: TypingStats
+    private val settingsProvider: KeyboardSettingsProvider = KeyboardSettingsProvider(context),
+    private val typingStats: TypingStats = TypingStats(context)
 ) {
 
     // ── Data Inventory ────────────────────────────────────────────────────

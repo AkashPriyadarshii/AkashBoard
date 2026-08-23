@@ -1,4 +1,4 @@
-﻿package com.akashboard.ui.compose
+package com.akashboard.ui.compose
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -16,6 +16,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.akashboard.AkashBoardIME
+import com.akashboard.core.KeyboardLayoutType
 import com.akashboard.core.ShiftState
 import kotlinx.coroutines.flow.MutableStateFlow
 
@@ -30,15 +31,25 @@ private const val VOICE_LABEL  = "🎤"
 @Composable
 fun QwertyGrid(ime: AkashBoardIME, modifier: Modifier = Modifier) {
 
-    val rows = listOf(
+    val qwertyRows = listOf(
         listOf("q", "w", "e", "r", "t", "y", "u", "i", "o", "p"),
         listOf("a", "s", "d", "f", "g", "h", "j", "k", "l"),
         listOf(SHIFT_LABEL, "z", "x", "c", "v", "b", "n", "m", DELETE_LABEL),
         listOf("?123", ",", VOICE_LABEL, " ", ".", ENTER_LABEL)
     )
 
+    val symbolRows = listOf(
+        listOf("1", "2", "3", "4", "5", "6", "7", "8", "9", "0"),
+        listOf("!", "@", "#", "$", "%", "&", "*", "(", ")"),
+        listOf(SHIFT_LABEL, "-", "_", "=", "+", "[", "]", "{", DELETE_LABEL),
+        listOf("ABC", "/", ",", " ", ".", ENTER_LABEL)
+    )
+
     val alphaKeysMap = remember { mutableMapOf<String, FloatArray>() }
     var shiftState by remember { mutableStateOf(ShiftState.NONE) }
+    var layoutType by remember { mutableStateOf(KeyboardLayoutType.QWERTY) }
+
+    val rows = if (layoutType == KeyboardLayoutType.QWERTY) qwertyRows else symbolRows
 
     Column(
         modifier = modifier.fillMaxSize().padding(horizontal = 4.dp, vertical = 8.dp),
@@ -53,12 +64,12 @@ fun QwertyGrid(ime: AkashBoardIME, modifier: Modifier = Modifier) {
 
                     val weight = when (keyLabel) {
                         " "          -> 4f
-                        SHIFT_LABEL, DELETE_LABEL, "?123", ENTER_LABEL -> 1.5f
+                        SHIFT_LABEL, DELETE_LABEL, "?123", "ABC", ENTER_LABEL -> 1.5f
                         else         -> 1f
                     }
 
                     val isShifted  = shiftState != ShiftState.NONE
-                    val isActionKey = keyLabel == SHIFT_LABEL || keyLabel == DELETE_LABEL || keyLabel == ENTER_LABEL || keyLabel == VOICE_LABEL
+                    val isActionKey = keyLabel == SHIFT_LABEL || keyLabel == DELETE_LABEL || keyLabel == ENTER_LABEL || keyLabel == VOICE_LABEL || keyLabel == "?123" || keyLabel == "ABC"
                     val displayLabel = when {
                         isShifted && keyLabel.length == 1 && keyLabel[0].isLetter() -> keyLabel.uppercase()
                         keyLabel == " " -> "Space"
@@ -71,7 +82,7 @@ fun QwertyGrid(ime: AkashBoardIME, modifier: Modifier = Modifier) {
                             .fillMaxHeight()
                             .padding(horizontal = 3.dp, vertical = 5.dp)
                             .onGloballyPositioned { coords ->
-                                if (keyLabel.length == 1 && keyLabel[0].isLetter()) {
+                                if (layoutType == KeyboardLayoutType.QWERTY && keyLabel.length == 1 && keyLabel[0].isLetter()) {
                                     val pos  = coords.positionInRoot()
                                     val size = coords.size
                                     alphaKeysMap[keyLabel] = floatArrayOf(
@@ -118,7 +129,14 @@ fun QwertyGrid(ime: AkashBoardIME, modifier: Modifier = Modifier) {
                                         ih?.handleSpace()
                                         if (shiftState == ShiftState.ONE) shiftState = ShiftState.NONE
                                     }
-                                    "?123" -> { /* TODO: symbol layout */ }
+                                    "?123" -> {
+                                        layoutType = KeyboardLayoutType.SYMBOLS
+                                        ih?.switchLayout(KeyboardLayoutType.SYMBOLS)
+                                    }
+                                    "ABC" -> {
+                                        layoutType = KeyboardLayoutType.QWERTY
+                                        ih?.switchLayout(KeyboardLayoutType.QWERTY)
+                                    }
                                     else -> {
                                         val char = if (isShifted) keyLabel.uppercase().first() else keyLabel.first()
                                         ih?.handleCharacter(char)

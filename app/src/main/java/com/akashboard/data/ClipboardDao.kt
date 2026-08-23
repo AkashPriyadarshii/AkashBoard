@@ -39,6 +39,15 @@ interface ClipboardDao {
     @Query("DELETE FROM clipboard_history")
     suspend fun clearAll()
 
+    @Query("SELECT * FROM clipboard_history ORDER BY timestamp DESC")
+    suspend fun getAll(): List<ClipboardItem>
+
     @Query("SELECT COUNT(*) FROM clipboard_history")
     suspend fun count(): Int
+
+    @Query("DELETE FROM clipboard_history WHERE is_pinned = 0 AND timestamp < :olderThanTimestamp")
+    suspend fun deleteOlderThan(olderThanTimestamp: Long)
+
+    @Query("DELETE FROM clipboard_history WHERE id NOT IN (SELECT id FROM clipboard_history ORDER BY is_pinned DESC, timestamp DESC LIMIT :keepCount)")
+    suspend fun trimToMax(keepCount: Int)
 }
