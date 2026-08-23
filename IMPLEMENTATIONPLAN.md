@@ -205,3 +205,11 @@ d731747 feat: Week 1 scaffold — Android project + Rust prediction engine
 ## V2: Jetpack Compose Rewrite (Agentic Upgrade)
 **Status:** ✅ Complete
 **Details:** Demolished all legacy XML layouts and custom Canvas views. Rebuilt the entire keyboard frontend and settings app using 100% Jetpack Compose for superior rendering, mathematical auto-scaling, and reactive UI. Swipes are now tracked at 60fps via pointerInput and feed directly into the JNI bridge.
+
+
+## V2.1: Production Hotfixes & Wiring (Agentic Upgrade)
+**Status:** ? Complete
+**Details:** Fixed Android InputMethodService constraints breaking ComposeImeRootView layout bounds (0x0 height bugs). Embedded test field inside Onboarding Step 3. Rewired AkashBoardRoot.kt suggestion clicks and KeyboardLayout.kt swipe gestures to correctly route through InputHandler and WordComposer for proper state lifecycle and learning updates. Fixed punctuation interception.
+
+## Future Work / V3
+- **sherpa-onnx Voice Typing:** Integrate sherpa-onnx and Moonshine models for offline, on-device STT, fully replacing Android's built-in SpeechRecognizer.

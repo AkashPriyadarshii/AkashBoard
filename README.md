@@ -65,8 +65,8 @@ AkashBoard fixes this: **a FOSS keyboard that's actually BETTER than the closed-
 ### ⚡ Performance
 | Feature | Description |
 |---------|-------------|
-| **60-120 FPS** | Hardware-accelerated Canvas, pre-allocated Paint objects |
-| **<5ms key press latency** | Zero framework overhead |
+| **60-120 FPS** | Declarative Jetpack Compose V2 layout engine |
+| **<5ms key press latency** | Jetpack Compose V2 UI |
 | **<1ms prediction latency** | In-memory Rust engine |
 | **309KB native engine** | ARM64, stripped, LTO |
 | **~5MB release APK** | 40x smaller than Gboard |
@@ -123,7 +123,7 @@ AkashBoard
 │   └── learner.rs   — Personal pattern learning
 ├── Room DB (Clipboard history)
 ├── SharedPreferences (Settings)
-└── Custom Canvas rendering (60-120fps keyboard)
+└── Jetpack Compose V2 rendering (60fps keyboard)
 ```
 
 **Target:** Android 8.0+ (API 26), ARM64 (ARMv8-A) only for v1.
@@ -265,7 +265,7 @@ AkashBoard is licensed under the [GNU General Public License v3.0](LICENSE).
 | **Primary** | android keyboard, open source keyboard, foss keyboard, free keyboard app |
 | **Privacy** | privacy keyboard, no tracking keyboard, no ads keyboard, offline keyboard, local keyboard |
 | **Features** | swipe typing keyboard, autocorrect keyboard, prediction keyboard, emoji keyboard, clipboard keyboard, voice keyboard |
-| **Tech** | rust keyboard, kotlin keyboard, arm64 keyboard, jni keyboard, canvas keyboard |
+| **Tech** | rust keyboard, kotlin keyboard, arm64 keyboard, jni keyboard, compose keyboard |
 | **Alternatives** | gboard alternative, swiftkey alternative, samsung keyboard alternative, openboard alternative, florisboard alternative, heliboard alternative |
 | **Use Cases** | best android keyboard 2026, private keyboard app, secure keyboard, no cloud keyboard, keyboard without internet |
 

@@ -4,7 +4,7 @@ Privacy-first Android keyboard (IME) with a Rust prediction engine bridged via J
 
 ## Layout
 
-- `app/src/main/java/com/akashboard/` — Kotlin. `AkashBoardIME.kt` (service), `ui/KeyboardView.kt`, `core/` (input, swipe, layout), `engine/PredictorBridge.kt` (JNI), `settings/`, `theme/`, `data/` (clipboard DB), `analytics/`
+- `app/src/main/java/com/akashboard/` — Kotlin. `AkashBoardIME.kt` (service), `ui/compose/AkashBoardRoot.kt` (Jetpack Compose), `core/` (input, swipe, layout), `engine/PredictorBridge.kt` (JNI), `settings/`, `theme/`, `data/` (clipboard DB), `analytics/`
 - `engine/src/` — Rust. `lib.rs` (JNI exports, naming: `Java_com_akashboard_engine_PredictorBridge_*`), `predictor.rs` (n-gram engine + persistence), `learner.rs`, `corrector.rs`
 - `docs/index.html` — marketing site (GitHub Pages, served from main)
 

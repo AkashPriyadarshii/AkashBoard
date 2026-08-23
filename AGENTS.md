@@ -182,7 +182,7 @@ AkashBoard/
 
 ### Phase 1: Core ✅
 1. `AkashBoardIME.kt` — Android IME service with basic keyboard
-2. `KeyboardView.kt` — QWERTY layout rendering via Canvas
+2. `AkashBoardRoot.kt` & `KeyboardLayout.kt` — QWERTY layout rendering via Jetpack Compose
 3. `InputHandler.kt` — Key press processing
 4. `lib.rs` + `predictor.rs` — Rust prediction engine
 5. JNI bridge between Kotlin and Rust
@@ -266,7 +266,7 @@ adb install -r app/build/outputs/apk/release/app-release.apk
 | `AkashBoardIME.kt` | IME lifecycle, input connection, view management |
 | `OnboardingActivity.kt` | First-run setup (enable keyboard, switch keyboard) |
 | `SettingsActivity.kt` | Companion app with fragment navigation |
-| `ComposeKeyboardView.kt` | Renders keyboard layout via Compose, tracks gestures via pointerInput |
+| `KeyboardLayout.kt` | Renders QWERTY layout via Jetpack Compose, tracks gestures via awaitPointerEventScope |
 | `SuggestionBar.kt` | Renders prediction strip, handles suggestion taps |
 | `InputHandler.kt` | Processes key events, manages word composition, autocorrect |
 | `WordComposer.kt` | Current word tracking, shift states, context |

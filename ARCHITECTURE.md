@@ -93,8 +93,15 @@ presentation/
 
 **Key Design Decisions:**
 - **Custom Compose Canvas & pointerInput rendering** (not XML layouts) for 60fps performance
-- **No Jetpack Compose** — too heavy for a keyboard (adds ~2MB overhead)
+- **Jetpack Compose V2** — migrated from legacy Canvas for declarative UI and Material You support
 - **GPU-accelerated animations** via `HardwareLayer` for key press effects
+
+
+### 2.1.1 Jetpack Compose in an IME
+
+**Constraint:** `InputMethodService` is not a standard Android `Activity`, meaning it does not provide the `ViewTreeLifecycleOwner`, `ViewTreeViewModelStoreOwner`, or `ViewTreeSavedStateRegistryOwner` required by Jetpack Compose to mount and manage recomposition.
+
+**Solution:** AkashBoard uses a custom `ComposeImeRootView.kt` that inherits from `AbstractComposeView` and explicitly implements all three lifecycle owners. It manually instantiates a `LifecycleRegistry` and dispatches `ON_CREATE`, `ON_START`, and `ON_RESUME` events during `onAttachedToWindow()`, successfully bridging the IME window into the Jetpack Compose state management system without crashing. Additionally, explicit `FrameLayout.LayoutParams` are provided to prevent the Android WindowManager from collapsing the keyboard to 0x0 bounds.
 
 ### 2.2 Input Layer (Kotlin)
 
@@ -670,7 +677,7 @@ cargo ndk -t arm64-v8a build --release
 |----------|--------|-------------|-----|
 | IME language | Kotlin | Java | Null safety, coroutines, modern |
 | UI rendering | Custom Compose Canvas & pointerInput | XML Layouts | 60fps, full control |
-| UI framework | None (raw) | Jetpack Compose | Compose adds ~2MB, too heavy |
+| UI framework | Jetpack Compose | Legacy Views | Declarative, reactive, Material You support |
 | Prediction engine | Rust | Kotlin | 50x faster, smaller binary |
 | JNI | Manual | Caffeine/Swiss | More control, no extra deps |
 | Storage (structured) | Room | SQLite directly | Type safety, migration support |
@@ -679,3 +686,4 @@ cargo ndk -t arm64-v8a build --release
 | Theming | Snygg-inspired JSON | XML styles | More flexible, shareable |
 | Build system | Gradle + cargo-ndk | Bazel | Standard Android, simpler |
 | Testing | JUnit + cargo test | Espresso | Fast, no device needed for unit tests |
+

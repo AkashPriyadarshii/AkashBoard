@@ -1,12 +1,21 @@
-﻿# Changelog
+# Changelog
 
 All notable changes to AkashBoard will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [1.0.1] - 2026-08-23
+
+### ?? Hotfixes & IME Stabilization
+- **Compose Layout Bounds**: Fixed 0-height invisible keyboard bug by providing explicit FrameLayout.LayoutParams to the Compose abstract view inside the IME.
+- **Onboarding UX**: Overhauled the Onboarding Step 3 to include an embedded Compose OutlinedTextField so users can test the keyboard directly inside the onboarding flow.
+- **Event Wiring**: Fixed several InputHandler bypass bugs where tapped suggestions and swipe inputs were dumping raw text instead of interacting with the WordComposer lifecycle.
+- **Punctuation Interception**: Fixed a bug where autocorrect failed to trigger before commas and periods.
+- **Manifest Integrity**: Fixed a corrupted XML newline that could silently break IME registration.
+
 ## [1.0.0] - 2026-08-22
 
-### 🚀 v1.0.0 — First Production Release
+### ?? v1.0.0 � First Production Release
 
 **Built in 2 days** (August 21-22, 2026). From empty repository to production-ready keyboard with 227 passing tests.
 
@@ -26,7 +35,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - HapticFeedback with 5 vibration patterns (keyPress, modifier, error, selection, modeSwitch)
 - Password field detection
 
-### Prediction Engine (Rust → JNI)
+### Prediction Engine (Rust ? JNI)
 - Embedded `fasttext = "0.8.0"` dependency for semantic spatial embeddings
 - Fast `TrieNode` DFS implementation replacing O(N) linear unigram loop for Swipe gesture decoding
 - N-gram prediction (unigram, bigram, trigram)
@@ -64,3 +73,4 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **Engine Size:** 309KB (ARM64, stripped, LTO)
 - **License:** GPLv3
 - **Build Time:** 2 days (August 21-22, 2026)
+
