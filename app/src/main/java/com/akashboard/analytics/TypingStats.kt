@@ -171,6 +171,14 @@ class TypingStats(context: Context) {
     // ── Reset ─────────────────────────────────────────────────────────────
 
     fun resetAllStats() {
+        sessionStartTime = 0L
+        sessionCharCount = 0
+        sessionWordCount = 0
+        sessionCorrectChars = 0
+        sessionErrorChars = 0
+        lastKeyTimestamp = 0L
+        isSessionActive = false
+
         prefs.edit()
             .remove(KEY_BEST_WPM)
             .remove(KEY_TOTAL_SESSIONS)

@@ -201,6 +201,9 @@ class TypingDNA(context: Context) {
         keyHoldTimes.clear()
         flightTimes.clear()
         recentTimings.clear()
+        lastKeyReleaseTime = 0L
+        lastKeyPressedTime = 0L
+        lastKeyChar = '\u0000'
         prefs.edit().remove(KEY_FINGERPRINT).apply()
     }
 

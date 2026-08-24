@@ -26,7 +26,9 @@ abstract class ClipboardDB : RoomDatabase() {
                     context.applicationContext,
                     ClipboardDB::class.java,
                     "akashboard_clipboard"
-                ).build()
+                )
+                    .fallbackToDestructiveMigration()
+                    .build()
                 INSTANCE = instance
                 instance
             }

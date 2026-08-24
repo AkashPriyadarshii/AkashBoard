@@ -163,7 +163,7 @@ class TimeAwarePredictor(context: Context) {
 
     // ── Persistence ───────────────────────────────────────────────────────
 
-    private fun persistPatterns() {
+    fun persistPatterns() {
         // Simple JSON-like persistence using SharedPreferences
         val editor = prefs.edit()
 
@@ -205,6 +205,15 @@ class TimeAwarePredictor(context: Context) {
             val words = parseWordMap(data)
             if (words.isNotEmpty()) dailyPatterns[day] = words
         }
+
+        // Load app patterns
+        prefs.all.forEach { (key, value) ->
+            if (key.startsWith("time_app_") && value is String) {
+                val pkg = key.removePrefix("time_app_")
+                val words = parseWordMap(value)
+                if (words.isNotEmpty()) appPatterns[pkg] = words
+            }
+        }
     }
 
     private fun parseWordMap(data: String): MutableMap<String, Int> {
@@ -228,13 +237,9 @@ class TimeAwarePredictor(context: Context) {
         patternDaysActive = 0
         // Only remove time_ prefixed keys, not all SharedPreferences
         val editor = prefs.edit()
-        for (hour in 0..23) {
-            editor.remove("time_hourly_$hour")
+        prefs.all.keys.filter { it.startsWith("time_") }.forEach { key ->
+            editor.remove(key)
         }
-        for (day in 1..7) {
-            editor.remove("time_daily_$day")
-        }
-        editor.remove("time_days_active")
         editor.apply()
     }
 

@@ -1,4 +1,4 @@
-package com.akashboard
+﻿package com.akashboard
 
 import android.content.Context
 import android.content.Intent
@@ -34,6 +34,13 @@ class OnboardingActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        val prefs = getSharedPreferences("akashboard_prefs", Context.MODE_PRIVATE)
+        if (prefs.getBoolean("onboarding_complete", false) && isKeyboardEnabled() && isKeyboardSelected()) {
+            startActivity(Intent(this, SettingsActivity::class.java))
+            finish()
+            return
+        }
         setContent {
             AkashBoardTheme {
                 Surface(

@@ -11,6 +11,8 @@ import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
+import androidx.room.Ignore
+
 /**
  * A single clipboard entry.
  */
@@ -33,4 +35,22 @@ data class ClipboardItem(
 
     @ColumnInfo(name = "char_count")
     val charCount: Int = text.length
-)
+) {
+    @Ignore
+    val content: String = text
+
+    constructor(
+        content: String,
+        timestamp: Long,
+        isPinned: Boolean = false,
+        sourceApp: String? = null,
+        id: Long = 0
+    ) : this(
+        id = id,
+        text = content,
+        timestamp = timestamp,
+        isPinned = isPinned,
+        sourceApp = sourceApp,
+        charCount = content.length
+    )
+}

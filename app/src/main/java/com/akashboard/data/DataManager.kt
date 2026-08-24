@@ -33,9 +33,9 @@ import java.io.File
  */
 class DataManager(
     private val context: Context,
-    private val clipboardDB: ClipboardDB,
-    private val timeAwarePredictor: TimeAwarePredictor,
-    private val typingStats: TypingStats
+    private val clipboardDB: ClipboardDB = ClipboardDB.getDatabase(context),
+    private val timeAwarePredictor: TimeAwarePredictor = TimeAwarePredictor(context),
+    private val typingStats: TypingStats = TypingStats(context)
 ) {
 
     private val prefs: SharedPreferences = PreferenceManager.getDefaultSharedPreferences(context)
@@ -195,8 +195,7 @@ class DataManager(
 
             // Clear clipboard database via Room DAO
             try {
-                val db = ClipboardDB.getDatabase(context)
-                db.clipboardDao().clearAll()
+                clipboardDB.clipboardDao().clearAll()
             } catch (e: Exception) {
                 // DB might not exist yet
             }
