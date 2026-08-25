@@ -1,4 +1,4 @@
-/*
+﻿/*
  * Copyright (C) 2026 Akash Priyadarshi
  * Licensed under the GNU General Public License v3.0
  *
@@ -20,7 +20,6 @@
  */
 
 use std::collections::HashMap;
-use fasttext::FastText;
 
 #[derive(Default)]
 pub struct TrieNode {
@@ -78,22 +77,19 @@ pub struct Predictor {
 
     /// Personal error patterns learned from user corrections: wrong → right
     corrections: HashMap<String, String>,
-    trie_root: TrieNode,
-    fasttext_model: Option<FastText>,
+
 }
 
 impl Predictor {
     /// Create a new empty predictor.
     pub fn new() -> Self {
-        let fasttext_model = fasttext::FastText::load_model("model.ftz").ok();
         Self {
             unigrams: HashMap::new(),
             bigram_index: HashMap::new(),
             trigram_index: HashMap::new(),
             total_words: 0,
             corrections: HashMap::new(),
-            trie_root: TrieNode::default(),
-            fasttext_model,
+
         }
     }
 
@@ -531,3 +527,6 @@ mod tests {
         assert!(p.bigram_count() >= 2);
     }
 }
+
+
+
