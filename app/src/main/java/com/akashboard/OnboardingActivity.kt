@@ -28,6 +28,7 @@ import com.akashboard.R
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.platform.LocalWindowInfo
 import com.akashboard.ui.theme.AkashBoardTheme
 
 class OnboardingActivity : ComponentActivity() {
@@ -52,8 +53,8 @@ class OnboardingActivity : ComponentActivity() {
                             startActivity(Intent(Settings.ACTION_INPUT_METHOD_SETTINGS))
                         },
                         onSelectKeyboard = {
-                            val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
-                            imm.showInputMethodPicker()
+                            val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager
+                            imm?.showInputMethodPicker()
                         },
                         onFinish = {
                             launchMainApp()
@@ -67,8 +68,8 @@ class OnboardingActivity : ComponentActivity() {
     }
 
     private fun isKeyboardEnabled(): Boolean {
-        val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
-        return imm.enabledInputMethodList.any { it.packageName == packageName }
+        val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager
+        return imm?.enabledInputMethodList?.any { it.packageName == packageName } == true
     }
 
     private fun isKeyboardSelected(): Boolean {
@@ -95,8 +96,16 @@ fun OnboardingScreen(
     isKeyboardSelected: () -> Boolean
 ) {
     val lifecycleOwner = LocalLifecycleOwner.current
+    val isWindowFocused = LocalWindowInfo.current.isWindowFocused
     var isEnabled by remember { mutableStateOf(isKeyboardEnabled()) }
     var isSelected by remember { mutableStateOf(isKeyboardSelected()) }
+
+    LaunchedEffect(isWindowFocused) {
+        if (isWindowFocused) {
+            isEnabled = isKeyboardEnabled()
+            isSelected = isKeyboardSelected()
+        }
+    }
 
     // Re-check status when returning to the activity
     DisposableEffect(lifecycleOwner) {
@@ -325,4 +334,6 @@ fun StepLine(isActive: Boolean) {
             )
     )
 }
+
+
 
