@@ -23,7 +23,7 @@ data class AkashBoardExport(
     val version: Int = 1,
     val exportDate: Long = System.currentTimeMillis(),
     val appName: String = "AkashBoard",
-    val appVersion: String = "1.0.0",
+    val appVersion: String = "0.1.0",
 
     // Settings
     val settings: Map<String, ExportValue> = emptyMap(),
