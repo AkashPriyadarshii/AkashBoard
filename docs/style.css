@@ -4,38 +4,43 @@
 
 /* === TOKENS === */
 :root {
-    /* Brand */
-    --primary: #4F46E5;
-    --primary-hover: #6366F1;
-    --primary-dark: #3730A3;
-    --primary-ghost: rgba(79, 70, 229, 0.12);
-    --primary-rgb: 79, 70, 229;
+    /* Brand - Cyberpunk Electric Violet & Magenta */
+    --primary: #A855F7;
+    --primary-hover: #C084FC;
+    --primary-dark: #9333EA;
+    --primary-ghost: rgba(168, 85, 247, 0.12);
+    --primary-rgb: 168, 85, 247;
 
-    /* Canvas */
-    --canvas: #090A10;
-    --surface-1: #0F111A;
-    --surface-card: #151824;
-    --surface-elevated: #1D2130;
-    --surface-code: #0B0C14;
+    --accent: #EC4899;
+    --accent-hover: #F472B6;
+    --accent-ghost: rgba(236, 72, 153, 0.12);
+    --accent-rgb: 236, 72, 153;
+
+    /* Canvas - Obsidian */
+    --canvas: #08070D;
+    --surface-1: #0F0D18;
+    --surface-card: #151322;
+    --surface-elevated: #1D1A2E;
+    --surface-code: #0B0914;
 
     /* Text */
-    --on-dark: #FFFFFF;
-    --body: #C0C0C0;
-    --body-strong: #E0E0E0;
-    --muted: #6B6B6B;
-    --muted-strong: #888888;
+    --on-dark: #F8FAFC;
+    --body: #C4BED8;
+    --body-strong: #EDE9FE;
+    --muted: #726B8A;
+    --muted-strong: #A78BFA;
 
     /* Hairlines */
-    --hairline: #1F2433;
-    --hairline-strong: #2D3449;
+    --hairline: #1F1B33;
+    --hairline-strong: #312A4F;
 
     /* Semantic */
     --success: #22C55E;
-    --warning: #38BDF8;
-    --warning-rgb: 56, 189, 248;
+    --warning: #EC4899;
+    --warning-rgb: 236, 72, 153;
 
     /* Fonts */
-    --font-display: 'Archivo', system-ui, sans-serif;
+    --font-display: 'Sora', system-ui, sans-serif;
     --font-body: 'Sora', system-ui, sans-serif;
     --font-mono: 'IBM Plex Mono', 'JetBrains Mono', ui-monospace, monospace;
 
@@ -62,34 +67,34 @@
 
 /* === LIGHT THEME === */
 [data-theme="light"] {
-    --canvas: #F5F5F5;
-    --surface-1: #ECECEC;
+    --canvas: #FAF7FD;
+    --surface-1: #F3EEF9;
     --surface-card: #FFFFFF;
-    --surface-elevated: #FAFAFA;
-    --surface-code: #1A1A1A;
-    --on-dark: #0A0A0A;
-    --body: #333333;
-    --body-strong: #1A1A1A;
-    --muted: #888888;
-    --muted-strong: #666666;
-    --hairline: #D4D4D4;
-    --hairline-strong: #BBBBBB;
+    --surface-elevated: #F8F5FC;
+    --surface-code: #0F0D18;
+    --on-dark: #08070D;
+    --body: #3B354D;
+    --body-strong: #08070D;
+    --muted: #7E7594;
+    --muted-strong: #5A5173;
+    --hairline: #E3DCF0;
+    --hairline-strong: #CBBEEC;
 }
 
 @media (prefers-color-scheme: light) {
     html:not([data-theme="dark"]) {
-        --canvas: #F5F5F5;
-        --surface-1: #ECECEC;
+        --canvas: #FAF7FD;
+        --surface-1: #F3EEF9;
         --surface-card: #FFFFFF;
-        --surface-elevated: #FAFAFA;
-        --surface-code: #1A1A1A;
-        --on-dark: #0A0A0A;
-        --body: #333333;
-        --body-strong: #1A1A1A;
-        --muted: #888888;
-        --muted-strong: #666666;
-        --hairline: #D4D4D4;
-        --hairline-strong: #BBBBBB;
+        --surface-elevated: #F8F5FC;
+        --surface-code: #0F0D18;
+        --on-dark: #08070D;
+        --body: #3B354D;
+        --body-strong: #08070D;
+        --muted: #7E7594;
+        --muted-strong: #5A5173;
+        --hairline: #E3DCF0;
+        --hairline-strong: #CBBEEC;
     }
 }
 
