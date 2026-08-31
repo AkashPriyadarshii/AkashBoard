@@ -4,21 +4,21 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AkashBoard | The Ultimate Offline Android Keyboard</title>
-    
+
     <!-- SEO & Metadata -->
     <meta name="description" content="AkashBoard is a blazing fast, completely offline open-source Android keyboard. Powered by a Rust engine, it guarantees zero telemetry and absolute privacy.">
     <meta name="keywords" content="Android keyboard, privacy keyboard, offline keyboard, Rust keyboard, open source keyboard, FOSS Android, zero telemetry, fast typing, secure keyboard">
     <meta name="author" content="Akash Priyadarshi">
     <meta name="robots" content="index, follow">
     <link rel="canonical" href="https://akashpriyadarshii.github.io/AkashBoard/">
-    
+
     <!-- Open Graph / Social -->
     <meta property="og:type" content="website">
     <meta property="og:title" content="AkashBoard | Secure, Offline-First Android Keyboard">
     <meta property="og:description" content="Sub-millisecond latency. Zero network permissions. Built with Kotlin and Rust.">
     <meta property="og:url" content="https://akashpriyadarshii.github.io/AkashBoard/">
     <meta property="og:image" content="https://akashpriyadarshii.github.io/AkashBoard/og-cover.png">
-    
+
     <!-- Schema.org JSON-LD -->
     <script type="application/ld+json">
     {
@@ -49,259 +49,358 @@
         }
     </script>
 
+    <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Archivo:ital,wdth,wght@0,62..125,100..900;1,62..125,100..900&family=IBM+Plex+Mono:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700&family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;700;900&family=IBM+Plex+Mono:wght@400;500;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div class="manual-container">
-        
-        <!-- Sidebar Navigation & CTA -->
-        <aside class="manual-sidebar">
-            <div class="sidebar-sticky">
-                
-                <div class="brand-block">
-                    <h2 class="brand-name">AKASHBOARD</h2>
-                    <div class="badge-row">
-                        <span class="version-badge">v1.0.0 STABLE</span>
-                        <div class="theme-toggle" aria-label="Theme Switcher">
-                            <button class="theme-btn active" data-mode="system" title="System Theme">SYS</button>
-                            <button class="theme-btn" data-mode="light" title="Light Theme">LGT</button>
-                            <button class="theme-btn" data-mode="dark" title="Dark Theme">DRK</button>
-                        </div>
-                    </div>
-                </div>
-                
-                <a href="https://github.com/AkashPriyadarshii/AkashBoard/releases/latest/download/app-release.apk" class="direct-download-btn" aria-label="Download AkashBoard APK directly">
-                    <div class="btn-top">
-                        <span class="btn-icon">↓</span>
-                        <span class="btn-text">DOWNLOAD APK</span>
-                    </div>
-                    <span class="btn-subtext">Direct Download • 2.0 MB</span>
-                </a>
 
-                <div class="source-link-container">
-                    <a href="https://github.com/AkashPriyadarshii/AkashBoard" class="source-link" target="_blank" rel="noopener noreferrer">View Source (GPLv3) →</a>
-                </div>
+    <!-- Scroll Progress Bar -->
+    <div class="scroll-progress" aria-hidden="true"></div>
 
-                <div class="thumb-tabs">
-                    <button class="tab" aria-label="Go to Introduction">01 INTRO</button>
-                    <button class="tab" aria-label="Go to Architecture">02 EXPLODED</button>
-                    <button class="tab" aria-label="Go to Specifications">03 SPECS</button>
-                    <button class="tab" aria-label="Go to Source Build">04 COMPILE</button>
-                    <button class="tab" aria-label="Go to Warnings">05 WARNINGS</button>
-                </div>
+    <!-- Top Navigation -->
+    <nav class="top-nav" role="navigation" aria-label="Main navigation">
+        <div class="nav-inner">
+            <a href="#" class="nav-brand" aria-label="AkashBoard home">
+                <span class="brand-name">AKASHBOARD</span>
+                <span class="brand-version">v1.0</span>
+            </a>
 
-                <div class="author-block">
-                    <span class="author-label">MAINTENANCE & SUPPORT</span>
-                    <a href="https://akashpriyadarshi.vercel.app" class="author-link" target="_blank" rel="noopener noreferrer">akashpriyadarshi.vercel.app</a>
-                    <a href="https://linkedin.com/in/akash-priyadarshi-1aa51b37a" class="author-link" target="_blank" rel="noopener noreferrer">LinkedIn</a>
-                    <a href="https://www.instagram.com/akash.priyadarshii/" class="author-link" target="_blank" rel="noopener noreferrer">Instagram</a>
+            <div class="nav-links" id="nav-links">
+                <a href="#architecture" class="nav-link">Architecture</a>
+                <a href="#specs" class="nav-link">Specs</a>
+                <a href="#build" class="nav-link">Build</a>
+                <a href="https://github.com/AkashPriyadarshii/AkashBoard" class="nav-link" target="_blank" rel="noopener noreferrer">Source</a>
+            </div>
+
+            <div class="nav-actions">
+                <div class="theme-toggle" role="radiogroup" aria-label="Theme switcher">
+                    <button class="theme-btn" data-mode="system" role="radio" aria-checked="true" title="System theme">SYS</button>
+                    <button class="theme-btn" data-mode="light" role="radio" aria-checked="false" title="Light theme">LGT</button>
+                    <button class="theme-btn" data-mode="dark" role="radio" aria-checked="false" title="Dark theme">DRK</button>
+                </div>
+                <a href="https://github.com/AkashPriyadarshii/AkashBoard/releases/latest/download/app-release.apk" class="btn-primary nav-cta" aria-label="Download AkashBoard APK">DOWNLOAD</a>
+                <button class="hamburger" id="hamburger" aria-label="Toggle menu" aria-expanded="false">
+                    <span></span><span></span><span></span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Mobile Menu Overlay -->
+        <div class="mobile-menu" id="mobile-menu" aria-hidden="true">
+            <a href="#architecture" class="mobile-link">Architecture</a>
+            <a href="#specs" class="mobile-link">Specs</a>
+            <a href="#build" class="mobile-link">Build</a>
+            <a href="https://github.com/AkashPriyadarshii/AkashBoard" class="mobile-link" target="_blank" rel="noopener noreferrer">Source</a>
+            <a href="https://github.com/AkashPriyadarshii/AkashBoard/releases/latest/download/app-release.apk" class="btn-primary mobile-cta">DOWNLOAD APK</a>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="hero-band" id="hero">
+        <div class="hero-grid-bg" aria-hidden="true"></div>
+        <div class="hero-inner container">
+            <div class="hero-content reveal">
+                <span class="label-uppercase">PRIVACY-FIRST ANDROID KEYBOARD</span>
+                <h1 class="hero-headline">Nothing leaves<br>your phone.</h1>
+                <p class="hero-subtitle">Zero telemetry. Sub-millisecond Rust engine. Built with Kotlin and a prediction core compiled to native ARM64.</p>
+                <div class="hero-actions">
+                    <a href="https://github.com/AkashPriyadarshii/AkashBoard/releases/latest/download/app-release.apk" class="btn-primary btn-lg">DOWNLOAD APK</a>
+                    <a href="https://github.com/AkashPriyadarshii/AkashBoard" class="btn-ghost btn-lg" target="_blank" rel="noopener noreferrer">VIEW SOURCE &rarr;</a>
                 </div>
             </div>
-        </aside>
 
-        <main class="manual-content">
-            <!-- 1. COVER PLATE -->
-            <section id="s-01" class="section-block">
-                <div class="section-number">11 12 010</div>
-                <h1 class="heading">Cover Plate & General Information</h1>
-                
-                <div class="cover-plate">
-                    <div class="plate-row">
-                        <span class="label">MODEL</span>
-                        <span class="value">AKASHBOARD v1.0.0</span>
-                    </div>
-                    <div class="plate-row">
-                        <span class="label">EDITION</span>
-                        <span class="value">FOSS GPLv3</span>
-                    </div>
-                    <div class="plate-row">
-                        <span class="label">VIN/TARGET</span>
-                        <span class="value">API 26 / ARMv8-A</span>
-                    </div>
-                    <div class="plate-row">
-                        <span class="label">MFG DATE</span>
-                        <span class="value">2026-08</span>
-                    </div>
+            <div class="stat-row reveal">
+                <div class="stat-callout">
+                    <span class="stat-number" data-target="0" data-decimals="2" data-suffix=" bytes">0.00 bytes</span>
+                    <span class="stat-label">MAX TELEMETRY</span>
                 </div>
-
-                <p class="marketing-lead">
-                    <strong>AkashBoard</strong> is the ultimate privacy-first Android keyboard. 
-                    This OEM manual contains maintenance and repair procedures for the predictive text assembly. 
-                    The unit operates entirely on-device using a blazing-fast, Rust-compiled ARM64 prediction engine.
-                </p>
-                
-                <div class="special-tools">
-                    <h3 class="tools-heading">System Prerequisites</h3>
-                    <ul class="tools-list">
-                        <li>Android Device (Minimum API Level 26 / Android 8.0)</li>
-                        <li>ARMv8-A 64-bit Architecture</li>
-                        <li>2.0 MB Available Storage Capacity</li>
-                        <li>ADB (Android Debug Bridge) or Sideloading capabilities</li>
-                    </ul>
+                <div class="stat-callout">
+                    <span class="stat-number">&le; 0.01 ms</span>
+                    <span class="stat-label">RESPONSE TIME</span>
                 </div>
-            </section>
+                <div class="stat-callout">
+                    <span class="stat-number" data-target="2" data-decimals="2" data-suffix=" MB">2.00 MB</span>
+                    <span class="stat-label">INSTALL SIZE</span>
+                </div>
+                <div class="stat-callout">
+                    <span class="stat-number" data-target="0" data-decimals="0">0</span>
+                    <span class="stat-label">CLOUD DEPENDENCIES</span>
+                </div>
+            </div>
+        </div>
+    </section>
 
-            <!-- 3. EXPLODED VIEW -->
-            <section id="s-02" class="section-block">
-                <div class="section-number">11 12 011</div>
-                <h2 class="heading">Exploded View & Architecture</h2>
-                
-                <div class="exploded-diagram">
-                    <!-- Pure CSS/SVG exploded view -->
-                    <svg viewBox="0 0 600 400" class="diagram-svg" aria-label="Exploded diagram of the AkashBoard architecture">
-                        <!-- Part P-01: Kotlin UI -->
+    <!-- Architecture Section -->
+    <section class="section-band" id="architecture">
+        <div class="container">
+            <span class="label-uppercase reveal">SYSTEM ARCHITECTURE</span>
+            <h2 class="section-headline reveal">Three layers.<br>Zero compromises.</h2>
+
+            <div class="architecture-grid reveal">
+                <div class="arch-diagram">
+                    <svg viewBox="0 0 600 320" class="diagram-svg" aria-label="AkashBoard architecture diagram showing Kotlin UI, JNI Bridge, Rust Engine, and Room DB">
+                        <!-- P-01: Kotlin UI -->
                         <g class="part-group" data-part="P-01">
-                            <rect x="250" y="50" width="200" height="60" rx="4" class="part-box"/>
-                            <text x="350" y="85" text-anchor="middle" class="part-label">Jetpack Compose UI</text>
-                            <line x1="250" y1="80" x2="100" y2="80" class="leader-line"/>
-                            <text x="70" y="85" class="part-number">P-01</text>
+                            <rect x="180" y="30" width="240" height="56" class="part-box"/>
+                            <text x="300" y="64" text-anchor="middle" class="part-label">Jetpack Compose UI</text>
+                            <line x1="180" y1="58" x2="80" y2="58" class="leader-line"/>
+                            <text x="68" y="62" class="part-number">P-01</text>
                         </g>
 
-                        <!-- Part P-02: JNI Bridge -->
+                        <!-- P-02: JNI Bridge -->
                         <g class="part-group" data-part="P-02">
-                            <rect x="250" y="150" width="200" height="40" rx="2" class="part-box bridge"/>
-                            <text x="350" y="175" text-anchor="middle" class="part-label">JNI Native Bridge</text>
-                            <line x1="250" y1="170" x2="100" y2="170" class="leader-line"/>
-                            <text x="70" y="175" class="part-number">P-02</text>
+                            <rect x="180" y="116" width="240" height="40" class="part-box bridge"/>
+                            <text x="300" y="140" text-anchor="middle" class="part-label">JNI Native Bridge</text>
+                            <line x1="180" y1="136" x2="80" y2="136" class="leader-line"/>
+                            <text x="68" y="140" class="part-number">P-02</text>
                         </g>
 
-                        <!-- Part P-03: Rust Engine -->
+                        <!-- P-03: Rust Engine -->
                         <g class="part-group" data-part="P-03">
-                            <rect x="250" y="230" width="200" height="80" rx="4" class="part-box engine"/>
-                            <text x="350" y="270" text-anchor="middle" class="part-label">Rust Prediction Core</text>
-                            <line x1="250" y1="270" x2="100" y2="270" class="leader-line"/>
-                            <text x="70" y="275" class="part-number">P-03</text>
-                        </g>
-                        
-                        <!-- Part P-04: Room DB -->
-                        <g class="part-group" data-part="P-04">
-                            <rect x="480" y="50" width="80" height="260" rx="4" class="part-box storage"/>
-                            <text x="520" y="180" text-anchor="middle" transform="rotate(90, 520, 180)" class="part-label">Room DB</text>
-                            <line x1="480" y1="350" x2="480" y2="380" class="leader-line"/>
-                            <line x1="480" y1="380" x2="100" y2="380" class="leader-line"/>
-                            <text x="70" y="385" class="part-number">P-04</text>
+                            <rect x="180" y="184" width="240" height="72" class="part-box engine"/>
+                            <text x="300" y="226" text-anchor="middle" class="part-label">Rust Prediction Core</text>
+                            <line x1="180" y1="220" x2="80" y2="220" class="leader-line"/>
+                            <text x="68" y="224" class="part-number">P-03</text>
                         </g>
 
-                        <!-- Vertical connection lines -->
-                        <line x1="350" y1="110" x2="350" y2="150" class="connection-line" stroke-dasharray="4"/>
-                        <line x1="350" y1="190" x2="350" y2="230" class="connection-line" stroke-dasharray="4"/>
+                        <!-- P-04: Room DB -->
+                        <g class="part-group" data-part="P-04">
+                            <rect x="456" y="30" width="80" height="226" class="part-box storage"/>
+                            <text x="496" y="160" text-anchor="middle" transform="rotate(90, 496, 160)" class="part-label">Room DB</text>
+                            <line x1="456" y1="300" x2="80" y2="300" class="leader-line"/>
+                            <text x="68" y="304" class="part-number">P-04</text>
+                        </g>
+
+                        <!-- Connection lines -->
+                        <line x1="300" y1="86" x2="300" y2="116" class="connection-line" stroke-dasharray="4"/>
+                        <line x1="300" y1="156" x2="300" y2="184" class="connection-line" stroke-dasharray="4"/>
                     </svg>
                 </div>
-                
-                <table class="spec-table">
-                    <thead>
-                        <tr>
-                            <th>PART NO.</th>
-                            <th>DESCRIPTION</th>
-                            <th>SPECIFICATION</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr data-part="P-01">
-                            <td><span class="part-callout">P-01</span></td>
-                            <td>Rendering Layer</td>
-                            <td>Jetpack Compose V2</td>
-                        </tr>
-                        <tr data-part="P-02">
-                            <td><span class="part-callout">P-02</span></td>
-                            <td>Interface Bus</td>
-                            <td>Zero-allocation Java Native Interface</td>
-                        </tr>
-                        <tr data-part="P-03">
-                            <td><span class="part-callout">P-03</span></td>
-                            <td>Prediction Core</td>
-                            <td>Rust N-gram engine, &lt;0.01ms latency</td>
-                        </tr>
-                        <tr data-part="P-04">
-                            <td><span class="part-callout">P-04</span></td>
-                            <td>Storage Unit</td>
-                            <td>Room DB (Encrypted at rest)</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </section>
-            
-            <!-- 5. TORQUE SPECIFICATIONS -->
-            <section id="s-03" class="section-block">
-                <div class="section-number">11 12 012</div>
-                <h2 class="heading">Torque & Operating Specifications</h2>
-                <p>The assembly is rated for the following maximum tolerances. Exceeding these specifications constitutes a failure of the design paradigm.</p>
-                
-                <table class="spec-table">
-                    <tbody>
-                        <tr>
-                            <td>Maximum Telemetry Leakage</td>
-                            <td><span class="mono-data">0.00 bytes</span> (Verified via TCP dump)</td>
-                        </tr>
-                        <tr>
-                            <td>Prediction Response Time</td>
-                            <td><span class="mono-data">≤ 0.01 ms</span></td>
-                        </tr>
-                        <tr>
-                            <td>Storage Consumption Cap</td>
-                            <td><span class="mono-data">2.00 MB</span></td>
-                        </tr>
-                        <tr>
-                            <td>External Cloud Dependencies</td>
-                            <td><span class="mono-data">0</span></td>
-                        </tr>
-                        <tr>
-                            <td>Network Sockets</td>
-                            <td><span class="mono-data">CLOSED</span></td>
-                        </tr>
-                    </tbody>
-                </table>
-            </section>
 
-            <!-- 4. SOURCE BUILD PROCEDURE (FOSS User Trust) -->
-            <section id="s-04" class="section-block">
-                <div class="section-number">11 12 013</div>
-                <h2 class="heading">Verifiable Source Build Procedure</h2>
-                <p>For operators requiring cryptographic proof of the binary, follow the reproducible build instructions.</p>
-                
-                <div class="procedure-box">
-                    <ol class="procedure-list">
-                        <li>Clone the upstream repository via Git:
-                            <div class="code-block">git clone https://github.com/AkashPriyadarshii/AkashBoard.git</div>
-                        </li>
-                        <li>Install <code>cargo-ndk</code> for Rust cross-compilation target ARM64.</li>
-                        <li>Initialize the Gradle wrapper and assemble the release variant:
-                            <div class="code-block">./gradlew assembleRelease</div>
-                        </li>
-                        <li>Verify the SHA-256 hash against the published manifest.</li>
-                        <li>Deploy to device:
-                            <div class="code-block">adb install -r app/build/outputs/apk/release/app-release.apk</div>
-                        </li>
-                    </ol>
+                <div class="arch-specs">
+                    <table class="spec-table">
+                        <thead>
+                            <tr>
+                                <th>PART</th>
+                                <th>LAYER</th>
+                                <th>SPECIFICATION</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr data-part="P-01">
+                                <td><span class="part-callout">P-01</span></td>
+                                <td>Rendering Layer</td>
+                                <td>Jetpack Compose V2</td>
+                            </tr>
+                            <tr data-part="P-02">
+                                <td><span class="part-callout">P-02</span></td>
+                                <td>Interface Bus</td>
+                                <td>Zero-allocation JNI</td>
+                            </tr>
+                            <tr data-part="P-03">
+                                <td><span class="part-callout">P-03</span></td>
+                                <td>Prediction Core</td>
+                                <td>Rust N-gram engine, &lt;0.01ms latency</td>
+                            </tr>
+                            <tr data-part="P-04">
+                                <td><span class="part-callout">P-04</span></td>
+                                <td>Storage Unit</td>
+                                <td>Room DB, encrypted at rest</td>
+                            </tr>
+                        </tbody>
+                    </table>
                 </div>
-            </section>
-            
-            <!-- 6. WARNINGS -->
-            <section id="s-05" class="section-block">
-                <div class="section-number">11 12 014</div>
-                <h2 class="heading">Warnings & Cautions</h2>
-                
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section class="section-band alt" id="features">
+        <div class="container">
+            <span class="label-uppercase reveal">CORE FEATURES</span>
+            <h2 class="section-headline reveal">Built for speed.<br>Designed for silence.</h2>
+
+            <div class="feature-grid reveal">
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                        </svg>
+                    </div>
+                    <h3 class="feature-title">Zero Network Permissions</h3>
+                    <p class="feature-body">No INTERNET permission. No sockets. No APIs called. Every byte stays on device. Verified via tcpdump — zero packets leave the phone.</p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+                        </svg>
+                    </div>
+                    <h3 class="feature-title">Rust Prediction Engine</h3>
+                    <p class="feature-body">N-gram prediction core compiled to native ARM64 via cargo-ndk. Sub-millisecond response. JNI bridge with zero heap allocation on the hot path.</p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                            <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
+                            <line x1="8" y1="21" x2="16" y2="21"/>
+                            <line x1="12" y1="17" x2="12" y2="21"/>
+                        </svg>
+                    </div>
+                    <h3 class="feature-title">2 MB, That's It</h3>
+                    <p class="feature-body">Entire keyboard including prediction model, swipe engine, and clipboard database. No bloated Electron, no Chromium runtime. Just Kotlin and Rust.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Specifications Section -->
+    <section class="section-band" id="specs">
+        <div class="container">
+            <span class="label-uppercase reveal">TECHNICAL SPECIFICATIONS</span>
+            <h2 class="section-headline reveal">Operating tolerances.</h2>
+
+            <div class="specs-grid reveal">
+                <div class="spec-cell">
+                    <span class="spec-value">API 26+</span>
+                    <span class="spec-key">MINIMUM ANDROID</span>
+                </div>
+                <div class="spec-cell">
+                    <span class="spec-value">ARMv8-A</span>
+                    <span class="spec-key">TARGET ARCHITECTURE</span>
+                </div>
+                <div class="spec-cell">
+                    <span class="spec-value">GPLv3</span>
+                    <span class="spec-key">LICENSE</span>
+                </div>
+                <div class="spec-cell">
+                    <span class="spec-value">2026-08</span>
+                    <span class="spec-key">BUILD DATE</span>
+                </div>
+                <div class="spec-cell">
+                    <span class="spec-value">CLOSED</span>
+                    <span class="spec-key">NETWORK SOCKETS</span>
+                </div>
+                <div class="spec-cell">
+                    <span class="spec-value">0</span>
+                    <span class="spec-key">EXTERNAL DEPENDENCIES</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Build Section -->
+    <section class="section-band alt" id="build">
+        <div class="container">
+            <span class="label-uppercase reveal">REPRODUCIBLE BUILD</span>
+            <h2 class="section-headline reveal">Verify the binary yourself.</h2>
+            <p class="section-lead reveal">For operators requiring cryptographic proof of the binary. Follow the reproducible build procedure.</p>
+
+            <div class="code-window reveal">
+                <div class="code-titlebar">
+                    <span class="code-dot red"></span>
+                    <span class="code-dot yellow"></span>
+                    <span class="code-dot green"></span>
+                    <span class="code-filename">build.sh</span>
+                </div>
+                <pre class="code-block"><code><span class="code-comment"># 1. Clone the repository</span>
+<span class="code-keyword">git</span> clone https://github.com/AkashPriyadarshii/AkashBoard.git
+<span class="code-keyword">cd</span> AkashBoard
+
+<span class="code-comment"># 2. Install cargo-ndk for ARM64 cross-compilation</span>
+<span class="code-keyword">cargo</span> install cargo-ndk
+
+<span class="code-comment"># 3. Build the release APK</span>
+<span class="code-keyword">./gradlew</span> assembleRelease
+
+<span class="code-comment"># 4. Verify SHA-256 against published manifest</span>
+<span class="code-keyword">sha256sum</span> app/build/outputs/apk/release/app-release.apk
+
+<span class="code-comment"># 5. Deploy to device</span>
+<span class="code-keyword">adb</span> install -r app/build/outputs/apk/release/app-release.apk</code></pre>
+            </div>
+        </div>
+    </section>
+
+    <!-- Warnings Section -->
+    <section class="section-band" id="warnings">
+        <div class="container">
+            <span class="label-uppercase reveal">DESIGN INVARIANTS</span>
+            <h2 class="section-headline reveal">Do not cross these lines.</h2>
+
+            <div class="warning-grid reveal">
                 <div class="warning-panel">
-                    <div class="hazard-stripe"></div>
-                    <div class="warning-content">
-                        <strong>WARNING: STRICT ISOLATION PROTOCOL</strong>
+                    <div class="warning-stripe warning"></div>
+                    <div class="warning-body">
+                        <strong>STRICT ISOLATION PROTOCOL</strong>
                         <p>Under NO circumstances should <code>android.permission.INTERNET</code> be added to the AndroidManifest.xml. This unit operates in a vacuum. Modifying this constraint compromises the integrity of the device and violates the core design specification.</p>
                     </div>
                 </div>
 
-                <div class="warning-panel caution">
-                    <div class="hazard-stripe caution-stripe"></div>
-                    <div class="warning-content">
-                        <strong>CAUTION: UI THREAD BLOCKING</strong>
+                <div class="warning-panel">
+                    <div class="warning-stripe caution"></div>
+                    <div class="warning-body">
+                        <strong>UI THREAD BLOCKING</strong>
                         <p>All Rust Engine predictions must be executed via background coroutines (<code>Dispatchers.Default</code>). Calling JNI bridges directly on the main thread will induce stutter and frame drops during high-speed typing.</p>
                     </div>
                 </div>
-            </section>
-        </main>
-    </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- CTA Band -->
+    <section class="cta-band">
+        <div class="container cta-inner reveal">
+            <h2 class="cta-headline">Download AkashBoard.</h2>
+            <p class="cta-subtitle">2.0 MB. Android 8.0+. No account required.</p>
+            <div class="cta-actions">
+                <a href="https://github.com/AkashPriyadarshii/AkashBoard/releases/latest/download/app-release.apk" class="btn-dark btn-lg">DOWNLOAD APK &darr;</a>
+                <a href="https://github.com/AkashPriyadarshii/AkashBoard" class="btn-outline-dark btn-lg" target="_blank" rel="noopener noreferrer">GITHUB REPO</a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="site-footer">
+        <div class="container footer-inner">
+            <div class="footer-brand">
+                <span class="footer-name">AKASHBOARD</span>
+                <span class="footer-tagline">Privacy-first Android keyboard</span>
+            </div>
+
+            <div class="footer-links">
+                <div class="footer-col">
+                    <span class="footer-heading">PRODUCT</span>
+                    <a href="https://github.com/AkashPriyadarshii/AkashBoard/releases/latest/download/app-release.apk" class="footer-link">Download APK</a>
+                    <a href="#architecture" class="footer-link">Architecture</a>
+                    <a href="#specs" class="footer-link">Specifications</a>
+                    <a href="#build" class="footer-link">Build from Source</a>
+                </div>
+                <div class="footer-col">
+                    <span class="footer-heading">SOURCE</span>
+                    <a href="https://github.com/AkashPriyadarshii/AkashBoard" class="footer-link" target="_blank" rel="noopener noreferrer">GitHub Repository</a>
+                    <a href="https://github.com/AkashPriyadarshii/AkashBoard/issues" class="footer-link" target="_blank" rel="noopener noreferrer">Report Issues</a>
+                    <a href="https://github.com/AkashPriyadarshii/AkashBoard/blob/main/LICENSE" class="footer-link" target="_blank" rel="noopener noreferrer">GPLv3 License</a>
+                </div>
+                <div class="footer-col">
+                    <span class="footer-heading">MAINTENANCE</span>
+                    <a href="https://akashpriyadarshi.vercel.app" class="footer-link" target="_blank" rel="noopener noreferrer">akashpriyadarshi.vercel.app</a>
+                    <a href="https://linkedin.com/in/akash-priyadarshi-1aa51b37a" class="footer-link" target="_blank" rel="noopener noreferrer">LinkedIn</a>
+                    <a href="https://www.instagram.com/akash.priyadarshii/" class="footer-link" target="_blank" rel="noopener noreferrer">Instagram</a>
+                </div>
+            </div>
+
+            <div class="footer-bottom">
+                <span class="footer-legal">&copy; 2026 Akash Priyadarshi. Licensed under GNU General Public License v3.0.</span>
+            </div>
+        </div>
+    </footer>
+
     <script src="script.js"></script>
 </body>
 </html>
