@@ -5,18 +5,18 @@
 /* === TOKENS === */
 :root {
     /* Brand */
-    --primary: #D34E24;
-    --primary-hover: #E85D2C;
-    --primary-dark: #B8401C;
-    --primary-ghost: rgba(211, 78, 36, 0.12);
-    --primary-rgb: 211, 78, 36;
+    --primary: #4F46E5;
+    --primary-hover: #6366F1;
+    --primary-dark: #3730A3;
+    --primary-ghost: rgba(79, 70, 229, 0.12);
+    --primary-rgb: 79, 70, 229;
 
     /* Canvas */
-    --canvas: #0A0A0A;
-    --surface-1: #121212;
-    --surface-card: #1A1A1A;
-    --surface-elevated: #222222;
-    --surface-code: #0D0D0D;
+    --canvas: #090A10;
+    --surface-1: #0F111A;
+    --surface-card: #151824;
+    --surface-elevated: #1D2130;
+    --surface-code: #0B0C14;
 
     /* Text */
     --on-dark: #FFFFFF;
@@ -26,17 +26,17 @@
     --muted-strong: #888888;
 
     /* Hairlines */
-    --hairline: #2A2A2A;
-    --hairline-strong: #3A3A3A;
+    --hairline: #1F2433;
+    --hairline-strong: #2D3449;
 
     /* Semantic */
     --success: #22C55E;
-    --warning: #F59E0B;
-    --warning-rgb: 245, 158, 11;
+    --warning: #38BDF8;
+    --warning-rgb: 56, 189, 248;
 
     /* Fonts */
     --font-display: 'Archivo', system-ui, sans-serif;
-    --font-body: 'Inter', system-ui, sans-serif;
+    --font-body: 'Sora', system-ui, sans-serif;
     --font-mono: 'IBM Plex Mono', 'JetBrains Mono', ui-monospace, monospace;
 
     /* Spacing */
