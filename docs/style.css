@@ -1,50 +1,50 @@
 /* ============================================================
-   AkashBoard — Precision Spec Sheet Design System
+   AkashBoard: Precision Spec Sheet Design System
    ============================================================ */
 
 /* === TOKENS === */
 :root {
-    /* Brand - Cyberpunk Electric Violet & Magenta */
-    --primary: #A855F7;
-    --primary-hover: #C084FC;
-    --primary-dark: #9333EA;
-    --primary-ghost: rgba(168, 85, 247, 0.12);
-    --primary-rgb: 168, 85, 247;
+    /* Brand: Precision Industrial Cinnabar & Technical Amber */
+    --primary: oklch(0.64 0.21 38.0);
+    --primary-hover: oklch(0.70 0.19 40.0);
+    --primary-dark: oklch(0.55 0.22 35.0);
+    --primary-ghost: color-mix(in oklch, oklch(0.64 0.21 38.0) 14%, transparent);
+    --primary-rgb: 224, 98, 42;
 
-    --accent: #EC4899;
-    --accent-hover: #F472B6;
-    --accent-ghost: rgba(236, 72, 153, 0.12);
-    --accent-rgb: 236, 72, 153;
+    --accent: oklch(0.82 0.16 85.0);
+    --accent-hover: oklch(0.88 0.14 85.0);
+    --accent-ghost: color-mix(in oklch, oklch(0.82 0.16 85.0) 14%, transparent);
+    --accent-rgb: 235, 178, 38;
 
-    /* Canvas - Obsidian */
-    --canvas: #08070D;
-    --surface-1: #0F0D18;
-    --surface-card: #151322;
-    --surface-elevated: #1D1A2E;
-    --surface-code: #0B0914;
+    /* Canvas: Cockpit Instrument Slate (Anchor-chroma >= 0.006, zero void) */
+    --canvas: oklch(0.14 0.02 260.0);
+    --surface-1: oklch(0.17 0.02 260.0);
+    --surface-card: oklch(0.20 0.02 260.0);
+    --surface-elevated: oklch(0.23 0.02 260.0);
+    --surface-code: oklch(0.11 0.02 260.0);
 
     /* Text */
-    --on-dark: #F8FAFC;
-    --body: #C4BED8;
-    --body-strong: #EDE9FE;
-    --muted: #726B8A;
-    --muted-strong: #A78BFA;
+    --on-dark: oklch(0.98 0.005 85.0);
+    --body: oklch(0.80 0.015 260.0);
+    --body-strong: oklch(0.95 0.005 85.0);
+    --muted: oklch(0.58 0.02 260.0);
+    --muted-strong: oklch(0.72 0.02 260.0);
 
     /* Hairlines */
-    --hairline: #1F1B33;
-    --hairline-strong: #312A4F;
+    --hairline: oklch(0.24 0.02 260.0);
+    --hairline-strong: oklch(0.34 0.02 260.0);
 
     /* Semantic */
-    --success: #22C55E;
-    --warning: #EC4899;
-    --warning-rgb: 236, 72, 153;
+    --success: oklch(0.75 0.18 145.0);
+    --warning: oklch(0.82 0.16 85.0);
+    --warning-rgb: 235, 178, 38;
 
     /* Fonts */
     --font-display: 'Sora', system-ui, sans-serif;
     --font-body: 'Sora', system-ui, sans-serif;
     --font-mono: 'IBM Plex Mono', 'JetBrains Mono', ui-monospace, monospace;
 
-    /* Spacing */
+    /* Spacing (4px / 8dp rhythmic ladder) */
     --sp-xxs: 4px;
     --sp-xs: 8px;
     --sp-sm: 12px;
@@ -54,47 +54,55 @@
     --sp-xxl: 48px;
     --sp-section: 96px;
 
-    /* Radius */
+    /* Radius: Concentric & Crisp */
     --r-none: 0px;
     --r-xs: 2px;
     --r-sm: 4px;
     --r-full: 9999px;
 
-    /* Transitions */
+    /* Transitions: Canonical Timing Canon */
+    --ease-enter: cubic-bezier(0.16, 1, 0.3, 1);
+    --ease-snap: cubic-bezier(0.18, 0.89, 0.32, 1.28);
     --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
     --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
-/* === LIGHT THEME === */
+/* === LIGHT THEME (OEM Vintage Factory Manual Rag Paper) === */
 [data-theme="light"] {
-    --canvas: #FAF7FD;
-    --surface-1: #F3EEF9;
-    --surface-card: #FFFFFF;
-    --surface-elevated: #F8F5FC;
-    --surface-code: #0F0D18;
-    --on-dark: #08070D;
-    --body: #3B354D;
-    --body-strong: #08070D;
-    --muted: #7E7594;
-    --muted-strong: #5A5173;
-    --hairline: #E3DCF0;
-    --hairline-strong: #CBBEEC;
+    --canvas: oklch(0.96 0.015 85.0);
+    --surface-1: oklch(0.92 0.02 85.0);
+    --surface-card: oklch(0.98 0.01 85.0);
+    --surface-elevated: oklch(0.94 0.018 85.0);
+    --surface-code: oklch(0.90 0.02 85.0);
+    --on-dark: oklch(0.18 0.02 260.0);
+    --body: oklch(0.28 0.02 260.0);
+    --body-strong: oklch(0.14 0.02 260.0);
+    --muted: oklch(0.50 0.02 260.0);
+    --muted-strong: oklch(0.38 0.02 260.0);
+    --hairline: oklch(0.85 0.02 85.0);
+    --hairline-strong: oklch(0.75 0.02 85.0);
+    --primary: oklch(0.58 0.22 35.0);
+    --primary-hover: oklch(0.52 0.22 35.0);
+    --accent: oklch(0.72 0.18 75.0);
 }
 
 @media (prefers-color-scheme: light) {
     html:not([data-theme="dark"]) {
-        --canvas: #FAF7FD;
-        --surface-1: #F3EEF9;
-        --surface-card: #FFFFFF;
-        --surface-elevated: #F8F5FC;
-        --surface-code: #0F0D18;
-        --on-dark: #08070D;
-        --body: #3B354D;
-        --body-strong: #08070D;
-        --muted: #7E7594;
-        --muted-strong: #5A5173;
-        --hairline: #E3DCF0;
-        --hairline-strong: #CBBEEC;
+        --canvas: oklch(0.96 0.015 85.0);
+        --surface-1: oklch(0.92 0.02 85.0);
+        --surface-card: oklch(0.98 0.01 85.0);
+        --surface-elevated: oklch(0.94 0.018 85.0);
+        --surface-code: oklch(0.90 0.02 85.0);
+        --on-dark: oklch(0.18 0.02 260.0);
+        --body: oklch(0.28 0.02 260.0);
+        --body-strong: oklch(0.14 0.02 260.0);
+        --muted: oklch(0.50 0.02 260.0);
+        --muted-strong: oklch(0.38 0.02 260.0);
+        --hairline: oklch(0.85 0.02 85.0);
+        --hairline-strong: oklch(0.75 0.02 85.0);
+        --primary: oklch(0.58 0.22 35.0);
+        --primary-hover: oklch(0.52 0.22 35.0);
+        --accent: oklch(0.72 0.18 75.0);
     }
 }
 
@@ -286,7 +294,7 @@ code {
     color: var(--muted);
     padding: 3px 6px;
     cursor: pointer;
-    transition: all 0.15s ease;
+    transition: color 0.15s var(--ease-enter), background-color 0.15s var(--ease-enter);
     border-radius: 1px;
 }
 
@@ -315,7 +323,7 @@ code {
     border: 2px solid var(--primary);
     border-radius: var(--r-none);
     cursor: pointer;
-    transition: all 0.15s ease;
+    transition: background-color 0.15s var(--ease-enter), border-color 0.15s var(--ease-enter), transform 0.1s var(--ease-snap);
     text-decoration: none;
     line-height: 1;
 }
@@ -344,7 +352,7 @@ code {
     border: 1px solid var(--hairline-strong);
     border-radius: var(--r-none);
     cursor: pointer;
-    transition: all 0.15s ease;
+    transition: color 0.15s var(--ease-enter), border-color 0.15s var(--ease-enter), transform 0.1s var(--ease-snap);
     text-decoration: none;
     line-height: 1;
 }
@@ -378,7 +386,7 @@ code {
     border: 2px solid var(--canvas);
     border-radius: var(--r-none);
     cursor: pointer;
-    transition: all 0.15s ease;
+    transition: background-color 0.15s var(--ease-enter), border-color 0.15s var(--ease-enter), transform 0.1s var(--ease-snap);
     text-decoration: none;
     line-height: 1;
 }
@@ -407,7 +415,7 @@ code {
     border: 1px solid var(--on-dark);
     border-radius: var(--r-none);
     cursor: pointer;
-    transition: all 0.15s ease;
+    transition: background-color 0.15s var(--ease-enter), color 0.15s var(--ease-enter), transform 0.1s var(--ease-snap);
     text-decoration: none;
     line-height: 1;
 }
@@ -442,7 +450,7 @@ code {
     width: 20px;
     height: 2px;
     background: var(--on-dark);
-    transition: all 0.3s ease;
+    transition: transform 0.25s var(--ease-enter), opacity 0.2s var(--ease-enter);
 }
 
 .hamburger.active span:nth-child(1) {
@@ -647,7 +655,7 @@ code {
     fill: var(--canvas);
     stroke: var(--primary);
     stroke-width: 1.5;
-    transition: all 0.2s ease;
+    transition: fill 0.2s var(--ease-enter), stroke 0.2s var(--ease-enter), stroke-width 0.2s var(--ease-enter);
 }
 
 .part-box.bridge {

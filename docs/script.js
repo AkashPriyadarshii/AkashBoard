@@ -159,7 +159,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // ─── Web Audio Click Sound ───
+    // ─── Web Audio Mechanical Switch Synthesis (@design-engineer/audio) ───
     let audioCtx;
     function getAudioCtx() {
         if (!audioCtx) {
@@ -173,29 +173,39 @@ document.addEventListener('DOMContentLoaded', () => {
             const ctx = getAudioCtx();
             if (ctx.state === 'suspended') ctx.resume();
 
-            const osc = ctx.createOscillator();
-            const gain = ctx.createGain();
+            const t0 = ctx.currentTime;
+            const duration = 0.012; // 12ms ultra-fast physical click
+
+            // 1. Mechanical switch contact noise burst
+            const bufferSize = Math.floor(ctx.sampleRate * duration);
+            const noiseBuffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+            const output = noiseBuffer.getChannelData(0);
+            for (let i = 0; i < bufferSize; i++) {
+                output[i] = Math.random() * 2 - 1;
+            }
+
+            const whiteNoise = ctx.createBufferSource();
+            whiteNoise.buffer = noiseBuffer;
+
+            // 2. High-Q resonant bandpass filter centered at 1200Hz
             const filter = ctx.createBiquadFilter();
-
-            osc.type = 'square';
-            osc.frequency.setValueAtTime(150, ctx.currentTime);
-            osc.frequency.exponentialRampToValueAtTime(40, ctx.currentTime + 0.03);
-
             filter.type = 'bandpass';
-            filter.frequency.value = 1000;
-            filter.Q.value = 2;
+            filter.frequency.setValueAtTime(1200, t0);
+            filter.Q.setValueAtTime(3.5, t0);
 
-            gain.gain.setValueAtTime(0.3, ctx.currentTime);
-            gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.03);
+            // 3. Ultra-fast exponential decay
+            const gain = ctx.createGain();
+            gain.gain.setValueAtTime(0.25, t0);
+            gain.gain.exponentialRampToValueAtTime(0.001, t0 + duration);
 
-            osc.connect(filter);
+            whiteNoise.connect(filter);
             filter.connect(gain);
             gain.connect(ctx.destination);
 
-            osc.start();
-            osc.stop(ctx.currentTime + 0.03);
+            whiteNoise.start(t0);
+            whiteNoise.stop(t0 + duration);
         } catch (e) {
-            // Audio not available — silent fallback
+            // Audio not available: silent fallback
         }
     }
 
