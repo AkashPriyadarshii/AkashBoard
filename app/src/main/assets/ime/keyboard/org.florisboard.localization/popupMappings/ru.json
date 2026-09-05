@@ -1,0 +1,119 @@
+{
+  "all": {
+    "а": {
+      "relevant": [
+        { "$": "case_selector",
+          "lower": { "$": "multi_text_key", "codePoints": [1072, 769], "label": "а́" },
+          "upper": { "$": "multi_text_key", "codePoints": [1040, 769], "label": "А́" }
+        }
+      ]
+    },
+    "е": {
+      "main": { "$": "auto_text_key", "code":  1105, "label": "ё" },
+      "relevant": [
+        { "$": "case_selector",
+          "lower": { "$": "multi_text_key", "codePoints": [1077, 769], "label": "е́" },
+          "upper": { "$": "multi_text_key", "codePoints": [1045, 769], "label": "Е́" }
+        }
+      ]
+    },
+    "и": {
+      "relevant": [
+        { "$": "case_selector",
+          "lower": { "$": "multi_text_key", "codePoints": [1080, 769], "label": "и́" },
+          "upper": { "$": "multi_text_key", "codePoints": [1048, 769], "label": "И́" }
+        }
+      ]
+    },
+    "о": {
+      "relevant": [
+        { "$": "case_selector",
+          "lower": { "$": "multi_text_key", "codePoints": [1086, 769], "label": "о́" },
+          "upper": { "$": "multi_text_key", "codePoints": [1054, 769], "label": "О́" }
+        }
+      ]
+    },
+    "у": {
+      "relevant": [
+        { "$": "case_selector",
+          "lower": { "$": "multi_text_key", "codePoints": [1091, 769], "label": "у́" },
+          "upper": { "$": "multi_text_key", "codePoints": [1059, 769], "label": "У́" }
+        }
+      ]
+    },
+    "ы": {
+      "relevant": [
+        { "$": "case_selector",
+          "lower": { "$": "multi_text_key", "codePoints": [1099, 769], "label": "ы́" },
+          "upper": { "$": "multi_text_key", "codePoints": [1067, 769], "label": "Ы́" }
+        }
+      ]
+    },
+    "э": {
+      "relevant": [
+        { "$": "case_selector",
+          "lower": { "$": "multi_text_key", "codePoints": [1101, 769], "label": "э́" },
+          "upper": { "$": "multi_text_key", "codePoints": [1069, 769], "label": "Э́" }
+        }
+      ]
+    },
+    "ю": {
+      "relevant": [
+        { "$": "case_selector",
+          "lower": { "$": "multi_text_key", "codePoints": [1102, 769], "label": "ю́" },
+          "upper": { "$": "multi_text_key", "codePoints": [1070, 769], "label": "Ю́" }
+        }
+      ]
+    },
+    "я": {
+      "relevant": [
+        { "$": "case_selector",
+          "lower": { "$": "multi_text_key", "codePoints": [1103, 769], "label": "я́" },
+          "upper": { "$": "multi_text_key", "codePoints": [1071, 769], "label": "Я́" }
+        }
+      ]
+    },
+    "ь": {
+      "main": { "$": "auto_text_key", "code":  1098, "label": "ъ" },
+      "relevant": [
+      ]
+    },
+    "~right": {
+      "main": { "code":   44, "label": "," },
+      "relevant": [
+        { "code":   38, "label": "&" },
+        { "code":   37, "label": "%" },
+        { "code":   43, "label": "+" },
+        { "code":   34, "label": "\"" },
+        { "code":   45, "label": "-" },
+        { "code":   58, "label": ":" },
+        { "code":   39, "label": "'" },
+        { "code":   64, "label": "@" },
+        { "code":   59, "label": ";" },
+        { "code":   47, "label": "/" },
+        { "$": "layout_direction_selector",
+          "ltr": { "code":   40, "label": "(" },
+          "rtl": { "code":   41, "label": "(" }
+        },
+        { "$": "layout_direction_selector",
+          "ltr": { "code":   41, "label": ")" },
+          "rtl": { "code":   40, "label": ")" }
+        },
+        { "code":   35, "label": "#" },
+        { "code":   33, "label": "!" },
+        { "code":   63, "label": "?" }
+      ]
+    }
+  },
+  "uri": {
+    "~right": {
+      "main": { "code": -255, "label": ".com" },
+      "relevant": [
+        { "code": -255, "label": ".ru" },
+        { "code": -255, "label": ".edu" },
+        { "code": -255, "label": ".org" },
+        { "code": -255, "label": ".net" }
+      ]
+    }
+  }
+}

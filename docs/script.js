@@ -1,29 +1,5 @@
 document.addEventListener('DOMContentLoaded', () => {
 
-    // ─── Theme Switcher ───
-    const themeBtns = document.querySelectorAll('.theme-btn');
-    const root = document.documentElement;
-
-    function setTheme(mode) {
-        if (mode === 'system') {
-            root.removeAttribute('data-theme');
-        } else {
-            root.setAttribute('data-theme', mode);
-        }
-        localStorage.setItem('akashboard-theme', mode);
-        themeBtns.forEach(btn => {
-            const isActive = btn.dataset.mode === mode;
-            btn.classList.toggle('active', isActive);
-            btn.setAttribute('aria-checked', isActive);
-        });
-    }
-
-    const activeTheme = root.getAttribute('data-theme') || 'system';
-    themeBtns.forEach(btn => {
-        btn.classList.toggle('active', btn.dataset.mode === activeTheme);
-        btn.setAttribute('aria-checked', btn.dataset.mode === activeTheme);
-        btn.addEventListener('click', () => setTheme(btn.dataset.mode));
-    });
 
     // ─── Mobile Menu ───
     const hamburger = document.getElementById('hamburger');
@@ -209,7 +185,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    document.querySelectorAll('.btn-primary, .btn-ghost, .btn-dark, .btn-outline-dark, .theme-btn, .nav-link, .feature-card').forEach(el => {
+    document.querySelectorAll('.btn-primary, .btn-ghost, .btn-dark, .btn-outline-dark, .nav-link, .feature-card').forEach(el => {
         el.addEventListener('mousedown', playClick);
     });
 

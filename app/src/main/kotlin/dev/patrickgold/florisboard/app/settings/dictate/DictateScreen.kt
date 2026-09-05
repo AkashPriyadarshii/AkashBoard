@@ -1,0 +1,902 @@
+/*
+ * Copyright (C) 2026 AkashBoard Contributors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ */
+
+package dev.patrickgold.florisboard.app.settings.dictate
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Adjust
+import androidx.compose.material.icons.filled.GraphicEq
+import androidx.compose.material.icons.filled.Segment
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.RadioButton
+import androidx.compose.material3.Slider
+import java.text.DecimalFormat
+import kotlin.math.roundToInt
+import dev.patrickgold.jetpref.material.ui.JetPrefAlertDialog
+import dev.patrickgold.florisboard.dictate.DictateLongformMode
+import androidx.compose.material.icons.filled.Watch
+import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.Bluetooth
+import androidx.compose.material.icons.filled.Bolt
+import androidx.compose.material.icons.filled.Dialpad
+import androidx.compose.material.icons.filled.BrightnessHigh
+import androidx.compose.material.icons.filled.ContentCut
+import androidx.compose.material.icons.filled.FastForward
+import androidx.compose.material.icons.filled.Cloud
+import androidx.compose.material.icons.filled.Dns
+import androidx.compose.material.icons.automirrored.filled.KeyboardReturn
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.AudioFile
+import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.Insights
+import androidx.compose.material.icons.filled.Key
+import androidx.compose.material.icons.filled.Keyboard
+import androidx.compose.material.icons.filled.MenuBook
+import androidx.compose.material.icons.filled.SwapHoriz
+import androidx.compose.material.icons.filled.TouchApp
+import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.ModelTraining
+import androidx.compose.material.icons.filled.Replay
+import androidx.compose.material.icons.filled.Speed
+import androidx.compose.material.icons.filled.Spellcheck
+import androidx.compose.material.icons.filled.Translate
+import androidx.compose.material.icons.filled.Vibration
+import androidx.compose.material.icons.filled.ViewAgenda
+import androidx.compose.material.icons.filled.VolumeOff
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Switch
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import dev.patrickgold.florisboard.dictate.importer.TranscribeShareActivity
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalViewConfiguration
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.unit.DpSize
+import androidx.compose.ui.unit.dp
+import dev.patrickgold.florisboard.R
+import dev.patrickgold.florisboard.app.settings.search.settingsSearchAnchor
+import dev.patrickgold.florisboard.app.FlorisPreferenceStore
+import dev.patrickgold.florisboard.app.LocalNavController
+import dev.patrickgold.florisboard.app.Routes
+import dev.patrickgold.florisboard.dictate.DictateLanguages
+import dev.patrickgold.florisboard.dictate.DictateLegacyLayout
+import dev.patrickgold.florisboard.dictate.DictateRecordingAnimation
+import dev.patrickgold.florisboard.dictate.audio.AudioSpeedUp
+import dev.patrickgold.florisboard.dictate.audio.DictateAudioSource
+import dev.patrickgold.florisboard.dictate.audio.SmartTurnModel
+import dev.patrickgold.florisboard.dictate.provider.LocalModelCatalog
+import dev.patrickgold.florisboard.dictate.provider.LocalModelDownloads
+import dev.patrickgold.florisboard.dictate.data.prompts.DictatePromptDefaults
+import dev.patrickgold.florisboard.dictate.provider.ProviderAccounts
+import dev.patrickgold.florisboard.dictate.provider.ProviderRegistry
+import dev.patrickgold.florisboard.lib.compose.FlorisScreen
+import org.florisboard.lib.compose.florisDialogScroll
+import org.florisboard.lib.compose.stringRes
+import dev.patrickgold.jetpref.datastore.model.collectAsState
+import dev.patrickgold.jetpref.datastore.ui.DialogSliderPreference
+import dev.patrickgold.jetpref.datastore.ui.PreferenceGroup
+import dev.patrickgold.jetpref.datastore.ui.Preference
+import dev.patrickgold.jetpref.datastore.ui.SwitchPreference
+import dev.patrickgold.jetpref.datastore.ui.ListPreference
+import dev.patrickgold.jetpref.datastore.ui.listPrefEntries
+import kotlinx.coroutines.launch
+
+@Composable
+fun DictateScreen() = FlorisScreen {
+    title = stringRes(R.string.dictate__title)
+    previewFieldVisible = true
+    iconSpaceReserved = true
+
+    val prefs by FlorisPreferenceStore
+
+    content {
+        val navController = LocalNavController.current
+
+        // The active providers' display names, for the summary of the providers row. Show both the
+        // transcription and (when rewording is on) the rewording provider, since they are configured
+        // independently and often differ — the row previously surfaced only the transcription one.
+        val transcriptionProviderId by prefs.dictate.transcriptionProviderId.collectAsState()
+        val rewordingProviderId by prefs.dictate.rewordingProviderId.collectAsState()
+        val rewordingEnabled by prefs.dictate.rewordingEnabled.collectAsState()
+        val accounts by prefs.dictate.providerAccounts.collectAsState()
+        val transcriptionName = remember(transcriptionProviderId, accounts) {
+            providerDisplayName(transcriptionProviderId, accounts)
+        }
+        val rewordingName = remember(rewordingProviderId, accounts) {
+            providerDisplayName(rewordingProviderId, accounts)
+        }
+
+        Preference(
+            icon = Icons.Default.Insights,
+            modifier = Modifier.settingsSearchAnchor("dictate__stats_title"),
+            title = stringRes(R.string.dictate__stats_title),
+            summary = stringRes(R.string.dictate__stats_menu_summary),
+            onClick = { navController.navigate(Routes.Settings.DictateStats) },
+        )
+        Preference(
+            icon = Icons.Default.History,
+            modifier = Modifier.settingsSearchAnchor("dictate__history_title"),
+            title = stringRes(R.string.dictate__history_title),
+            summary = stringRes(R.string.dictate__history_menu_summary),
+            onClick = { navController.navigate(Routes.Settings.DictateHistory) },
+        )
+
+        // "Transcribe a file" (issue #301): the same screen a share lands on, reached from inside.
+        // Deliberately the system picker rather than a browser of our own — SAF is better at it than
+        // we would ever be, and it reopens where it was last used, which was the actual request in
+        // discussion #300 (a folder of Signal voice messages).
+        val importContext = LocalContext.current
+        val importPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+            if (uri != null) importContext.startActivity(TranscribeShareActivity.intentFor(importContext, uri))
+        }
+        Preference(
+            icon = Icons.Default.AudioFile,
+            modifier = Modifier.settingsSearchAnchor("dictate__import_menu"),
+            title = stringRes(R.string.dictate__import_menu),
+            summary = stringRes(R.string.dictate__import_menu_summary),
+            onClick = { importPicker.launch(TranscribeShareActivity.MIME_TYPES) },
+        )
+
+        // Dictation layout: its own category (issue #199) — the classic keyboard-less layout toggle
+        // today, with more layout options to follow. Kept out of Output (it changes the whole keyboard,
+        // not how text is inserted) and given top-level prominence here.
+        Preference(
+            icon = Icons.Default.Dialpad,
+            modifier = Modifier.settingsSearchAnchor("dictate__layout_title"),
+            title = stringRes(R.string.dictate__layout_title),
+            summary = stringRes(R.string.dictate__layout_menu_summary),
+            onClick = { navController.navigate(Routes.Settings.DictateLayout) },
+        )
+
+        // Hub: each row opens a dedicated sub-screen (issue #153), keeping this landing page short and
+        // scannable instead of one long list of every setting.
+        Preference(
+            icon = Icons.Default.Cloud,
+            modifier = Modifier.settingsSearchAnchor("dictate__providers_title"),
+            title = stringRes(R.string.dictate__providers_title),
+            summary = if (rewordingEnabled && transcriptionName != rewordingName) {
+                stringRes(
+                    R.string.dictate__providers_summary_both,
+                    "transcription" to transcriptionName,
+                    "rewording" to rewordingName,
+                )
+            } else {
+                stringRes(R.string.dictate__providers_summary, "provider" to transcriptionName)
+            },
+            onClick = { navController.navigate(Routes.Settings.DictateProviders) },
+        )
+
+        val selectionRaw by prefs.dictate.inputLanguages.collectAsState()
+        val detectLabel = stringRes(R.string.dictate__language_detect)
+        val languagesSummary = remember(selectionRaw, detectLabel) {
+            DictateLanguages.parseSelection(selectionRaw).joinToString(", ") {
+                if (it.code == DictateLanguages.DETECT) detectLabel else it.displayName()
+            }
+        }
+        Preference(
+            icon = Icons.Default.Translate,
+            modifier = Modifier.settingsSearchAnchor("dictate__languages_title"),
+            title = stringRes(R.string.dictate__languages_title),
+            summary = languagesSummary,
+            onClick = { navController.navigate(Routes.Settings.DictateLanguages) },
+        )
+
+        Preference(
+            icon = Icons.Default.Spellcheck,
+            modifier = Modifier.settingsSearchAnchor("dictate__formatting_title"),
+            title = stringRes(R.string.dictate__formatting_title),
+            summary = stringRes(R.string.dictate__formatting_menu_summary),
+            onClick = { navController.navigate(Routes.Settings.DictateFormatting) },
+        )
+
+        Preference(
+            icon = Icons.Default.AutoAwesome,
+            modifier = Modifier.settingsSearchAnchor("dictate__rewording_title"),
+            title = stringRes(R.string.dictate__rewording_title),
+            summary = stringRes(
+                if (rewordingEnabled) R.string.dictate__rewording_summary_on
+                else R.string.dictate__rewording_summary_off,
+            ),
+            onClick = { navController.navigate(Routes.Settings.DictateRewording) },
+        )
+
+        Preference(
+            icon = Icons.Default.Mic,
+            modifier = Modifier.settingsSearchAnchor("dictate__recording_group"),
+            title = stringRes(R.string.dictate__recording_group),
+            summary = stringRes(R.string.dictate__recording_menu_summary),
+            onClick = { navController.navigate(Routes.Settings.DictateRecording) },
+        )
+
+        Preference(
+            icon = Icons.Default.Keyboard,
+            modifier = Modifier.settingsSearchAnchor("dictate__output_group"),
+            title = stringRes(R.string.dictate__output_group),
+            summary = stringRes(R.string.dictate__output_menu_summary),
+            onClick = { navController.navigate(Routes.Settings.DictateOutput) },
+        )
+
+        // Floating button keeps its own screen and the "New" badge until first opened (issue #88).
+        val floatingHintSeen by prefs.dictate.floatingButtonHintSeen.collectAsState()
+        Preference(
+            icon = Icons.Default.Adjust,
+            modifier = Modifier.settingsSearchAnchor("dictate__floating_button_enable_title"),
+            title = stringRes(R.string.dictate__floating_button_enable_title),
+            summary = stringRes(R.string.dictate__floating_button_enable_summary),
+            onClick = { navController.navigate(Routes.Settings.DictateFloatingButton) },
+            trailing = if (!floatingHintSeen) {
+                { NewBadge() }
+            } else {
+                null
+            },
+        )
+
+        Preference(
+            icon = Icons.Default.Watch,
+            modifier = Modifier.settingsSearchAnchor("dictate__wear_title"),
+            title = stringRes(R.string.dictate__wear_title),
+            summary = stringRes(R.string.dictate__wear_summary),
+            onClick = { navController.navigate(Routes.Settings.DictateWear) },
+        )
+    }
+}
+
+/**
+ * Sub-screen (issue #153): input formatting & vocabulary — the style prompt, custom words appended to the
+ * transcription prompt, and the deterministic find-and-replace mappings.
+ */
+@Composable
+fun DictateFormattingScreen() = FlorisScreen {
+    title = stringRes(R.string.dictate__formatting_title)
+    previewFieldVisible = true
+    iconSpaceReserved = true
+
+    val prefs by FlorisPreferenceStore
+
+    content {
+        val navController = LocalNavController.current
+        val styleSelection by prefs.dictate.stylePromptSelection.collectAsState()
+        val activeLang by prefs.dictate.activeInputLanguage.collectAsState()
+        PromptSelectionPreference(
+            pref = prefs.dictate.stylePromptSelection,
+            icon = Icons.Default.Spellcheck,
+            title = stringRes(R.string.dictate__style_prompt_title),
+            entries = promptSelectionEntries(),
+            infoTitle = stringRes(R.string.dictate__style_prompt_info_title),
+            infoDescription = stringRes(R.string.dictate__style_prompt_info_description),
+            // Null for a language that has no example sentence: since issue #275 none is sent at all
+            // rather than an English one, and the info box should say so instead of showing nothing.
+            infoPromptText = DictatePromptDefaults.punctuationPromptFor(activeLang)
+                ?: stringRes(R.string.dictate__style_prompt_info_none),
+        )
+        if (styleSelection == DictatePromptDefaults.SELECTION_CUSTOM) {
+            TextInputPreference(
+                pref = prefs.dictate.stylePromptCustom,
+                icon = Icons.Default.Edit,
+                title = stringRes(R.string.dictate__style_prompt_custom_title),
+                placeholder = stringRes(R.string.dictate__style_prompt_custom_placeholder),
+                multiline = true,
+            )
+        }
+        TextInputPreference(
+            pref = prefs.dictate.customWords,
+            icon = Icons.Default.MenuBook,
+            title = stringRes(R.string.dictate__custom_words_title),
+            placeholder = stringRes(R.string.dictate__custom_words_placeholder),
+            multiline = true,
+            notSetSummary = stringRes(R.string.dictate__custom_words_summary_empty),
+        )
+        Preference(
+            icon = Icons.Default.SwapHoriz,
+            modifier = Modifier.settingsSearchAnchor("dictate__mappings_title"),
+            title = stringRes(R.string.dictate__mappings_title),
+            summary = stringRes(R.string.dictate__mappings_entry_summary),
+            onClick = { navController.navigate(Routes.Settings.DictateMappings) },
+        )
+    }
+}
+
+/**
+ * Sub-screen (issue #153): recording & audio — real-time streaming, audio input source/focus, bluetooth
+ * mic, keep-awake, skip-silent, and instant recording.
+ */
+@Composable
+fun DictateRecordingScreen() = FlorisScreen {
+    title = stringRes(R.string.dictate__recording_group)
+    previewFieldVisible = true
+    iconSpaceReserved = true
+
+    val prefs by FlorisPreferenceStore
+
+    content {
+        SwitchPreference(
+            prefs.dictate.pushToTalk,
+            icon = Icons.Default.TouchApp,
+            modifier = Modifier.settingsSearchAnchor("dictate__push_to_talk_title"),
+            title = stringRes(R.string.dictate__push_to_talk_title),
+            // Off, the row says what holding the mic does *instead* — otherwise the shortcut this
+            // setting would take away is nowhere to be found.
+            summaryOn = stringRes(R.string.dictate__push_to_talk_summary),
+            summaryOff = stringRes(R.string.dictate__push_to_talk_summary_off),
+        )
+        SwitchPreference(
+            prefs.dictate.realtimeTranscription,
+            icon = Icons.Default.GraphicEq,
+            modifier = Modifier.settingsSearchAnchor("dictate__realtime_title"),
+            title = stringRes(R.string.dictate__realtime_title),
+            summary = stringRes(R.string.dictate__realtime_summary),
+        )
+        // All long-form settings live behind one entry that opens a single dialog (#170).
+        val longformMode by prefs.dictate.longformMode.collectAsState()
+        val longformSeconds by prefs.dictate.longformAutoSplitSeconds.collectAsState()
+        var showLongformDialog by remember { mutableStateOf(false) }
+        Preference(
+            icon = Icons.Default.Segment,
+            modifier = Modifier.settingsSearchAnchor("dictate__longform_title"),
+            title = stringRes(R.string.dictate__longform_title),
+            summary = longformModeSummary(longformMode, longformSeconds),
+            onClick = { showLongformDialog = true },
+        )
+        if (showLongformDialog) {
+            LongformDialog(
+                mode = longformMode,
+                seconds = longformSeconds,
+                onDismiss = { showLongformDialog = false },
+            )
+        }
+        SwitchPreference(
+            prefs.dictate.audioFocus,
+            icon = Icons.Default.VolumeOff,
+            modifier = Modifier.settingsSearchAnchor("dictate__audio_focus_title"),
+            title = stringRes(R.string.dictate__audio_focus_title),
+            summary = stringRes(R.string.dictate__audio_focus_summary),
+        )
+        SwitchPreference(
+            prefs.dictate.useBluetoothMic,
+            icon = Icons.Default.Bluetooth,
+            modifier = Modifier.settingsSearchAnchor("dictate__bluetooth_mic_title"),
+            title = stringRes(R.string.dictate__bluetooth_mic_title),
+            summary = stringRes(R.string.dictate__bluetooth_mic_summary),
+        )
+        ListPreference(
+            prefs.dictate.audioInputSource,
+            icon = Icons.Default.GraphicEq,
+            modifier = Modifier.settingsSearchAnchor("dictate__audio_source_title"),
+            title = stringRes(R.string.dictate__audio_source_title),
+            entries = listPrefEntries {
+                entry(
+                    DictateAudioSource.DEFAULT,
+                    stringRes(R.string.dictate__audio_source_default),
+                    stringRes(R.string.dictate__audio_source_default_summary),
+                )
+                entry(
+                    DictateAudioSource.VOICE_RECOGNITION,
+                    stringRes(R.string.dictate__audio_source_voice_recognition),
+                    stringRes(R.string.dictate__audio_source_voice_recognition_summary),
+                )
+                entry(
+                    DictateAudioSource.UNPROCESSED,
+                    stringRes(R.string.dictate__audio_source_unprocessed),
+                    stringRes(R.string.dictate__audio_source_unprocessed_summary),
+                )
+                entry(
+                    DictateAudioSource.VOICE_COMMUNICATION,
+                    stringRes(R.string.dictate__audio_source_voice_communication),
+                    stringRes(R.string.dictate__audio_source_voice_communication_summary),
+                )
+            },
+        )
+        SwitchPreference(
+            prefs.dictate.keepScreenAwake,
+            icon = Icons.Default.BrightnessHigh,
+            modifier = Modifier.settingsSearchAnchor("dictate__keep_screen_awake_title"),
+            title = stringRes(R.string.dictate__keep_screen_awake_title),
+            summary = stringRes(R.string.dictate__keep_screen_awake_summary),
+        )
+        ListPreference(
+            prefs.dictate.recordingAnimation,
+            icon = Icons.Default.GraphicEq,
+            modifier = Modifier.settingsSearchAnchor("dictate__recording_animation_title"),
+            title = stringRes(R.string.dictate__recording_animation_title),
+            entries = listPrefEntries {
+                entry(
+                    key = DictateRecordingAnimation.STATIC,
+                    label = stringRes(R.string.dictate__recording_animation_static_label),
+                    description = stringRes(R.string.dictate__recording_animation_static_description),
+                )
+                entry(
+                    key = DictateRecordingAnimation.PULSE,
+                    label = stringRes(R.string.dictate__recording_animation_pulse_label),
+                    description = stringRes(R.string.dictate__recording_animation_pulse_description),
+                )
+                entry(
+                    key = DictateRecordingAnimation.LEVEL,
+                    label = stringRes(R.string.dictate__recording_animation_level_label),
+                    description = stringRes(R.string.dictate__recording_animation_level_description),
+                )
+            },
+        )
+        SwitchPreference(
+            prefs.dictate.skipSilentRecordings,
+            icon = Icons.Default.VolumeOff,
+            modifier = Modifier.settingsSearchAnchor("dictate__skip_silent_title"),
+            title = stringRes(R.string.dictate__skip_silent_title),
+            summary = stringRes(R.string.dictate__skip_silent_summary),
+        )
+        SwitchPreference(
+            prefs.dictate.trimSilentGaps,
+            icon = Icons.Default.ContentCut,
+            modifier = Modifier.settingsSearchAnchor("dictate__trim_silent_gaps_title"),
+            title = stringRes(R.string.dictate__trim_silent_gaps_title),
+            summary = stringRes(R.string.dictate__trim_silent_gaps_summary),
+        )
+        // Sibling of the trimmer above (#272): that one removes the pauses, this one shortens the speech
+        // itself. The summary carries the saving, and past the tested rate it says what it costs.
+        DialogSliderPreference(
+            prefs.dictate.audioSpeedUpPercent,
+            icon = Icons.Default.FastForward,
+            modifier = Modifier.settingsSearchAnchor("dictate__speed_up_title"),
+            title = stringRes(R.string.dictate__speed_up_title),
+            valueLabel = { speedUpValueLabel(it) },
+            summary = { percent ->
+                when {
+                    percent <= AudioSpeedUp.MIN_PERCENT -> stringRes(R.string.dictate__speed_up_summary_off)
+                    // The rate leads, because a slider dialog shows its summary instead of its value:
+                    // without this the row would never say what it is set to.
+                    percent >= AudioSpeedUp.CAUTION_PERCENT -> speedUpValueLabel(percent) + " · " + stringRes(
+                        R.string.dictate__speed_up_summary_caution,
+                        "percent" to speedUpSaving(percent),
+                    )
+                    else -> speedUpValueLabel(percent) + " · " + stringRes(
+                        R.string.dictate__speed_up_summary,
+                        "percent" to speedUpSaving(percent),
+                    )
+                }
+            },
+            min = AudioSpeedUp.MIN_PERCENT,
+            max = AudioSpeedUp.MAX_PERCENT,
+            stepIncrement = 5,
+        )
+        SwitchPreference(
+            prefs.dictate.instantRecording,
+            icon = Icons.Default.Bolt,
+            modifier = Modifier.settingsSearchAnchor("dictate__instant_recording_title"),
+            title = stringRes(R.string.dictate__instant_recording_title),
+            summary = stringRes(R.string.dictate__instant_recording_summary),
+        )
+        SwitchPreference(
+            prefs.dictate.instantRecordingSkipNumeric,
+            icon = Icons.Default.Dialpad,
+            modifier = Modifier.settingsSearchAnchor("dictate__instant_recording_skip_numeric_title"),
+            title = stringRes(R.string.dictate__instant_recording_skip_numeric_title),
+            summary = stringRes(R.string.dictate__instant_recording_skip_numeric_summary),
+            enabledIf = { prefs.dictate.instantRecording.isTrue() },
+        )
+        // Inform the user once, when they switch instant recording on, that it disables the
+        // interrupted-recording recovery (mutually exclusive — issue #120).
+        val instantRecordingEnabled by prefs.dictate.instantRecording.collectAsState()
+        var showInstantRecordingInfo by remember { mutableStateOf(false) }
+        var prevInstantRecording by remember { mutableStateOf(instantRecordingEnabled) }
+        LaunchedEffect(instantRecordingEnabled) {
+            if (instantRecordingEnabled && !prevInstantRecording) {
+                showInstantRecordingInfo = true
+            }
+            prevInstantRecording = instantRecordingEnabled
+        }
+        if (showInstantRecordingInfo) {
+            AlertDialog(
+                onDismissRequest = { showInstantRecordingInfo = false },
+                title = { Text(stringRes(R.string.dictate__instant_recording_info_title)) },
+                text = { Text(stringRes(R.string.dictate__instant_recording_info_message)) },
+                confirmButton = {
+                    TextButton(onClick = { showInstantRecordingInfo = false }) {
+                        Text(stringRes(R.string.action__ok))
+                    }
+                },
+            )
+        }
+    }
+}
+
+/**
+ * Sub-screen (issue #153): output & insertion — how the finished text is written (instant vs typed),
+ * auto-enter, the resend button, and remembering the last dictation.
+ */
+@Composable
+fun DictateOutputScreen() = FlorisScreen {
+    title = stringRes(R.string.dictate__output_group)
+    previewFieldVisible = true
+    iconSpaceReserved = true
+
+    val prefs by FlorisPreferenceStore
+
+    content {
+        SwitchPreference(
+            prefs.dictate.autoEnter,
+            icon = Icons.AutoMirrored.Filled.KeyboardReturn,
+            modifier = Modifier.settingsSearchAnchor("dictate__auto_enter_title"),
+            title = stringRes(R.string.dictate__auto_enter_title),
+            summary = stringRes(R.string.dictate__auto_enter_summary),
+        )
+        SwitchPreference(
+            prefs.dictate.instantOutput,
+            icon = Icons.Default.Keyboard,
+            modifier = Modifier.settingsSearchAnchor("dictate__instant_output_title"),
+            title = stringRes(R.string.dictate__instant_output_title),
+            summary = stringRes(R.string.dictate__instant_output_summary),
+        )
+        DialogSliderPreference(
+            prefs.dictate.outputSpeed,
+            icon = Icons.Default.Speed,
+            modifier = Modifier.settingsSearchAnchor("dictate__output_speed_title"),
+            title = stringRes(R.string.dictate__output_speed_title),
+            valueLabel = { stringRes(R.string.dictate__output_speed_value, "v" to it) },
+            min = 1,
+            max = 10,
+            stepIncrement = 1,
+            enabledIf = { prefs.dictate.instantOutput isEqualTo false },
+        )
+        DialogSliderPreference(
+            prefs.dictate.paragraphSplitWords,
+            icon = Icons.Default.Segment,
+            modifier = Modifier.settingsSearchAnchor("dictate__paragraph_split_title"),
+            title = stringRes(R.string.dictate__paragraph_split_title),
+            valueLabel = {
+                if (it <= 0) stringRes(R.string.dictate__paragraph_split_off)
+                else stringRes(R.string.dictate__paragraph_split_value, "n" to it)
+            },
+            min = 0,
+            max = 100,
+            stepIncrement = 5,
+        )
+        SwitchPreference(
+            prefs.dictate.resendButton,
+            icon = Icons.Default.Replay,
+            modifier = Modifier.settingsSearchAnchor("dictate__resend_button_title"),
+            title = stringRes(R.string.dictate__resend_button_title),
+            summary = stringRes(R.string.dictate__resend_button_summary),
+        )
+        SwitchPreference(
+            prefs.dictate.hapticFeedback,
+            icon = Icons.Default.Vibration,
+            modifier = Modifier.settingsSearchAnchor("dictate__haptic_feedback_title"),
+            title = stringRes(R.string.dictate__haptic_feedback_title),
+            summary = stringRes(R.string.dictate__haptic_feedback_summary),
+        )
+        SwitchPreference(
+            prefs.dictate.rememberLastDictation,
+            icon = Icons.Default.History,
+            modifier = Modifier.settingsSearchAnchor("dictate__remember_last_dictation_title"),
+            title = stringRes(R.string.dictate__remember_last_dictation_title),
+            summary = stringRes(R.string.dictate__remember_last_dictation_summary),
+        )
+    }
+}
+
+/**
+ * Sub-screen (issue #199): dictation layout — how the dictation keyboard itself looks. Starts with the
+ * classic keyboard-less layout toggle; more layout options will be added here.
+ */
+@Composable
+fun DictateLayoutScreen() = FlorisScreen {
+    title = stringRes(R.string.dictate__layout_title)
+    previewFieldVisible = true
+    iconSpaceReserved = true
+
+    val prefs by FlorisPreferenceStore
+
+    content {
+        val legacyMode by prefs.dictate.legacyLayout.collectAsState()
+
+        // Classic keyboard-less dictation layout (issue #125): a compact record-first UI, optionally
+        // with a swipe back to the modern typing keyboard.
+        ListPreference(
+            prefs.dictate.legacyLayout,
+            icon = Icons.Default.Dialpad,
+            modifier = Modifier.settingsSearchAnchor("dictate__legacy_layout_title"),
+            title = stringRes(R.string.dictate__legacy_layout_title),
+            entries = listPrefEntries {
+                entry(
+                    key = DictateLegacyLayout.OFF,
+                    label = stringRes(R.string.dictate__legacy_layout_off_label),
+                )
+                entry(
+                    key = DictateLegacyLayout.LOCKED,
+                    label = stringRes(R.string.dictate__legacy_layout_locked_label),
+                )
+                entry(
+                    key = DictateLegacyLayout.SWIPE,
+                    label = stringRes(R.string.dictate__legacy_layout_swipe_label),
+                )
+            },
+        )
+
+        // The layout customisation only makes sense once the classic layout is actually in use (#183/#194).
+        if (legacyMode != DictateLegacyLayout.OFF) {
+            ListPreference(
+                prefs.dictate.legacyPromptRows,
+                icon = Icons.Default.ViewAgenda,
+                modifier = Modifier.settingsSearchAnchor("dictate__legacy_prompt_rows_title"),
+                title = stringRes(R.string.dictate__legacy_prompt_rows_title),
+                entries = listPrefEntries {
+                    entry(key = 1, label = stringRes(R.string.dictate__legacy_prompt_rows_one))
+                    entry(key = 2, label = stringRes(R.string.dictate__legacy_prompt_rows_two))
+                },
+            )
+            LegacyActionRowSetting()
+            EnterLongPressCharsSetting()
+        }
+    }
+}
+
+/**
+ * Resolves a provider id to a human-readable name for the providers-row summary: built-ins come from
+ * the [ProviderRegistry], user-defined endpoints from their stored display name in the keyring, falling
+ * back to the raw id if neither is available.
+ */
+private fun providerDisplayName(id: String, accounts: ProviderAccounts): String {
+    ProviderRegistry.byId(id)?.let { return it.displayName }
+    return accounts[id]?.displayName?.takeIf { it.isNotBlank() } ?: id
+}
+
+/** A small accent "New" pill used to point users at a recently added settings entry. */
+@Composable
+private fun NewBadge() {
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(percent = 50))
+            .background(MaterialTheme.colorScheme.primary)
+            .padding(horizontal = 8.dp, vertical = 2.dp),
+    ) {
+        Text(
+            text = stringRes(R.string.dictate__floating_button_badge_new),
+            color = MaterialTheme.colorScheme.onPrimary,
+            style = MaterialTheme.typography.labelSmall,
+        )
+    }
+}
+
+/**
+ * The speed-up slider's value: "Off" at 1.0×, otherwise the rate itself (issue #272). Written through
+ * [DecimalFormat] so the decimal mark is the reader's own — "1,5×" in German, "1.5×" in English — and so
+ * the whole rates lose their pointless ".0".
+ */
+@Composable
+private fun speedUpValueLabel(percent: Int): String =
+    if (percent <= AudioSpeedUp.MIN_PERCENT) {
+        stringRes(R.string.dictate__speed_up_off)
+    } else {
+        stringRes(R.string.dictate__speed_up_value, "rate" to DecimalFormat("0.##").format(percent / 100.0))
+    }
+
+/** How much billed audio a given speed disposes of, as whole percent: 150 % of speed → 33 % less audio. */
+private fun speedUpSaving(percent: Int): String =
+    (100.0 * (1.0 - 100.0 / percent)).roundToInt().toString()
+
+/** One-line summary of the current long-form mode for the settings entry (issue #170). */
+@Composable
+private fun longformModeSummary(mode: DictateLongformMode, seconds: Int): String = when (mode) {
+    DictateLongformMode.OFF -> stringRes(R.string.dictate__longform_mode_off)
+    DictateLongformMode.MANUAL -> stringRes(R.string.dictate__longform_mode_manual)
+    DictateLongformMode.AUTO -> stringRes(R.string.dictate__longform_autosplit_title) + " · " +
+        stringRes(R.string.dictate__longform_autosplit_value, "seconds" to "$seconds")
+}
+
+/** The single dialog holding all long-form settings: the mode, plus the pause length when auto (#170). */
+@Composable
+private fun LongformDialog(
+    mode: DictateLongformMode,
+    seconds: Int,
+    onDismiss: () -> Unit,
+) {
+    val prefs by FlorisPreferenceStore
+    val scope = rememberCoroutineScope()
+    val context = LocalContext.current
+    // Whether Smart Turn is actually active (enabled AND downloaded). It changes what the slider means:
+    // off → the silence after which a segment is cut; on → the maximum-pause fallback.
+    val smartTurnEnabled by prefs.dictate.smartTurnEnabled.collectAsState()
+    val installedTick by LocalModelDownloads.installedTick.collectAsState()
+    val smartTurnActive = smartTurnEnabled && remember(installedTick) { SmartTurnModel.isModelAvailable(context) }
+    JetPrefAlertDialog(
+        scrollModifier = florisDialogScroll(),
+        title = stringRes(R.string.dictate__longform_title),
+        dismissLabel = stringRes(android.R.string.ok),
+        onDismiss = onDismiss,
+    ) {
+        Column {
+            LongformModeRow(
+                value = DictateLongformMode.OFF, selected = mode,
+                titleRes = R.string.dictate__longform_mode_off,
+                summaryRes = R.string.dictate__longform_mode_off_summary,
+            ) { scope.launch { prefs.dictate.longformMode.set(it) } }
+            LongformModeRow(
+                value = DictateLongformMode.MANUAL, selected = mode,
+                titleRes = R.string.dictate__longform_mode_manual,
+                summaryRes = R.string.dictate__longform_mode_manual_summary,
+            ) { scope.launch { prefs.dictate.longformMode.set(it) } }
+            LongformModeRow(
+                value = DictateLongformMode.AUTO, selected = mode,
+                titleRes = R.string.dictate__longform_autosplit_title,
+                summaryRes = R.string.dictate__longform_autosplit_summary,
+            ) { scope.launch { prefs.dictate.longformMode.set(it) } }
+            if (mode == DictateLongformMode.AUTO) {
+                var sliderValue by remember(seconds) { mutableStateOf(seconds.toFloat()) }
+                Text(
+                    modifier = Modifier.padding(top = 12.dp, start = 8.dp),
+                    text = stringRes(
+                        if (smartTurnActive) {
+                            R.string.dictate__longform_autosplit_threshold_title
+                        } else {
+                            R.string.dictate__longform_pause_length_title
+                        },
+                    ) + ": " +
+                        stringRes(R.string.dictate__longform_autosplit_value, "seconds" to "${sliderValue.roundToInt()}"),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                Slider(
+                    modifier = Modifier.padding(horizontal = 8.dp),
+                    value = sliderValue,
+                    onValueChange = { sliderValue = it },
+                    onValueChangeFinished = {
+                        scope.launch { prefs.dictate.longformAutoSplitSeconds.set(sliderValue.roundToInt()) }
+                    },
+                    valueRange = 2f..8f,
+                    steps = 5,
+                )
+                SmartTurnRow()
+            }
+        }
+    }
+}
+
+/**
+ * Opt-in Smart Turn v3 toggle shown under the pause slider in AUTO mode. Checking it downloads the ~8 MB
+ * on-device model (round progress bar); the checkbox only turns on once the download has fully succeeded.
+ * When off, auto-split falls back to the pure Silero silence timer.
+ */
+@Composable
+private fun SmartTurnRow() {
+    val prefs by FlorisPreferenceStore
+    val scope = rememberCoroutineScope()
+    val context = LocalContext.current
+    val downloads by LocalModelDownloads.state.collectAsState()
+    val installedTick by LocalModelDownloads.installedTick.collectAsState()
+    val enabledPref by prefs.dictate.smartTurnEnabled.collectAsState()
+
+    val modelPresent = remember(installedTick) { SmartTurnModel.isModelAvailable(context) }
+    val dl = downloads[LocalModelCatalog.SMART_TURN_ID]
+    val downloading = dl != null && dl.error == null
+    val failed = dl?.error != null
+    val percent = dl?.percent ?: 0
+    val checked = enabledPref && modelPresent
+    var pendingEnable by remember { mutableStateOf(false) }
+
+    // Only flip the pref on once the model has actually finished downloading; and if the file is ever gone
+    // while the pref is on, turn it back off so activation and the checkbox never disagree.
+    LaunchedEffect(modelPresent, pendingEnable, enabledPref) {
+        if (modelPresent && pendingEnable) {
+            prefs.dictate.smartTurnEnabled.set(true)
+            pendingEnable = false
+        }
+        if (enabledPref && !modelPresent && !downloading && !pendingEnable) {
+            prefs.dictate.smartTurnEnabled.set(false)
+        }
+    }
+
+    fun onToggle() {
+        when {
+            downloading -> LocalModelDownloads.cancel(LocalModelCatalog.SMART_TURN_ID)
+            checked -> scope.launch { prefs.dictate.smartTurnEnabled.set(false) }
+            modelPresent -> scope.launch { prefs.dictate.smartTurnEnabled.set(true) }
+            else -> {
+                if (failed) LocalModelDownloads.clearError(LocalModelCatalog.SMART_TURN_ID)
+                pendingEnable = true
+                LocalModelDownloads.start(context, LocalModelCatalog.SMART_TURN)
+            }
+        }
+    }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onToggle() }
+            .padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        if (downloading) {
+            Box(
+                modifier = Modifier.size(48.dp).padding(12.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                CircularProgressIndicator(
+                    progress = { percent / 100f },
+                    modifier = Modifier.size(24.dp),
+                    strokeWidth = 2.dp,
+                )
+            }
+        } else {
+            Checkbox(checked = checked, onCheckedChange = { onToggle() })
+        }
+        Column(modifier = Modifier.padding(start = 8.dp)) {
+            Text(
+                text = stringRes(R.string.dictate__smart_turn_title),
+                style = MaterialTheme.typography.bodyLarge,
+            )
+            Text(
+                text = when {
+                    downloading -> stringRes(R.string.dictate__smart_turn_downloading, "percent" to "$percent")
+                    failed -> stringRes(R.string.dictate__smart_turn_download_failed)
+                    else -> stringRes(R.string.dictate__smart_turn_summary)
+                },
+                style = MaterialTheme.typography.bodySmall,
+                color = if (failed) {
+                    MaterialTheme.colorScheme.error
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                },
+            )
+        }
+    }
+}
+
+@Composable
+private fun LongformModeRow(
+    value: DictateLongformMode,
+    selected: DictateLongformMode,
+    titleRes: Int,
+    summaryRes: Int,
+    onSelect: (DictateLongformMode) -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onSelect(value) }
+            .padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        RadioButton(selected = value == selected, onClick = { onSelect(value) })
+        Column(modifier = Modifier.padding(start = 8.dp)) {
+            Text(text = stringRes(titleRes), style = MaterialTheme.typography.bodyLarge)
+            Text(
+                text = stringRes(summaryRes),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}

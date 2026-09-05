@@ -1,0 +1,568 @@
+/*
+ * Copyright (C) 2021-2025 The FlorisBoard Contributors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package dev.patrickgold.florisboard.ime.nlp
+
+import android.content.Context
+import android.os.SystemClock
+import android.util.LruCache
+import dev.patrickgold.florisboard.app.FlorisPreferenceStore
+import dev.patrickgold.florisboard.clipboardManager
+import dev.patrickgold.florisboard.editorInstance
+import dev.patrickgold.florisboard.glideTypingManager
+import dev.patrickgold.florisboard.ime.clipboard.provider.ClipboardItem
+import dev.patrickgold.florisboard.ime.clipboard.provider.ItemType
+import dev.patrickgold.florisboard.ime.core.Subtype
+import dev.patrickgold.florisboard.ime.editor.EditorContent
+import dev.patrickgold.florisboard.ime.editor.EditorRange
+import dev.patrickgold.florisboard.ime.dictionary.DictionaryManager
+import dev.patrickgold.florisboard.ime.dictionary.UserDictionaryEntry
+import dev.patrickgold.florisboard.ime.media.emoji.EmojiSuggestionProvider
+import dev.patrickgold.florisboard.ime.nlp.han.HanShapeBasedLanguageProvider
+import dev.patrickgold.florisboard.ime.nlp.latin.LatinLanguageProvider
+import dev.patrickgold.florisboard.keyboardManager
+import dev.patrickgold.florisboard.lib.util.NetworkUtils
+import dev.patrickgold.florisboard.subtypeManager
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import org.florisboard.lib.kotlin.guardedByLock
+import org.florisboard.lib.kotlin.collectLatestIn
+import java.util.concurrent.atomic.AtomicBoolean
+import kotlin.properties.Delegates
+
+private const val BLANK_STR_PATTERN = "^\\s*$"
+
+// Frequency stored for a word learned from the suggestion strip (issue #241) — the maximum, matching what
+// the user dictionary settings screen assigns to a hand-added word.
+private const val USER_DICTIONARY_FREQ = 255
+
+/**
+ * Whether the word provider should be asked at all, given the user's "Display suggestions" switch and
+ * whether the active provider insists (issue #297).
+ *
+ * Its own decision, because [NlpManager.isSuggestionOn] is not one: that is an OR across three unrelated
+ * features, and using it as the single gate meant emoji suggestions — on by default — held the door open
+ * for the word suggestions the user had just switched off.
+ *
+ * The exception is not a courtesy. A shape-based provider *types* through its candidate list: switching
+ * that off does not declutter the strip, it takes the language away. So the override lives here, beside
+ * the rule it overrides, instead of waiting to be rediscovered the next time someone tidies this up.
+ */
+internal fun wantsWordSuggestions(
+    displaySuggestions: Boolean,
+    providerForcesSuggestionOn: Boolean,
+): Boolean = displaySuggestions || providerForcesSuggestionOn
+
+class NlpManager(context: Context) {
+    private val blankStrRegex = Regex(BLANK_STR_PATTERN)
+
+    private val prefs by FlorisPreferenceStore
+    private val clipboardManager by context.clipboardManager()
+    private val editorInstance by context.editorInstance()
+    private val keyboardManager by context.keyboardManager()
+    private val subtypeManager by context.subtypeManager()
+    // Kept as the Lazy rather than unwrapped with `by`: the glide manager reaches back for this very
+    // NlpManager, so it must not be built while this one is still being constructed.
+    private val glideTypingManager = context.glideTypingManager()
+
+    private val scope = CoroutineScope(Dispatchers.Default + SupervisorJob())
+    private val clipboardSuggestionProvider = ClipboardSuggestionProvider(context)
+    private val emojiSuggestionProvider = EmojiSuggestionProvider(context)
+    private val providers = guardedByLock {
+        mapOf(
+            LatinLanguageProvider.ProviderId to ProviderInstanceWrapper(LatinLanguageProvider(context)),
+            HanShapeBasedLanguageProvider.ProviderId to ProviderInstanceWrapper(HanShapeBasedLanguageProvider(context)),
+        )
+    }
+    // lock unnecessary because values constant
+    private val providersForceSuggestionOn = mutableMapOf<String, Boolean>()
+
+    private val internalSuggestionsGuard = Mutex()
+    private var internalSuggestions by Delegates.observable(SystemClock.uptimeMillis() to listOf<SuggestionCandidate>()) { _, _, _ ->
+        scope.launch { assembleCandidates() }
+    }
+
+    private val _activeCandidatesFlow = MutableStateFlow(listOf<SuggestionCandidate>())
+    val activeCandidatesFlow = _activeCandidatesFlow.asStateFlow()
+    inline var activeCandidates
+        get() = activeCandidatesFlow.value
+        private set(v) {
+            _activeCandidatesFlow.value = v
+        }
+
+    val debugOverlaySuggestionsInfos = LruCache<Long, Pair<String, SpellingResult>>(10)
+    var debugOverlayVersion = MutableStateFlow(0)
+
+    init {
+        clipboardManager.primaryClipFlow.collectLatestIn(scope) {
+            assembleCandidates()
+        }
+        prefs.suggestion.enabled.asFlow().collectLatestIn(scope) {
+            // Cleared, not merely reassembled: the words from before the flip are still sitting in
+            // [internalSuggestions], and reassembling publishes them straight back — the strip would stay
+            // exactly as it was until the next keystroke, which is what made switching this off look like
+            // it did nothing (issue #297). Clearing reassembles by itself.
+            clearSuggestions()
+        }
+        prefs.clipboard.suggestionEnabled.asFlow().collectLatestIn(scope) {
+            assembleCandidates()
+        }
+        prefs.emoji.suggestionEnabled.asFlow().collectLatestIn(scope) {
+            assembleCandidates()
+        }
+        subtypeManager.activeSubtypeFlow.collectLatestIn(scope) { subtype ->
+            preload(subtype)
+        }
+    }
+
+    /**
+     * Gets the punctuation rule from the currently active subtype and returns it. Falls back to a default one if the
+     * subtype does not exist or defines an invalid punctuation rule.
+     *
+     * @return The punctuation rule or a fallback.
+     */
+    fun getActivePunctuationRule(): PunctuationRule {
+        return getPunctuationRule(subtypeManager.activeSubtype)
+    }
+
+    /**
+     * Gets the punctuation rule from the given subtype and returns it. Falls back to a default one if the subtype does
+     * not exist or defines an invalid punctuation rule.
+     *
+     * @return The punctuation rule or a fallback.
+     */
+    fun getPunctuationRule(subtype: Subtype): PunctuationRule {
+        return keyboardManager.resources.punctuationRules.value[subtype.punctuationRule] ?: PunctuationRule.Fallback
+    }
+
+    private suspend fun getSpellingProvider(subtype: Subtype): SpellingProvider {
+        return providers.withLock { it[subtype.nlpProviders.spelling] }?.provider as? SpellingProvider
+            ?: FallbackNlpProvider
+    }
+
+    private suspend fun getSuggestionProvider(subtype: Subtype): SuggestionProvider {
+        return providers.withLock { it[subtype.nlpProviders.suggestion] }?.provider as? SuggestionProvider
+            ?: FallbackNlpProvider
+    }
+
+    fun preload(subtype: Subtype) {
+        scope.launch {
+            emojiSuggestionProvider.preload(subtype)
+            providers.withLock { providers ->
+                subtype.nlpProviders.forEach { _, providerId ->
+                    providers[providerId]?.let { provider ->
+                        provider.createIfNecessary()
+                        provider.preload(subtype)
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Spell wrapper helper which calls the spelling provider and returns the result. Coroutine management must be done
+     * by the source spell checker service.
+     */
+    suspend fun spell(
+        subtype: Subtype,
+        word: String,
+        precedingWords: List<String>,
+        followingWords: List<String>,
+        maxSuggestionCount: Int,
+    ): SpellingResult {
+        return getSpellingProvider(subtype).spell(
+            subtype = subtype,
+            word = word,
+            precedingWords = precedingWords,
+            followingWords = followingWords,
+            maxSuggestionCount = maxSuggestionCount,
+            allowPossiblyOffensive = true,
+            isPrivateSession = keyboardManager.activeState.isIncognitoMode,
+        )
+    }
+
+    suspend fun determineLocalComposing(
+        textBeforeSelection: CharSequence, breakIterators: BreakIteratorGroup, localLastCommitPosition: Int
+    ): EditorRange {
+        return getSuggestionProvider(subtypeManager.activeSubtype).determineLocalComposing(
+            subtypeManager.activeSubtype, textBeforeSelection, breakIterators, localLastCommitPosition
+        )
+    }
+
+    fun providerForcesSuggestionOn(subtype: Subtype): Boolean {
+        // Using a cache because I have no idea how fast the runBlocking is
+        return providersForceSuggestionOn.getOrPut(subtype.nlpProviders.suggestion) {
+            runBlocking {
+                getSuggestionProvider(subtype).forcesSuggestionOn
+            }
+        }
+    }
+
+    fun isSuggestionOn(): Boolean =
+        prefs.suggestion.enabled.get()
+            || prefs.emoji.suggestionEnabled.get()
+            || providerForcesSuggestionOn(subtypeManager.activeSubtype)
+
+    /**
+     * [wantsWordSuggestions] answered for the active subtype — the one question worth asking before doing
+     * any word work: does the user want them, or does the provider insist?
+     *
+     * Everyone who needs it used to build the pair themselves, which is how the composing region ended up
+     * hanging off [isSuggestionOn] instead (issue #298).
+     */
+    fun wordSuggestionsWanted(): Boolean = wantsWordSuggestions(
+        displaySuggestions = prefs.suggestion.enabled.get(),
+        providerForcesSuggestionOn = providerForcesSuggestionOn(subtypeManager.activeSubtype),
+    )
+
+    // Set by a glide-typing commit: the word commit itself triggers one resetSuggestions → suggest() that
+    // would immediately wipe the just-shown glide alternatives. This one-shot flag makes that next suggest()
+    // a no-op so the alternatives stay in the strip until the user's next input (issue #127).
+    @Volatile
+    private var holdNextSuggest = false
+
+    fun suggest(subtype: Subtype, content: EditorContent) {
+        if (holdNextSuggest) {
+            holdNextSuggest = false
+            return
+        }
+        val reqTime = SystemClock.uptimeMillis()
+        scope.launch {
+            val emojiSuggestions = when {
+                prefs.emoji.suggestionEnabled.get() -> {
+                    emojiSuggestionProvider.suggest(
+                        subtype = subtype,
+                        content = content,
+                        maxCandidateCount = prefs.emoji.suggestionCandidateMaxCount.get(),
+                        allowPossiblyOffensive = true,
+                        isPrivateSession = keyboardManager.activeState.isIncognitoMode,
+                    )
+                }
+                else -> emptyList()
+            }
+            val suggestions = when {
+                // The switch that says "Display suggestions" was read nowhere below this line (issue
+                // #297): [isSuggestionOn] let emoji suggestions keep the gate open, and since turning
+                // words off also turns composing off, the provider fell straight through to next-word
+                // predictions — the one kind of suggestion nothing was gating.
+                !wordSuggestionsWanted() -> {
+                    emptyList()
+                }
+                emojiSuggestions.isNotEmpty() && prefs.emoji.suggestionType.get().prefix.isNotEmpty() -> {
+                    emptyList()
+                }
+                else -> {
+                    val provider = getSuggestionProvider(subtype)
+                    provider.suggest(
+                        subtype = subtype,
+                        content = content,
+                        maxCandidateCount = provider.maxCandidates,
+                        allowPossiblyOffensive = true,
+                        isPrivateSession = keyboardManager.activeState.isIncognitoMode,
+                    )
+                }
+            }
+            internalSuggestionsGuard.withLock {
+                if (internalSuggestions.first < reqTime) {
+                    internalSuggestions = reqTime to buildList {
+                        addAll(emojiSuggestions)
+                        addAll(suggestions)
+                    }
+                }
+            }
+        }
+    }
+
+    fun suggestDirectly(suggestions: List<SuggestionCandidate>, holdNext: Boolean = false) {
+        // Glide's alternatives reach the strip without passing through [suggest], so the word switch has
+        // to be honoured here as well — otherwise "Display suggestions" off would go on filling the strip
+        // after every swipe, which is the same complaint one path further along (issue #297). The word is
+        // still committed; only the alternatives are withheld, and holding the next suggest is left alone
+        // so nothing changes for the case this was written for (#127).
+        val wanted = wordSuggestionsWanted()
+        val reqTime = SystemClock.uptimeMillis()
+        holdNextSuggest = holdNext
+        runBlocking {
+            internalSuggestions = reqTime to if (wanted) suggestions else emptyList()
+        }
+    }
+
+    fun clearSuggestions() {
+        val reqTime = SystemClock.uptimeMillis()
+        runBlocking {
+            internalSuggestions = reqTime to emptyList()
+        }
+    }
+
+    fun getAutoCommitCandidate(): SuggestionCandidate? {
+        return activeCandidates.firstOrNull { it.isEligibleForAutoCommit }
+    }
+
+    /** Outcome of [addToUserDictionary], so the caller knows what (if anything) to tell the user. */
+    enum class AddToDictionaryResult { ADDED, ALREADY_PRESENT, UNAVAILABLE }
+
+    /**
+     * Adds [candidate]'s word to the personal dictionary for [subtype]'s language (issue #241) and re-runs
+     * the suggestions so it is treated as known from the very next keystroke — which is the point of the
+     * feature: [LatinLanguageProvider] consults the user dictionary in `isKnownWord`, so a learned word is
+     * never autocorrected again.
+     *
+     * Stored at the maximum frequency, matching what the settings screen uses when a word is added by hand.
+     */
+    fun addToUserDictionary(subtype: Subtype, candidate: SuggestionCandidate): AddToDictionaryResult {
+        val word = candidate.text.toString().trim()
+        if (word.isEmpty()) return AddToDictionaryResult.UNAVAILABLE
+        val dao = DictionaryManager.default().florisUserDictionaryDao()
+            ?: return AddToDictionaryResult.UNAVAILABLE // the personal dictionary is switched off
+        val locale = subtype.primaryLocale
+        return runCatching {
+            if (dao.queryExactFuzzyLocale(word, locale).isNotEmpty()) {
+                AddToDictionaryResult.ALREADY_PRESENT
+            } else {
+                dao.insert(
+                    UserDictionaryEntry(
+                        id = 0,
+                        word = word,
+                        freq = USER_DICTIONARY_FREQ,
+                        locale = locale.localeTag(),
+                        shortcut = null,
+                    )
+                )
+                scope.launch { suggest(subtypeManager.activeSubtype, editorInstance.activeContent) }
+                // Glide builds its index up front, so a word added mid-session would otherwise be typable
+                // but not swipeable until the next subtype change (issue #263).
+                glideTypingManager.value.invalidateWordData()
+                AddToDictionaryResult.ADDED
+            }
+        }.getOrDefault(AddToDictionaryResult.UNAVAILABLE)
+    }
+
+    fun removeSuggestion(subtype: Subtype, candidate: SuggestionCandidate): Boolean {
+        return runBlocking { candidate.sourceProvider?.removeSuggestion(subtype, candidate) == true }.also { result ->
+            if (result) {
+                scope.launch {
+                    // Need to re-trigger the suggestions algorithm
+                    if (candidate is ClipboardSuggestionCandidate) {
+                        assembleCandidates()
+                    } else {
+                        suggest(subtypeManager.activeSubtype, editorInstance.activeContent)
+                    }
+                }
+            }
+        }
+    }
+
+    fun getListOfWords(subtype: Subtype): List<String> {
+        return runBlocking { getSuggestionProvider(subtype).getListOfWords(subtype) }
+    }
+
+    fun getFrequencyForWord(subtype: Subtype, word: String): Double {
+        return runBlocking { getSuggestionProvider(subtype).getFrequencyForWord(subtype, word) }
+    }
+
+    private fun assembleCandidates() {
+        runBlocking {
+            val candidates = when {
+                isSuggestionOn() -> {
+                    clipboardSuggestionProvider.suggest(
+                        subtype = Subtype.DEFAULT,
+                        content = editorInstance.activeContent,
+                        maxCandidateCount = 8,
+                        allowPossiblyOffensive = true,
+                        isPrivateSession = keyboardManager.activeState.isIncognitoMode,
+                    ).ifEmpty {
+                        buildList {
+                            internalSuggestionsGuard.withLock {
+                                addAll(internalSuggestions.second)
+                            }
+                        }
+                    }
+                }
+                else -> emptyList()
+            }
+            activeCandidates = candidates
+            autoExpandCollapseSmartbarActions(candidates, NlpInlineAutofill.suggestions.value)
+        }
+    }
+
+    fun autoExpandCollapseSmartbarActions(list1: List<*>?, list2: List<*>?) {
+        if (!prefs.smartbar.enabled.get()) {// || !prefs.smartbar.sharedActionsAutoExpandCollapse.get()) {
+            return
+        }
+        // TODO: this is a mess and needs to be cleaned up in v0.5 with the NLP development
+        /*if (keyboardManager.inputEventDispatcher.isRepeatableCodeLastDown()
+            && !keyboardManager.inputEventDispatcher.isPressed(KeyCode.DELETE)
+            && !keyboardManager.inputEventDispatcher.isPressed(KeyCode.FORWARD_DELETE)
+            || keyboardManager.activeState.isActionsOverflowVisible
+        ) {
+            return // We do not auto switch if a repeatable action key was last pressed or if the actions overflow
+                   // menu is visible to prevent annoying UI changes
+        }*/
+        val isSelection = editorInstance.activeContent.selection.isSelectionMode
+        val isExpanded = list1.isNullOrEmpty() && list2.isNullOrEmpty() || isSelection
+        // Only write when the expanded state actually changes. This runs on every keystroke (via
+        // assembleCandidates); the state usually stays the same while typing a word, so the guard avoids
+        // two redundant pref writes per character that would otherwise bounce the Smartbar flows into a
+        // recomposition (and schedule a datastore persist) each time — a contributor to the typing jank.
+        if (prefs.smartbar.sharedActionsExpanded.get() != isExpanded) {
+            scope.launch {
+                prefs.smartbar.sharedActionsExpandWithAnimation.set(false)
+                prefs.smartbar.sharedActionsExpanded.set(isExpanded)
+            }
+        }
+    }
+
+    fun addToDebugOverlay(word: String, info: SpellingResult) {
+        debugOverlaySuggestionsInfos.put(System.currentTimeMillis(), word to info)
+        debugOverlayVersion.update { it + 1 }
+    }
+
+    fun clearDebugOverlay() {
+        debugOverlaySuggestionsInfos.evictAll()
+        debugOverlayVersion.update { it + 1 }
+    }
+
+    private class ProviderInstanceWrapper(val provider: NlpProvider) {
+        private var isInstanceAlive = AtomicBoolean(false)
+
+        suspend fun createIfNecessary() {
+            if (!isInstanceAlive.getAndSet(true)) provider.create()
+        }
+
+        suspend fun preload(subtype: Subtype) {
+            provider.preload(subtype)
+        }
+
+        suspend fun destroyIfNecessary() {
+            if (isInstanceAlive.getAndSet(true)) provider.destroy()
+        }
+    }
+
+    inner class ClipboardSuggestionProvider internal constructor(private val context: Context) : SuggestionProvider {
+        private var lastClipboardItemId: Long = -1
+
+        override val providerId = "org.florisboard.nlp.providers.clipboard"
+
+        override suspend fun create() {
+            // Do nothing
+        }
+
+        override suspend fun preload(subtype: Subtype) {
+            // Do nothing
+        }
+
+        override suspend fun suggest(
+            subtype: Subtype,
+            content: EditorContent,
+            maxCandidateCount: Int,
+            allowPossiblyOffensive: Boolean,
+            isPrivateSession: Boolean,
+        ): List<SuggestionCandidate> {
+            // Check if enabled
+            if (!prefs.clipboard.suggestionEnabled.get()) return emptyList()
+
+            val currentItem = validateClipboardItem(clipboardManager.primaryClip, lastClipboardItemId, content.text)
+                ?: return emptyList()
+
+            return buildList {
+                val now = System.currentTimeMillis()
+                if ((now - currentItem.creationTimestampMs) < prefs.clipboard.suggestionTimeout.get() * 1000) {
+                    add(ClipboardSuggestionCandidate(currentItem, sourceProvider = this@ClipboardSuggestionProvider, context = context))
+                    if (currentItem.isSensitive) {
+                        return@buildList
+                    }
+                    if (currentItem.type == ItemType.TEXT) {
+                        val text = currentItem.stringRepresentation()
+                        val matches = buildList {
+                            addAll(NetworkUtils.getEmailAddresses(text))
+                            addAll(NetworkUtils.getUrls(text))
+                            addAll(NetworkUtils.getPhoneNumbers(text))
+                        }
+                        matches.forEachIndexed { i, match ->
+                            val isUniqueMatch = matches.subList(0, i).all { prevMatch ->
+                                prevMatch.value != match.value && prevMatch.range.intersect(match.range).isEmpty()
+                            }
+                            if (match.value != text && isUniqueMatch) {
+                                add(ClipboardSuggestionCandidate(
+                                    clipboardItem = currentItem.copy(
+                                        // TODO: adjust regex of phone number so we don't need to manually strip the
+                                        //  parentheses from the match results
+                                        text = if (match.value.startsWith("(") && match.value.endsWith(")")) {
+                                            match.value.substring(1, match.value.length - 1)
+                                        } else {
+                                            match.value
+                                        }
+                                    ),
+                                    sourceProvider = this@ClipboardSuggestionProvider,
+                                    context = context,
+                                ))
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        override suspend fun notifySuggestionAccepted(subtype: Subtype, candidate: SuggestionCandidate) {
+            if (candidate is ClipboardSuggestionCandidate) {
+                lastClipboardItemId = candidate.clipboardItem.id
+            }
+        }
+
+        override suspend fun notifySuggestionReverted(subtype: Subtype, candidate: SuggestionCandidate) {
+            // Do nothing
+        }
+
+        override suspend fun removeSuggestion(subtype: Subtype, candidate: SuggestionCandidate): Boolean {
+            if (candidate is ClipboardSuggestionCandidate) {
+                lastClipboardItemId = candidate.clipboardItem.id
+                return true
+            }
+            return false
+        }
+
+        override suspend fun getListOfWords(subtype: Subtype): List<String> {
+            return emptyList()
+        }
+
+        override suspend fun getFrequencyForWord(subtype: Subtype, word: String): Double {
+            return 0.0
+        }
+
+        override suspend fun destroy() {
+            // Do nothing
+        }
+
+        private fun validateClipboardItem(currentItem: ClipboardItem?, lastItemId: Long, contentText: String) =
+            currentItem?.takeIf {
+                // Check if already used
+                it.id != lastItemId
+                    // Check if content is empty
+                    && contentText.isBlank()
+                    // Check if clipboard content has any valid characters
+                    && !currentItem.text.isNullOrBlank()
+                    && !blankStrRegex.matches(currentItem.text)
+            }
+    }
+}

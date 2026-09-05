@@ -1,8 +1,10 @@
 # Built application files
 *.apk
-*.aar
-*.ap_
 *.aab
+*.ap_
+
+# dotenv
+.env
 
 # Files for the ART/Dalvik VM
 *.dex
@@ -14,13 +16,12 @@
 bin/
 gen/
 out/
-release/
 
-# Gradle files
+# Gradle & Kotlin files
 .gradle/
+.kotlin/
 build/
-app/build/
-engine/target/
+/release/
 
 # Local configuration file (sdk path, etc)
 local.properties
@@ -31,103 +32,63 @@ proguard/
 # Log Files
 *.log
 
+# Python benchmark helpers
+__pycache__/
+
 # Android Studio Navigation editor temp files
 .navigation/
 
 # Android Studio captures folder
 captures/
 
-# IntelliJ
+# Intellij
 *.iml
-.idea/
-*.iws
-*.ipr
+.idea/**/*
+!/.idea/copyright/
+!/.idea/externalDependencies.xml
 
-# Keystore files (DO NOT commit)
-*.jks
-*.keystore
-
-# Google Services (if used)
+# Firebase configuration. It was tracked once (removed 2025-03-26) and carries the project id and
+# the Android API key; the app no longer uses Firebase at all, and if it ever does again this keeps
+# the file out.
 google-services.json
+**/google-services.json
 
-# External native build folder generated in Android Studio 2.2 and later
-.externalNativeBuild
-.cxx/
-
-# NDK
-obj/
-
-# Rust
-engine/target/
-**/*.rs.bk
-
-# Cargo
-Cargo.lock
-
-# OS files
-.DS_Store
-Thumbs.db
-desktop.ini
-*.swp
-*.swo
-*~
-
-# VS Code
-.vscode/
-*.code-workspace
-
-# Android Studio
-*.hprof
-.cxx/
-*.so.bak
-
-# Fastlane (for F-Droid/Play Store)
-fastlane/report.xml
-fastlane/Preview.html
-fastlane/screenshots
-fastlane/test_output
-fastlane/readme.md
-
-# Release artifacts
-app/release/
-app/debug/
+# Keystore files
 *.jks
 *.keystore
+keystore.properties
+crowdin.properties
 
-# NDK build artifacts
-app/src/main/obj/
-app/src/main/libs/
+# C++
+.cxx/
 
-# Corrupt cache files
-.gradle/6.5/
-.gradle/7.0/
-.gradle/7.5/
-.gradle/8.0/
+# Nix stuff
+.direnv/
+result
 
-# Environment
-.env
-.env.local
-.env.*.local
+# VSCode
+.vscode/
 
-# Node (if used for tooling)
-node_modules/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
+# Rust. The paths are anchored on purpose: a bare 'debug/' matches every directory of that name —
+# app/src/debug included, which is where the debug variant's icons live. That is exactly what
+# happened for a long time, and the counter-exception !/app/src/debug/res that used to stand here
+# could not help: git never re-includes anything inside an excluded directory.
+/target/debug/
+/target/
+**/*.rs.bk
+*.pdb
 
-# Python (if used for prototyping)
-python/__pycache__/
-python/*.pyc
-python/venv/
-python/.venv/
+# Local & private data
+private/
+.sevolve/
+brain.db
+*.trace
 
-# Documentation build
-docs/_build/
+# Vendored sherpa-onnx native libs for on-device STT
+/app/libs/sherpa-onnx-*.jar
+/app/libs/onnxruntime-android-*.jar
+/app/src/main/jniLibs/
 
-# Temporary files
-*.tmp
-*.temp
-*.bak
-*.orig
-.kotlin/
-local.properties
+# Glide dictionary build artifacts
+tools/glide-dict/dist/
+

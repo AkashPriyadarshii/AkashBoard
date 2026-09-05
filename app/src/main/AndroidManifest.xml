@@ -1,58 +1,360 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
-<!--
-    AkashBoard â€” The keyboard that becomes YOU.
-    Copyright (C) 2026 Akash Priyadarshi
-    Licensed under the GNU General Public License v3.0
--->
+<?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
-    <!-- NO INTERNET PERMISSION â€” by design. Zero network requests. -->
-    <uses-permission android:name="android.permission.VIBRATE" />
-    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <!-- Permission needed to vibrate if the user has key press vibration enabled -->
+    <uses-permission android:name="android.permission.VIBRATE"/>
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- Buying credit packs for Dictate Cloud. The billing library declares this itself, but
+         stating it here keeps it visible: without it in the uploaded build, the Play Console
+         will not let in-app products be created at all. -->
+    <uses-permission android:name="com.android.vending.BILLING"/>
+
+    <!-- Permission needed to record audio for Dictate voice transcription -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO"/>
+
+    <!-- Permissions needed to optionally route Dictate recording through a Bluetooth microphone
+         and to manage audio focus / SCO routing while recording -->
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS"/>
+    <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30"/>
+
+    <!-- Permission needed to create notifications on devices running Android 13+ -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+
+    <!-- Permissions for the floating dictation button (issue #88): the accessibility service promotes
+         itself to a microphone foreground service while recording so background mic capture is allowed -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE"/>
+    <!-- On-device model downloads that keep running in the background (issue #207). -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC"/>
+
+    <!-- Android 11+ only: Define that FlorisBoard requests to see all apps that
+          ship with an IME or Spell Check service. This is used to guide the user
+          in the Settings Ui why FlorisBoard may not be working.
+     -->
+    <queries>
+        <intent>
+            <action android:name="android.view.InputMethod"/>
+        </intent>
+        <intent>
+            <action android:name="android.service.textservice.SpellCheckerService"/>
+        </intent>
+    </queries>
 
     <application
-        android:allowBackup="false"
-        android:icon="@mipmap/ic_launcher"
-        android:label="@string/app_name"
-        android:roundIcon="@mipmap/ic_launcher_round"
+        android:name="dev.patrickgold.florisboard.FlorisApplication"
+        android:allowBackup="true"
+        android:dataExtractionRules="@xml/backup_rules"
+        android:fullBackupContent="@xml/backup_rules"
+        android:icon="@mipmap/app_icon"
+        android:label="@string/floris_app_name"
+        android:enableOnBackInvokedCallback="true"
+        android:roundIcon="@mipmap/app_icon_round"
         android:supportsRtl="true"
-        android:theme="@style/Theme.AkashBoard"
-        tools:targetApi="35">
+        android:theme="@style/FlorisAppTheme"
+        tools:targetApi="tiramisu"
+        android:usesCleartextTraffic="true"><!-- allow http:// endpoints the user configures (e.g. a LAN Ollama / self-hosted server, #136); default providers all use https -->
 
-        <!-- Onboarding Activity â€” First launch -->
-        <activity
-            android:name=".OnboardingActivity"
-            android:label="@string/app_name"
-            android:theme="@style/Theme.AkashBoard"
+        <!-- Allow app to be profiled for benchmarking and baseline profile generation -->
+        <profileable android:shell="true"/>
+
+        <!-- IME service -->
+        <service
+            android:name="dev.patrickgold.florisboard.FlorisImeService"
+            android:label="@string/floris_app_name"
+            android:permission="android.permission.BIND_INPUT_METHOD"
+            android:directBootAware="true"
             android:exported="true">
             <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
+                <action android:name="android.view.InputMethod"/>
+            </intent-filter>
+            <meta-data android:name="android.view.im" android:resource="@xml/method"/>
+        </service>
+
+        <!-- Dictate floating-overlay accessibility service (issue #88): optional, user-enabled. Detects
+             when a text field is focused in any app so the floating dictation button can appear, and
+             injects the transcribed text into that field (no InputConnection available from an overlay).
+             Bound only by the system via the BIND_ACCESSIBILITY_SERVICE permission. -->
+        <service
+            android:name="dev.patrickgold.florisboard.dictate.overlay.DictateAccessibilityService"
+            android:label="@string/dictate__accessibility_service_label"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
+            android:foregroundServiceType="microphone"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService"/>
+            </intent-filter>
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/accessibility_service_config"/>
+        </service>
+
+        <!-- Spellchecker service -->
+        <service
+            android:name="dev.patrickgold.florisboard.FlorisSpellCheckerService"
+            android:label="@string/floris_app_name"
+            android:permission="android.permission.BIND_TEXT_SERVICE"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.service.textservice.SpellCheckerService"/>
+            </intent-filter>
+            <meta-data android:name="android.view.textservice.scs" android:resource="@xml/spellchecker"/>
+        </service>
+
+        <!-- Wear OS Data Layer endpoint (#106): answers settings-sync requests from the watch app. -->
+        <service
+            android:name="dev.patrickgold.florisboard.dictate.wear.DictateWearService"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.google.android.gms.wearable.MESSAGE_RECEIVED" />
+                <action android:name="com.google.android.gms.wearable.CHANNEL_EVENT" />
+                <data
+                    android:scheme="wear"
+                    android:host="*"
+                    android:pathPrefix="/dictate" />
+            </intent-filter>
+        </service>
+
+        <!-- Keeps on-device model downloads running when the app is left (issue #207); shows an ongoing
+             progress notification. Not exported: only started internally by LocalModelDownloads. -->
+        <service
+            android:name="dev.patrickgold.florisboard.dictate.provider.ModelDownloadService"
+            android:foregroundServiceType="dataSync"
+            android:exported="false"/>
+
+        <!-- System-wide voice input via the standard RecognitionService API (issue #67), like FUTO Voice
+             Input. Bound only by the OS via BIND_RECOGNITION_SERVICE. Select Dictate as the device's
+             recognition service to dictate through it from any app/keyboard that honours it. -->
+        <service
+            android:name="dev.patrickgold.florisboard.dictate.recognition.DictateRecognitionService"
+            android:exported="true"
+            android:permission="android.permission.BIND_RECOGNITION_SERVICE">
+            <intent-filter>
+                <action android:name="android.speech.RecognitionService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.speech"
+                android:resource="@xml/recognition_service" />
+        </service>
+
+        <!-- Classic voice-input popup (issue #67): most keyboards/apps launch ACTION_RECOGNIZE_SPEECH for
+             their mic button rather than binding the RecognitionService, so this covers the broad case. -->
+        <activity
+            android:name="dev.patrickgold.florisboard.dictate.recognition.RecognitionActivity"
+            android:exported="true"
+            android:label="@string/dictate__title"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar"
+            android:excludeFromRecents="true"
+            android:noHistory="true">
+            <intent-filter>
+                <action android:name="android.speech.action.RECOGNIZE_SPEECH" />
+                <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </activity>
 
-        <!-- Settings Activity (companion app) -->
-        <activity
-            android:name=".SettingsActivity"
-            android:label="@string/settings_title"
-            android:theme="@style/Theme.AkashBoard"
-            android:exported="true" />
-
-        <!-- IME Service â€” The core of AkashBoard -->
+        <!-- Dictate voice input IME (issue #67): AOSP-lineage keyboards (HeliBoard, OpenBoard, …) switch to
+             the selected voice input method for their mic key. Enable + select this to route them to Dictate. -->
         <service
-            android:name=".AkashBoardIME"
-            android:label="@string/ime_name"
-            android:permission="android.permission.BIND_INPUT_METHOD"
+            android:name="dev.patrickgold.florisboard.dictate.recognition.DictateVoiceInputMethodService"
             android:exported="true"
-            android:directBootAware="true">
+            android:label="@string/dictate__voice_ime_label"
+            android:permission="android.permission.BIND_INPUT_METHOD">
             <intent-filter>
                 <action android:name="android.view.InputMethod" />
             </intent-filter>
             <meta-data
                 android:name="android.view.im"
-                android:resource="@xml/method" />
+                android:resource="@xml/dictate_voice_ime" />
         </service>
+
+        <!-- Main App Activity -->
+        <activity
+            android:name="dev.patrickgold.florisboard.app.FlorisAppActivity"
+            android:icon="@mipmap/app_icon"
+            android:label="@string/settings__title"
+            android:launchMode="singleTask"
+            android:roundIcon="@mipmap/app_icon_round"
+            android:windowSoftInputMode="adjustResize"
+            android:theme="@style/FlorisAppTheme.Splash"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="ui" android:host="florisboard" android:pathPrefix="/" />
+            </intent-filter>
+            <intent-filter android:label="Import Extension">
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <data android:scheme="content"/>
+                <data android:mimeType="application/vnd.florisboard.extension+zip"/>
+                <data android:mimeType="application/octet-stream"/><!-- Firefox looking at you :eyes: -->
+            </intent-filter>
+            <!-- Sharing an extension keeps its own type only. octet-stream belongs on the VIEW
+                 filter above, where it earns its keep: a browser downloads a .flex and hands it over
+                 with no type at all. On SEND it earned nothing and cost something — Android has no
+                 type for .opus either, so every shared voice note offered "Import Extension" beside
+                 "Transcribe", and a share sheet that asks you to choose between two entries of the
+                 same app is a riddle. An extension that arrives typed still works, "Open with" still
+                 works, and the settings have their own import screen. -->
+            <intent-filter android:label="Import Extension">
+                <action android:name="android.intent.action.SEND"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <data android:mimeType="application/vnd.florisboard.extension+zip"/>
+            </intent-filter>
+        </activity>
+
+        <!-- Using an activity alias to disable/enable the app icon in the launcher -->
+        <activity-alias
+            android:name="dev.patrickgold.florisboard.SettingsLauncherAlias"
+            android:icon="@mipmap/app_icon"
+            android:label="@string/floris_app_name"
+            android:launchMode="singleTask"
+            android:roundIcon="@mipmap/app_icon_round"
+            android:targetActivity="dev.patrickgold.florisboard.app.FlorisAppActivity"
+            android:theme="@style/FlorisAppTheme.Splash"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <action android:name="android.intent.action.APPLICATION_PREFERENCES" />
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+        </activity-alias>
+
+        <!-- Crash Dialog Activity -->
+        <activity
+            android:name="dev.patrickgold.florisboard.lib.crashutility.CrashDialogActivity"
+            android:icon="@mipmap/app_icon"
+            android:label="@string/crash_dialog__title"
+            android:configChanges="orientation|screenSize"
+            android:theme="@style/CrashDialogTheme"/>
+
+        <!-- Copy to Clipboard Activity -->
+        <activity
+            android:name="dev.patrickgold.florisboard.ime.clipboard.FlorisCopyToClipboardActivity"
+            android:theme="@style/FlorisAppTheme.Transparent"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.SEND"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <data android:mimeType="image/*"/>
+            </intent-filter>
+        </activity>
+
+        <!-- "Share → Dictate" for stickers (issue #280). Carries its own label because the clipboard
+             activity above already answers ACTION_SEND for images, and two identically named entries
+             in the share sheet would be a riddle rather than a choice. -->
+        <activity
+            android:name="dev.patrickgold.florisboard.dictate.sticker.StickerImportActivity"
+            android:label="@string/sticker__import_share_label"
+            android:theme="@style/FlorisAppTheme.Transparent"
+            android:excludeFromRecents="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.SEND"/>
+                <action android:name="android.intent.action.SEND_MULTIPLE"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <data android:mimeType="image/png"/>
+                <data android:mimeType="image/webp"/>
+                <data android:mimeType="image/gif"/>
+                <data android:mimeType="image/jpeg"/>
+            </intent-filter>
+        </activity>
+
+        <!-- Dictate File Transcription trampoline (long-press mic → system file picker) -->
+        <!-- NB: no android:noHistory here – a noHistory activity is destroyed when the document
+             picker comes to the foreground, so its OpenDocument result would never be delivered.
+             The activity finishes itself once the file is handled. -->
+        <activity
+            android:name="dev.patrickgold.florisboard.dictate.FileTranscriptionActivity"
+            android:theme="@style/FlorisAppTheme.Transparent"
+            android:excludeFromRecents="true"
+            android:exported="false"/>
+
+        <!-- "Share → Dictate" for a voice message (issue #301). The other half of the trampoline
+             above: that one puts a file's text into the field you are typing in, this one answers
+             the reverse — you are in Signal holding the audio and want to know what it says, with no
+             text field anywhere in sight. Hence a screen rather than a commit, and hence its own
+             label: a second entry reading just "Dictate" would be a riddle (the lesson of #280).
+             ACTION_VIEW as well, so "Open with → Dictate" works from any file manager.
+
+             configChanges is not a shortcut here, it is the fix: without it a rotation tears the
+             activity down, every remember is gone, and the startup effect runs again with a freshly
+             built uri list as its key — a second upload, paid for, replacing a transcript that was
+             already finished, after the copy step has wiped its own cache dir. Handling the change
+             keeps the composition, the running job and the playback position; LocalConfiguration
+             still updates, so the landscape layout switches as it should.
+
+             Deliberately NOT excludeFromRecents, unlike the sticker trampoline above. That one is an
+             invisible hop with nothing to come back to; this is a screen someone reads, and hiding it
+             from the recents list meant stepping into another app lost the transcript with no way
+             back to it. -->
+        <activity
+            android:name="dev.patrickgold.florisboard.dictate.importer.TranscribeShareActivity"
+            android:label="@string/dictate__import_share_label"
+            android:theme="@style/FlorisAppTheme"
+            android:exported="true"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden">
+            <intent-filter>
+                <action android:name="android.intent.action.SEND"/>
+                <action android:name="android.intent.action.SEND_MULTIPLE"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <data android:mimeType="audio/*"/>
+                <data android:mimeType="video/*"/>
+                <!-- WhatsApp voice notes are .opus, and three different answers exist for what
+                     that is. The media store scanner says audio/ogg; a file manager reading the
+                     extension says application/ogg; and Android's own MimeTypeMap has no entry for
+                     "opus" at all, so every documents provider falls back to octet-stream. Measured
+                     on a device: only the last of the three failed to reach here, which is why the
+                     voice notes stayed invisible after the first two were added.
+
+                     octet-stream is broader than one would like, but narrower than it sounds: it is
+                     the type of files Android cannot identify, not of all files. A zip is
+                     application/zip, an apk has its own type, a pdf has its own. The screen checks
+                     for an audio track and says so plainly when there is none. -->
+                <data android:mimeType="application/ogg"/>
+                <data android:mimeType="application/octet-stream"/>
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:mimeType="audio/*"/>
+                <data android:mimeType="video/*"/>
+                <data android:mimeType="application/ogg"/>
+                <data android:mimeType="application/octet-stream"/>
+            </intent-filter>
+        </activity>
+
+        <!-- Clipboard Media File Provider -->
+        <provider
+            android:name="dev.patrickgold.florisboard.ime.clipboard.provider.ClipboardMediaProvider"
+            android:authorities="${applicationId}.provider.clipboard"
+            android:grantUriPermissions="true"
+            android:exported="false">
+        </provider>
+
+        <!-- Default file provider to share files from the "files" or "cache" dir -->
+        <provider
+            android:name="dev.patrickgold.florisboard.dictate.media.MediaFileProvider"
+            android:authorities="${applicationId}.provider.file"
+            android:grantUriPermissions="true"
+            android:exported="false">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths"/>
+        </provider>
+
+        <!-- Disable default EmojiCompat initializer -->
+        <provider
+            android:name="androidx.startup.InitializationProvider"
+            android:authorities="${applicationId}.androidx-startup"
+            android:exported="false"
+            tools:node="merge">
+            <meta-data
+                android:name="androidx.emoji2.text.EmojiCompatInitializer"
+                tools:node="remove"/>
+        </provider>
 
     </application>
 

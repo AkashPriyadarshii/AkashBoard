@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="colorPrimary">#7C3AED</color><!-- Violet 600 -->
+    <color name="colorPrimaryDark">#6D28D9</color><!-- Violet 700 -->
+    <color name="colorAccent">#A78BFA</color><!-- Violet 400 -->
+    <color name="colorAccentDark">#7C3AED</color><!-- Violet 600 -->
+
+    <color name="colorSuccess">@color/colorPrimary</color><!-- Violet 600 -->
+    <color name="textColorSuccess">#FFFFFF</color><!-- White -->
+    <color name="colorWarning">#FBBF24</color><!-- Amber 400 -->
+    <color name="textColorWarning">#000000</color><!-- Black -->
+    <color name="colorError">#B00020</color><!-- Red -->
+    <color name="textColorError">#FFFFFF</color><!-- White -->
+
+    <color name="ic_app_icon_background">#4C1D95</color><!-- Violet 900 -->
+
+    <color name="cardViewBackgroundColor">#FFFFFF</color><!-- White -->
+    <color name="navigationBarColor">#000000</color><!-- Black -->
+    <color name="toolbarForegroundColor">#000000</color><!-- Black -->
+    <color name="windowBackground">#FAFAFA</color><!-- Gray 50 -->
+
+    <color name="florisApp_windowBackground">#FFFFFFFF</color>
+
+    <!-- AkashBoard floating button: idle violet and recording red -->
+    <color name="dictate_overlay_accent">#7C3AED</color>
+    <color name="dictate_overlay_recording">#EC6A5E</color>
+    <color name="dictate_overlay_icon">#FFFFFF</color>
+    <!-- AI rewording ring tint and success-flash -->
+    <color name="dictate_overlay_rewording">#A78BFA</color>
+    <color name="dictate_overlay_success">#43A047</color>
+    <!-- Cancel button background -->
+    <color name="dictate_overlay_cancel">#4A4A4A</color>
+    <!-- Long-press rewording menu surface -->
+    <color name="dictate_overlay_menu_surface">#2D2D2D</color>
+</resources>

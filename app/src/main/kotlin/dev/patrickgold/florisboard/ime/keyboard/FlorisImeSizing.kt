@@ -1,0 +1,193 @@
+/*
+ * Copyright (C) 2021-2025 The FlorisBoard Contributors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package dev.patrickgold.florisboard.ime.keyboard
+
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.ReadOnlyComposable
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.State
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
+import dev.patrickgold.florisboard.app.FlorisPreferenceStore
+import dev.patrickgold.florisboard.dictate.DictatePromptsLayout
+import dev.patrickgold.florisboard.ime.nlp.NlpInlineAutofill
+import dev.patrickgold.florisboard.ime.smartbar.ExtendedActionsPlacement
+import dev.patrickgold.florisboard.ime.smartbar.InlineSuggestionsChipMargin
+import dev.patrickgold.florisboard.ime.smartbar.SmartbarLayout
+import dev.patrickgold.florisboard.ime.text.keyboard.TextKeyboard
+import dev.patrickgold.florisboard.ime.window.LocalWindowController
+import dev.patrickgold.florisboard.keyboardManager
+import dev.patrickgold.jetpref.datastore.model.collectAsState
+
+private val LocalKeyboardRowBaseHeight = compositionLocalOf { 65.dp }
+private val LocalSmartbarHeight = compositionLocalOf { 40.dp }
+
+object FlorisImeSizing {
+    /**
+     * The icon inside a media panel's header button — clipboard, stickers, GIFs, dictation history and
+     * the three search bars (issue #317).
+     *
+     * One number, because the panels are meant to read as one family and had drifted to four different
+     * sizes. They also looked far smaller than that: the header buttons used to be styled as
+     * `media-bottom-row-button`, whose `padding: 16dp 0dp` is meant for the emoji panel's bottom row —
+     * a whole key tall — and inside a [smartbarHeight] box that padding leaves the icon about 8 dp.
+     *
+     * **16 dp is the clipboard's size, measured rather than chosen.** `font-size` inherits implicitly
+     * in Snygg, so `clipboard-header`'s `16sp` reaches the button, and an icon with no element name of
+     * its own is sized from it. The clipboard is the panel this family is supposed to match, so the
+     * number is written down here rather than left to inheritance — the search bars hang under
+     * `smartbar-candidates-row`, which carries no font size, and would come out larger than the rest.
+     */
+    val mediaHeaderIconSize: Dp = 16.dp
+
+    val keyboardRowBaseHeight: Dp
+        @Composable
+        @ReadOnlyComposable
+        get() = LocalKeyboardRowBaseHeight.current
+
+    val smartbarHeight: Dp
+        @Composable
+        @ReadOnlyComposable
+        get() = LocalSmartbarHeight.current
+
+    @Composable
+    fun keyboardUiHeight(): Dp {
+        val context = LocalContext.current
+        val keyboardManager by context.keyboardManager()
+        val evaluator by keyboardManager.activeEvaluator.collectAsState()
+        val lastCharactersEvaluator by keyboardManager.lastCharactersEvaluator.collectAsState()
+        val rowCount = when (evaluator.keyboard.mode) {
+            KeyboardMode.CHARACTERS,
+            KeyboardMode.NUMERIC_ADVANCED,
+            KeyboardMode.SYMBOLS,
+            KeyboardMode.SYMBOLS2 -> lastCharactersEvaluator.keyboard as TextKeyboard
+            else -> evaluator.keyboard as TextKeyboard
+        }.rowCount.coerceAtLeast(4)
+        return (keyboardRowBaseHeight * rowCount)
+    }
+
+    @Composable
+    fun rowCountAsState(): State<Int> {
+        val context = LocalContext.current
+        val keyboardManager by context.keyboardManager()
+        val lastCharactersEvaluator by keyboardManager.lastCharactersEvaluator.collectAsState()
+        return remember { derivedStateOf { (lastCharactersEvaluator.keyboard as TextKeyboard).rowCount } }
+    }
+
+    @Composable
+    fun smartbarRowCountAsState(): State<Int> {
+        val prefs by FlorisPreferenceStore
+        val smartbarEnabled by prefs.smartbar.enabled.collectAsState()
+        val smartbarLayout by prefs.smartbar.layout.collectAsState()
+        val extendedActionsExpanded by prefs.smartbar.extendedActionsExpanded.collectAsState()
+        val extendedActionsPlacement by prefs.smartbar.extendedActionsPlacement.collectAsState()
+        return remember {
+            derivedStateOf {
+                if (smartbarEnabled) {
+                    if (smartbarLayout == SmartbarLayout.SUGGESTIONS_ACTIONS_EXTENDED && extendedActionsExpanded &&
+                        extendedActionsPlacement != ExtendedActionsPlacement.OVERLAY_APP_UI) {
+                        2
+                    } else {
+                        1
+                    }
+                } else {
+                    0
+                }
+            }
+        }
+    }
+
+    @Composable
+    fun smartbarUiHeight(): Dp {
+        val smartbarRowCount by smartbarRowCountAsState()
+        return smartbarHeight * smartbarRowCount
+    }
+
+    @Composable
+    fun imeUiHeight(): Dp {
+        return keyboardUiHeight() + smartbarUiHeight()
+    }
+
+    /**
+     * The IME height locked to the *normal (characters) keyboard*, for the full-screen panels (emoji,
+     * clipboard, history). [keyboardUiHeight] derives its row count from the currently active evaluator,
+     * which for a panel can differ from the typing keyboard and make the panel a different height — so it
+     * visibly jumps when opened. Basing it on the last characters keyboard (like [rowCountAsState]) keeps a
+     * panel exactly as tall as the keyboard it replaces, including the always-on rewording prompt row when
+     * that's enabled (the panels replace it too, so its height must be counted).
+     */
+    @Composable
+    fun panelUiHeight(): Dp {
+        val prefs by FlorisPreferenceStore
+        val rowCount by rowCountAsState()
+        val smartbarEnabled by prefs.smartbar.enabled.collectAsState()
+        val rewordingEnabled by prefs.dictate.rewordingEnabled.collectAsState()
+        val promptsLayout by prefs.dictate.promptsLayout.collectAsState()
+        // The rewording prompt row (ROW layout) is pinned above the Smartbar on the normal keyboard and
+        // adds its height (DictatePromptRow uses smartbarHeight * 1.25); include it so the panels match.
+        val promptRowHeight =
+            if (smartbarEnabled && rewordingEnabled && promptsLayout == DictatePromptsLayout.ROW) {
+                smartbarHeight * 1.25f
+            } else {
+                0.dp
+            }
+        return keyboardRowBaseHeight * rowCount.coerceAtLeast(4) + smartbarUiHeight() + promptRowHeight
+    }
+}
+
+@Deprecated("TODO: move logic fully into ImeWindow impl")
+@Composable
+fun ProvideKeyboardRowBaseHeight(content: @Composable () -> Unit) {
+    val windowController = LocalWindowController.current
+    val density = LocalDensity.current
+
+    val windowSpec by windowController.activeWindowSpec.collectAsState()
+
+    val heights by remember {
+        derivedStateOf {
+            val rowHeight = windowSpec.calcRowHeight(windowSpec.props.keyboardHeight)
+            val smartbarRowHeight = windowSpec.calcSmartbarRowHeight(windowSpec.props.keyboardHeight)
+            rowHeight to smartbarRowHeight
+        }
+    }
+    val (rowHeight, smartbarRowHeight) = heights
+
+    SideEffect {
+        val marginV = InlineSuggestionsChipMargin.calculateTopPadding() +
+            InlineSuggestionsChipMargin.calculateBottomPadding()
+        NlpInlineAutofill.suggestionsChipHeightPx = with(density) {
+            // Never let the chip height go negative (margins can exceed a small Smartbar row): a negative
+            // size crashes InlineSuggestion.inflate() (issue #145).
+            (smartbarRowHeight - marginV).coerceAtLeast(0.dp).roundToPx()
+        }
+    }
+
+    CompositionLocalProvider(
+        LocalKeyboardRowBaseHeight provides rowHeight,
+        LocalSmartbarHeight provides smartbarRowHeight,
+    ) {
+        content()
+    }
+}

@@ -1,0 +1,128 @@
+DICTATE — THIRD-PARTY DATA & MODEL ATTRIBUTIONS
+==============================================
+
+Dictate bundles and/or downloads language data and neural models from the following
+freely licensed sources. Of the language corpora, only aggregate frequency data (word
+and word-pair counts) is redistributed — never the underlying source texts. Every model
+listed here runs on your device; none of them send audio or text anywhere.
+
+
+1. Word-frequency dictionaries (glide typing, autocorrect, spell check)
+-----------------------------------------------------------------------
+Files: ime/dict/<lang>.json  (bundled English; other languages downloaded on demand)
+
+Derived from the OPUS OpenSubtitles frequency lists.
+  - OPUS — the open parallel corpus: https://opus.nlpl.eu
+  - Please cite: P. Lison & J. Tiedemann (2016), "OpenSubtitles2016: Extracting
+    Large Parallel Corpora from Movie and TV Subtitles", LREC 2016.
+For Hindi, Tamil and Urdu, where subtitle data alone is too sparse, word counts from
+the Leipzig Corpora Collection (CC BY, cited in section 2 below) are merged in.
+Casing was restored, and corpus noise filtered out, using Hunspell dictionaries as a
+build-time oracle only (github.com/wooorm/dictionaries and, for Arabic and the Indic
+languages, github.com/LibreOffice/dictionaries); their word lists are not redistributed.
+
+
+2. Bigram (word-pair) frequency data for autocorrect context (Tier 2)
+---------------------------------------------------------------------
+Files: ime/dict/<lang>_bigrams.txt  (bundled English; other languages downloaded on demand)
+
+Derived from the Leipzig Corpora Collection (Wortschatz), used under CC BY.
+  - © Universität Leipzig / Sächsische Akademie der Wissenschaften / InfAI
+  - https://wortschatz-leipzig.de
+  - Please cite: D. Goldhahn, T. Eckart & U. Quasthoff (2012), "Building Large
+    Monolingual Dictionaries at the Leipzig Corpora Collection: From 100 to 200
+    Languages", LREC 2012.
+  - License: Creative Commons Attribution (CC BY) — the downloadable corpus
+    packages are CC BY (the online query service is CC BY-NC and is not used here).
+
+
+3. On-device speech-to-text models (offline transcription)
+----------------------------------------------------------
+Downloaded on demand into <filesDir>/dictate-models/<model>/ ; no audio ever leaves the device.
+
+One-shot models — these transcribe after you stop speaking:
+
+  - Whisper (tiny/base/small, multilingual and English) — © OpenAI, MIT License.
+    https://github.com/openai/whisper
+  - Parakeet TDT 0.6B v3 — © NVIDIA, licensed CC BY 4.0.
+    https://huggingface.co/nvidia/parakeet-tdt-0.6b-v3
+  - Parakeet German (primeline) — a German-specialized fine-tune of NVIDIA Parakeet TDT 0.6B v3,
+    © primeline, licensed CC BY 4.0. https://huggingface.co/primeline/parakeet-primeline
+  - Canary 180M Flash — © NVIDIA, licensed CC BY 4.0.
+    https://huggingface.co/nvidia/canary-180m-flash
+  - GigaAM v2 Russian — © Salute Devices, MIT License.
+    https://github.com/salute-developers/GigaAM
+  - SenseVoice Small (Chinese, Cantonese, English, Japanese, Korean) — © Alibaba Group,
+    licensed under the FunASR Model Open Source License Agreement v1.1, which permits use,
+    modification and sharing with attribution of the source, the author and the model name.
+    https://github.com/FunAudioLLM/SenseVoice
+    License text: https://github.com/modelscope/FunASR/blob/main/MODEL_LICENSE
+    Redistributed unmodified, under its own name.
+
+Streaming models — these transcribe live, while you are still speaking:
+
+  - Kroko ASR community models (German, English, Spanish, French, Italian, Dutch, Portuguese,
+    Swedish, Turkish, Hebrew) — © Banafo, licensed CC BY-SA.
+    https://huggingface.co/Banafo/Kroko-ASR
+    Redistributed unmodified. The ShareAlike term governs adaptations of the model itself; the
+    files shipped here are verbatim copies.
+
+4. Supporting on-device models
+-------------------------------
+
+  - Silero VAD — detects speech, used to segment long recordings and to skip silent ones.
+    © Silero Team, MIT License. https://github.com/snakers4/silero-vad
+  - Smart Turn v3 — decides whether a spoken thought is finished, for long-form auto-split.
+    © Pipecat AI, licensed BSD-2-Clause. https://github.com/pipecat-ai/smart-turn
+
+5. Model runtime and conversions
+---------------------------------
+
+The ONNX (int8) exports of every model above, and the on-device inference runtime, come from the
+sherpa-onnx / k2-fsa project, Apache-2.0. https://github.com/k2-fsa/sherpa-onnx
+Inference runs through ONNX Runtime, © Microsoft, MIT License. https://onnxruntime.ai
+
+All of the above permit redistribution; the files are mirrored on the project's own GitHub release
+for a stable, project-controlled source.
+
+6. Emoji names and keywords (emoji search, emoji suggestions)
+-------------------------------------------------------------
+Files: ime/media/emoji/annotations/<lang>.txt  (bundled, ~50 languages)
+
+The searchable name and keywords of every emoji, in each language, come from the Unicode Common
+Locale Data Repository (CLDR v48), both the curated and the derived annotation sets.
+  - © Unicode, Inc., licensed under the Unicode License v3 (SPDX: Unicode-3.0).
+    https://github.com/unicode-org/cldr-json — https://www.unicode.org/license.txt
+  - Regenerate with tools/emoji-annotations/generate.py
+
+7. Chinese Pinyin reading table (the Chinese Pinyin keyboard)
+-------------------------------------------------------------
+File: com.akashboard.pinyin.flex  (downloaded when the subtype is added)
+
+Which characters a pinyin spelling produces, and how they are ranked.
+
+  - Readings from CC-CEDICT, published by MDBG, licensed CC BY-SA 4.0.
+    Referenced work: CEDICT, © 1997, 1998 Paul Andrew Denisowski.
+    https://www.mdbg.net/chinese/dictionary?page=cc-cedict
+    The generated table is a derivative and carries the same CC BY-SA 4.0 license.
+  - Ranking from the OPUS OpenSubtitles zh_cn frequency list (cited in section 1 above);
+    only aggregate word counts are used.
+  - Regenerate with tools/pinyin-dict/generate.py — see its ATTRIBUTION.md.
+
+8. Provider logos
+------------------
+
+The settings list marks each AI provider with its own logo, so a row can be found by its mark rather
+than read. The marks are used only to identify the service the row configures; every trademark
+remains the property of its owner, and their use here implies no affiliation or endorsement.
+
+The monochrome outlines come from two collections, both freely licensed:
+
+  - Simple Icons, CC0-1.0 — OpenAI, OpenRouter, Google Gemini, Anthropic, Mistral AI, ElevenLabs,
+    Deepgram, DeepSeek, Ollama. https://github.com/simple-icons/simple-icons
+  - Lobe Icons, MIT License — Groq, Together AI, DeepInfra, AssemblyAI, xAI, SiliconFlow (filed
+    there under SiliconCloud, the name of their platform).
+    https://github.com/lobehub/lobe-icons
+
+Soniox publish no vector mark, so theirs was traced from their own app icon and fitted to the same
+size as the rest.

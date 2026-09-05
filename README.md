@@ -4,17 +4,13 @@
 
 ### The keyboard that becomes YOU.
 
-**100% FOSS. 100% Local. Zero compromise.**
-**Built in 2 days. 227 tests. Production-ready.**
+**100% FOSS. Voice AI. Zero compromise.**
+**Built on FlorisBoard. Rust prediction. Whisper AI dictation.**
 
-*Keywords: android keyboard, foss keyboard, open source keyboard, privacy keyboard, swipe typing, keyboard prediction, rust keyboard, local ai keyboard, gboard alternative, swiftkey alternative, no tracking keyboard, offline keyboard, best android keyboard 2026, free keyboard app, keyboard with ai*
-
-[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
-[![Platform](https://img.shields.io/badge/Platform-Android%208.0+-brightgreen.svg)](https://developer.android.com/about/versions/oreo)
-[![API](https://img.shields.io/badge/API-26%2B-brightgreen.svg)](https://android-arsenal.com/api?level=26)
-[![Architecture](https://img.shields.io/badge/Architecture-ARM64%20(ARMv8A)-orange.svg)]()
-[![Tests](https://img.shields.io/badge/Tests-227%20passing-brightgreen.svg)]()
-[![Privacy](https://img.shields.io/badge/Privacy-100%25%20Local-purple.svg)]()
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-7C3AED.svg)](https://www.apache.org/licenses/LICENSE-2.0)
+[![Platform](https://img.shields.io/badge/Platform-Android%206%2B-7C3AED.svg)](https://developer.android.com/about/versions/marshmallow)
+[![Privacy](https://img.shields.io/badge/Privacy-On--device%20mode-7C3AED.svg)]()
+[![GitHub](https://img.shields.io/github/last-commit/AkashPriyadarshii/AkashBoard?color=7C3AED&labelColor=1b1e2b)](https://github.com/AkashPriyadarshii/AkashBoard)
 
 </div>
 
@@ -22,86 +18,56 @@
 
 ## What is AkashBoard?
 
-AkashBoard is a **free, open-source Android keyboard** (FOSS) with a **Rust prediction engine** that genuinely learns how YOU type — not just generic word frequencies, but your timing, your context, your patterns, your personality. It runs entirely on your device. No cloud. No accounts. No data collection. Ever.
+AkashBoard is a **free, open-source Android keyboard** built on top of [FlorisBoard](https://github.com/florisboard/florisboard) with a full **Whisper AI voice dictation layer** on top. Speak instead of type — in any app. Or glide-type with word suggestions and autocorrect.
 
-**AkashBoard** is the best alternative to Gboard, SwiftKey, and Samsung Keyboard for privacy-conscious users. It's a **no-tracking keyboard** with **swipe typing**, **autocorrect**, **emoji support**, **clipboard history**, and **voice input** — all running 100% locally on your Android device.
+No cloud required. No account. No data collection. Ever.
 
-### Built in 2 Days
-
-This entire keyboard — from empty repository to production-ready APK with 227 passing tests — was built in **2 days** (August 21-22, 2026). That's 12 weeks of planned work compressed into an intense sprint covering:
-
-- 100% Jetpack Compose UI with 60FPS Bezier swipe trails (60-120 FPS)
-- Rust prediction engine compiled to ARM64 native code via JNI
-- Swipe/glide typing, auto-correct, 5 themes, emoji, clipboard, voice
-- Elite Material 3 Jetpack Compose Settings Dashboard
-- 227 passing tests (174 Kotlin + 53 Rust)
-
-### Why AkashBoard Exists
-
-Every keyboard today has the same problem: **they serve the company, not the user.**
-
-- **Gboard** sends your keystrokes to Google servers
-- **SwiftKey** requires a Microsoft account and has ads
-- **Samsung Keyboard** is locked to Samsung devices
-- **FOSS keyboards** (OpenBoard, HeliBoard, FlorisBoard) are either incomplete, have no personal learning, or require proprietary blobs for basic features
-
-AkashBoard fixes this: **a FOSS keyboard that's actually BETTER than the closed-source ones.**
+**AkashBoard** is the best alternative to Gboard, SwiftKey, and Samsung Keyboard for privacy-conscious users — with swipe typing, autocorrect, emoji, GIFs, clipboard history, voice input, and on-device AI transcription — all running locally on your Android device.
 
 ---
 
-## ✅ v1.0 Features
+## 🎤 Voice Dictation (Whisper AI)
+
+Tap the mic, talk naturally, watch clean punctuated text appear in **any** app in real time.
+
+| Provider | Mode |
+|---|---|
+| OpenAI Whisper | Cloud + on-device |
+| Google Gemini, Groq, Deepgram | Cloud API |
+| AssemblyAI, ElevenLabs, Soniox | Cloud API |
+| Mistral, OpenRouter, Anthropic | AI reword |
+| Ollama | Local reword |
+| **On-device (offline)** | Whisper, Parakeet, Canary, GigaAM, SenseVoice |
+
+No server needed — use your own API key or download a model and transcribe fully offline. No audio leaves the device in offline mode.
+
+---
+
+## ✅ Features
 
 ### 🧠 Intelligence
-| Feature | Status | Description |
-|---------|--------|-------------|
-| **Rust Prediction Engine** | ✅ | Native ARM64 N-gram model via JNI — predictions in <1ms |
-| **Smart Autocorrect** | ✅ | 25+ built-in typo corrections + learns YOUR patterns |
-| **Personal Learning** | ✅ | Time-of-day patterns, app context profiles, error correction |
-| **Time-Aware Predictions** | ✅ | Knows you type "good morning" at 8 AM, not 11 PM |
-| **Typing DNA** | ✅ | Inter-key timing fingerprint, dominant hand detection |
-| **Typing Statistics** | ✅ | WPM, accuracy, session tracking, historical metrics |
-| **Swipe/Glide Typing** | ✅ | Bezier trail rendering, order-preserving dictionary match |
-
-### ⚡ Performance
 | Feature | Description |
-|---------|-------------|
-| **60-120 FPS** | Declarative Jetpack Compose V2 layout engine |
-| **<5ms key press latency** | Jetpack Compose V2 UI |
-| **<1ms prediction latency** | In-memory Rust engine |
-| **309KB native engine** | ARM64, stripped, LTO |
-| **~5MB release APK** | 40x smaller than Gboard |
+|---|---|
+| **Whisper AI Dictation** | Real-time voice-to-text in any app |
+| **AI Rewording** | Translate, summarize, formalize with one tap |
+| **Glide / Swipe Typing** | FlorisBoard gesture engine — per-language dict |
+| **Smart Autocorrect** | Word suggestions + correction bar |
+| **On-device transcription** | Fully offline, no API key needed |
 
 ### 🎨 Design
 | Feature | Description |
-|---------|-------------|
-| **Quiet Precision** | No glassmorphism, no neon, no AI branding |
-| **5 Built-in Themes** | Akash Dark, Akash Light, Neon Cyber, Minimal, Sunset |
-| **JSON Theme Format** | Create and share themes |
-| **Dynamic Layout** | Keys adapt to any screen width |
-| **Hitbox Model** | Touch regions larger than visual keys |
-| **Spring Physics** | Critically damped motion, velocity handoff |
-
-### 🔧 Utility
-| Feature | Description |
-|---------|-------------|
-| **Long-Press Repeat** | Backspace accelerates: 300ms delay → 50ms → 20ms |
-| **Popup Preview** | Hold key to see character, slide to select alternate |
-| **Spacebar Cursor** | Swipe to move cursor continuously |
-| **Emoji Panel** | 8 categories, grid rendering, tap-to-insert |
-| **Clipboard History** | Room DB-backed, pinned items, tap-to-paste |
-| **Voice Input** | Android SpeechRecognizer wrapper |
-| **Settings App** | Typing, Appearance, Privacy, About |
+|---|---|
+| **Electric Violet UI** | `#7C3AED` accent — cyberpunk, brutalist |
+| **5 Built-in Themes** | FlorisBoard theme engine |
+| **Dynamic Layout** | Keys adapt to screen width |
 
 ### 🔒 Privacy
 | Feature | Description |
-|---------|-------------|
-| **Zero Network Requests** | No INTERNET permission by design |
+|---|---|
+| **On-device mode** | Zero network — audio never leaves phone |
 | **No Account Required** | Install → use. No login. |
-| **Open Source** | GPLv3. Audit the code yourself. |
-| **Privacy Dashboard** | See exactly what's stored |
+| **Open Source** | Apache 2.0. Audit the code yourself. |
 | **Incognito Mode** | Stop learning for sensitive sessions |
-| **Export/Import** | Full data portability via JSON |
-| **Nuclear Delete** | Complete data wipe capability |
 
 ---
 
@@ -109,183 +75,91 @@ AkashBoard fixes this: **a FOSS keyboard that's actually BETTER than the closed-
 
 ```
 AkashBoard
-├── Kotlin (Android IME Service + UI)
-│   ├── core/        — Input handling, key repeat, gestures
-│   ├── ui/          — KeyboardView, SuggestionBar, EmojiPanel
-│   ├── engine/      — JNI bridge to Rust
-│   ├── analytics/   — TypingStats, TypingDNA, TimeAwarePredictor
-│   ├── data/        — ClipboardDB, ExportSchema, DataManager
-│   ├── settings/    — Settings fragments, preferences
-│   └── theme/       — Theme manager, JSON themes
-├── Rust → JNI (Prediction + Learning Engine, ARM64 native)
-│   ├── predictor.rs — N-gram prediction engine
-│   ├── corrector.rs — Error correction engine
-│   └── learner.rs   — Personal pattern learning
-├── Room DB (Clipboard history)
-├── SharedPreferences (Settings)
-└── Jetpack Compose V2 rendering (60fps keyboard)
+├── FlorisBoard core (Kotlin + Jetpack Compose)
+│   ├── Keyboard layouts, theming, gesture handling
+│   ├── Clipboard, emoji, GIF panel (KLIPY)
+│   └── IME plumbing
+├── lib/dictate-core — Whisper AI layer
+│   ├── Voice recording + streaming
+│   ├── Provider integrations (OpenAI, Gemini, Groq...)
+│   ├── On-device ONNX inference (sherpa-onnx)
+│   └── AI rewording / live prompt
+└── app — Android InputMethodService & Settings UI
 ```
-
-**Target:** Android 8.0+ (API 26), ARM64 (ARMv8-A) only for v1.
 
 ---
 
 ## Quick Start
 
 ```bash
-# Clone
 git clone https://github.com/AkashPriyadarshii/AkashBoard.git
 cd AkashBoard
-
-# Build Rust engine
-cd engine
-cargo ndk -t arm64-v8a build --release
-cd ..
-
-# Build Android app
-./gradlew assembleRelease
-
-# Install
-adb install app/build/outputs/apk/release/app-release.apk
+./gradlew assembleDebug
+adb install app/build/outputs/apk/debug/app-debug.apk
 ```
 
 ---
 
 ## Comparison
 
-| Feature | Gboard | SwiftKey | HeliBoard | FlorisBoard | **AkashBoard** |
-|---------|--------|----------|-----------|-------------|----------------|
-| Privacy | ❌ Cloud | ❌ Cloud | ✅ Local | ✅ Local | ✅ **Local** |
-| Personal Learning | ✅ Cloud | ✅ Cloud | ❌ | ❌ | ✅ **Local** |
-| Swipe Typing | ✅ | ✅ | ⚠️ Blob | ❌ | ✅ **FOSS** |
-| Theme Engine | ⚠️ Basic | ✅ | ✅ | ✅✅ | ✅✅ |
-| Clipboard History | ❌ | ⚠️ | ✅ | ✅ | ✅ |
-| Export/Import | ❌ | ❌ | ⚠️ | ❌ | ✅ |
-| Typing Analytics | ❌ | ❌ | ❌ | ❌ | ✅ |
-| Time-Aware | ❌ | ✅ Cloud | ❌ | ❌ | ✅ **Local** |
-| No Ads | ✅ | ❌ | ✅ | ✅ | ✅ |
-| No Account | ✅ | ❌ | ✅ | ✅ | ✅ |
-| APK Size | ~200MB | ~80MB | ~15MB | ~20MB | **~5MB** |
+| Feature | Gboard | SwiftKey | FlorisBoard | **AkashBoard** |
+|---|---|---|---|---|
+| Privacy | ❌ Cloud | ❌ Cloud | ✅ Local | ✅ **Local / Your key** |
+| Voice Dictation | ✅ Cloud | ❌ | ❌ | ✅ **Cloud + Offline** |
+| AI Reword | ❌ | ❌ | ❌ | ✅ **Any LLM** |
+| Swipe Typing | ✅ | ✅ | ⚠️ Blob | ✅ **FOSS** |
+| No Account | ✅ | ❌ | ✅ | ✅ |
+| No Ads | ✅ | ❌ | ✅ | ✅ |
+| Open Source | ❌ | ❌ | ✅ | ✅ |
 
 ---
 
-## Testing
+## Using Your Own Server
 
-| Layer | Tests | Status |
-|-------|-------|--------|
-| Rust Engine (unit) | 21 | ✅ All passing |
-| Rust Engine (integration) | 32 | ✅ All passing |
-| Kotlin WordComposer | 25 | ✅ All passing |
-| Kotlin KeyboardLayout | 20 | ✅ All passing |
-| Kotlin SwipeDetector | 12 | ✅ All passing |
-| Kotlin PopupPreviewManager | 12 | ✅ All passing |
-| Kotlin SpacebarCursorManager | 10 | ✅ All passing |
-| Kotlin KeyRepeatManager | 10 | ✅ All passing |
-| Kotlin ThemeConfig | 18 | ✅ All passing |
-| Kotlin ExportSchema | 14 | ✅ All passing |
-| Kotlin TimeAwarePredictor | 9 | ✅ All passing |
-| **Total** | **227** | **✅ All passing** |
+AkashBoard speaks the plain OpenAI API — any compatible server works:
 
-```bash
-# Run Rust tests
-cd engine && cargo test
+1. **Settings → AI providers → Add your own server**
+2. Set **Base URL** (include trailing `/v1/`), e.g. `http://192.168.1.20:8000/v1/`
+3. Set **API key** (leave empty if not required)
+4. Pick as active provider for transcription, rewording, or both
 
-# Run Kotlin tests
-./gradlew testDebugUnitTest
-```
+`localhost` = the phone, not your PC — use LAN IP.
 
 ---
 
-## Build Timeline
+## Built on FlorisBoard
 
-| Date | Milestone |
-|------|-----------|
-| August 21, 2026 | Project scaffold, core keyboard, input pipeline, Rust engine |
-| August 21, 2026 | Long-press, popup preview, spacebar cursor, swipe typing |
-| August 21, 2026 | Rust prediction engine integration, auto-correct |
-| August 21, 2026 | Theme engine (5 themes), emoji, clipboard, voice |
-| August 22, 2026 | Settings app, typing analytics, typing DNA, time-aware |
-| August 22, 2026 | Export/import, privacy dashboard, data management |
-| August 22, 2026 | Onboarding, crash fixes, full codebase audit |
-| August 22, 2026 | **227 tests, production-ready v1.0.0** |
+AkashBoard is a fork of [**FlorisBoard**](https://github.com/florisboard/florisboard) by
+[Patrick Goldinger](https://github.com/patrickgold) and contributors — Apache 2.0.
+See [`LICENSE`](LICENSE) and [`NOTICE`](NOTICE) for full attribution.
 
----
-
-## Project Structure
-
-```
-AkashBoard/
-├── app/src/main/java/com/akashboard/
-│   ├── AkashBoardIME.kt          # IME service (entry point)
-│   ├── OnboardingActivity.kt     # First-run setup
-│   ├── SettingsActivity.kt       # Companion app
-│   ├── core/                     # Input handling, gestures
-│   ├── ui/                       # Keyboard rendering
-│   ├── engine/                   # JNI bridge
-│   ├── analytics/                # Typing stats, DNA
-│   ├── data/                     # Clipboard, export/import
-│   ├── settings/                 # Preference fragments
-│   └── theme/                    # Theme engine
-├── engine/src/
-│   ├── lib.rs                    # JNI bridge
-│   ├── predictor.rs              # N-gram engine
-│   ├── corrector.rs              # Error correction
-│   └── learner.rs                # Personal learning
-├── app/src/test/                 # 174 Kotlin unit tests
-├── engine/tests/                 # 32 Rust integration tests
-└── engine/src/ (lib.rs tests)    # 21 Rust unit tests
-```
+Speech recognition powered by [OpenAI Whisper](https://openai.com/index/whisper/).
+On-device transcription via [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx).
 
 ---
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+[Open an issue](https://github.com/AkashPriyadarshii/AkashBoard/issues) with bugs, ideas, or feedback.
+
+**Security issue?** Use [GitHub's private advisory form](https://github.com/AkashPriyadarshii/AkashBoard/security/advisories/new). See [`SECURITY.md`](SECURITY.md).
+
+---
 
 ## License
 
-AkashBoard is licensed under the [GNU General Public License v3.0](LICENSE).
-
-## Author
-
-**Akash Priyadarshi** — [GitHub](https://github.com/AkashPriyadarshii) | [Twitter](https://twitter.com/Akash__ydv001) | [Website](https://akashpriyadarshi.vercel.app)
-
----
-
----
-
-## SEO — What AkashBoard Is
-
-**AkashBoard** is a **free open-source Android keyboard** (FOSS) written in **Kotlin** with a **Rust prediction engine**. It is the best **Gboard alternative** and **SwiftKey alternative** for users who care about **privacy**.
-
-### Search Terms
-
-| Category | Keywords |
-|----------|----------|
-| **Primary** | android keyboard, open source keyboard, foss keyboard, free keyboard app |
-| **Privacy** | privacy keyboard, no tracking keyboard, no ads keyboard, offline keyboard, local keyboard |
-| **Features** | swipe typing keyboard, autocorrect keyboard, prediction keyboard, emoji keyboard, clipboard keyboard, voice keyboard |
-| **Tech** | rust keyboard, kotlin keyboard, arm64 keyboard, jni keyboard, compose keyboard |
-| **Alternatives** | gboard alternative, swiftkey alternative, samsung keyboard alternative, openboard alternative, florisboard alternative, heliboard alternative |
-| **Use Cases** | best android keyboard 2026, private keyboard app, secure keyboard, no cloud keyboard, keyboard without internet |
-
-### Also Known As
-
-- AkashBoard keyboard
-- Akash keyboard app
-- Free FOSS Android keyboard
-- Open source keyboard with AI
-- Privacy keyboard no tracking
-- Swipe typing keyboard free
-- Rust prediction keyboard
-- Local AI keyboard android
+Apache License 2.0. Fork of FlorisBoard — Copyright The FlorisBoard Contributors.
 
 ---
 
 <div align="center">
 
-*Your keyboard. Your data. Your rules.*
+**AkashBoard** by [Akash Priyadarshi](https://github.com/AkashPriyadarshii) · Patna, Bihar, India
 
-*Built in 2 days. Ready for the world.*
+[GitHub](https://github.com/AkashPriyadarshii) · [Portfolio](https://akashpriyadarshi.vercel.app) · [LinkedIn](https://linkedin.com/in/akash-priyadarshi-1aa51b37a) · [Resume](https://akashpriyadarshii.github.io/Resume/)
+
+[X / Twitter](https://x.com/Akash__ydv001) · [Threads](https://www.threads.com/@free_dev2026) · [Instagram](https://www.instagram.com/akash.priyadarshii/) · [Reddit](https://reddit.com/user/DragonfruitWeak2801)
+
+*Your keyboard. Your data. Your rules.*
 
 </div>

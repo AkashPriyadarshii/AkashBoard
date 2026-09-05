@@ -1,21 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- AkashBoard IME configuration -->
 <input-method xmlns:android="http://schemas.android.com/apk/res/android"
-    android:settingsActivity="com.akashboard.SettingsActivity">
+    xmlns:tools="http://schemas.android.com/tools"
+    android:settingsActivity="dev.patrickgold.florisboard.SettingsLauncherAlias"
+    android:supportsInlineSuggestions="true"
+    android:supportsSwitchingToNextInputMethod="true"
+    tools:targetApi="r">
+
+    <!-- Add default system subtype so we can properly set the icon and label -->
     <subtype
+        android:label="@string/floris_app_name"
+        android:icon="@mipmap/app_icon"
         android:imeSubtypeMode="keyboard"
+        android:imeSubtypeExtraValue="AsciiCapable"
         android:isAsciiCapable="true"
-        android:languageTag="en" />
-    <subtype
-        android:imeSubtypeMode="keyboard"
-        android:isAsciiCapable="false"
-        android:languageTag="hi" />
-    <subtype
-        android:imeSubtypeMode="keyboard"
-        android:isAsciiCapable="true"
-        android:languageTag="es" />
-    <subtype
-        android:imeSubtypeMode="keyboard"
-        android:isAsciiCapable="true"
-        android:languageTag="fr" />
+        android:overridesImplicitlyEnabledSubtype="true"/>
+
 </input-method>

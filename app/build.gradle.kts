@@ -1,137 +1,339 @@
+/*
+ * Copyright (C) 2022-2025 The FlorisBoard Contributors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+import com.android.build.api.dsl.ApplicationExtension
+import org.gradle.api.tasks.testing.logging.TestLogEvent
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import java.util.Properties
+
 plugins {
-    id("com.android.application")
-    id("org.jetbrains.kotlin.android")
-    id("org.jetbrains.kotlin.plugin.compose")
-    id("org.jetbrains.kotlin.plugin.serialization")
-    id("com.google.devtools.ksp")
+    alias(libs.plugins.agp.application)
+    alias(libs.plugins.kotlin.plugin.compose)
+    alias(libs.plugins.kotlin.serialization)
+    alias(libs.plugins.ksp)
+    alias(libs.plugins.mikepenz.aboutlibraries)
+    alias(libs.plugins.kotest)
+    alias(libs.plugins.kotlinx.kover)
 }
 
-android {
-    namespace = "com.akashboard"
-    compileSdk = 35
+val projectMinSdk: String by project
+val projectTargetSdk: String by project
+val projectCompileSdk: String by project
+val projectVersionCode: String by project
+val projectVersionName: String by project
+val projectVersionNameSuffix = projectVersionName.substringAfter("-", "").let { suffix ->
+    if (suffix.isNotEmpty()) {
+        "-$suffix"
+    } else {
+        suffix
+    }
+}
+
+kotlin {
+    compilerOptions {
+        jvmTarget.set(JvmTarget.JVM_11)
+        freeCompilerArgs.set(listOf(
+            "-opt-in=kotlin.contracts.ExperimentalContracts",
+            "-jvm-default=enable",
+            "-Xwhen-guards",
+            "-Xexplicit-backing-fields",
+            "-Xcontext-parameters",
+            "-XXLanguage:+LocalTypeAliases",
+        ))
+    }
+}
+
+configure<ApplicationExtension> {
+    namespace = "dev.patrickgold.florisboard"
+    compileSdk = projectCompileSdk.toInt()
+    buildToolsVersion = tools.versions.buildTools.get()
+    ndkVersion = tools.versions.ndk.get()
+
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_11
+        targetCompatibility = JavaVersion.VERSION_11
+    }
 
     defaultConfig {
         applicationId = "com.akashboard"
-        minSdk = 26
-        targetSdk = 35
-        versionCode = 1
-        versionName = "0.1.0"
+        minSdk = projectMinSdk.toInt()
+        targetSdk = projectTargetSdk.toInt()
+        versionCode = projectVersionCode.toInt()
+        versionName = projectVersionName.substringBefore("-")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
+        // sherpa-onnx on-device STT (issue #104): ship the ABIs the vendored native libs cover —
+        // arm64-v8a (modern phones), armeabi-v7a (older 32-bit devices) and x86_64.
+        //
+        // x86_64 exists for emulators rather than for hardware: without it Play reports the app as
+        // incompatible on every emulator image, which rules out rehearsing a purchase on a throwaway
+        // account. Real users pay nothing for it — the bundle is split per architecture, so a phone
+        // only ever downloads the libraries it can run. See tools/fetch-sherpa-onnx.sh.
         ndk {
-            // ARM64 only for v1
-            abiFilters += "arm64-v8a"
+            abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64")
+        }
+
+        buildConfigField("String", "BUILD_COMMIT_HASH", "\"${getGitCommitHash().get()}\"")
+        buildConfigField("String", "FLADDONS_API_VERSION", "\"v~draft2\"")
+        buildConfigField("String", "FLADDONS_STORE_URL", "\"beta.addons.florisboard.org\"")
+
+        sourceSets {
+            maybeCreate("main").apply {
+                assets.directories += "src/main/assets"
+            }
         }
     }
 
+    bundle {
+        language {
+            // We disable language split because FlorisBoard does not use
+            // runtime Google Play Service APIs and thus cannot dynamically
+            // request to download the language resources for a specific locale.
+            enableSplit = false
+        }
+    }
+
+    buildFeatures {
+        buildConfig = true
+        compose = true
+    }
+
+    // Release signing. Credentials live in a local, untracked `keystore.properties` at the repo root
+    // (see keystore.properties.template) so the keystore/passwords never get committed. When the file
+    // is absent (e.g. on CI without secrets, or a contributor's machine) the release build simply has
+    // no signing config attached and falls back to an unsigned build, exactly as before.
+    //
+    // IMPORTANT: For uploads to Google Play this must be the *upload key* the existing
+    // net.AkashPriyadarshii.dictate listing expects (the old Java app's key) — a fresh key gets rejected.
+    val keystorePropsFile = rootProject.file("keystore.properties")
+    val keystoreProps = if (keystorePropsFile.exists()) {
+        Properties().apply { keystorePropsFile.inputStream().use { load(it) } }
+    } else {
+        null
+    }
     signingConfigs {
-        create("release") {
-            // Use debug keystore for now
-            storeFile = file("${System.getProperty("user.home")}/.android/debug.keystore")
-            storePassword = "android"
-            keyAlias = "androiddebugkey"
-            keyPassword = "android"
+        keystoreProps?.let { props ->
+            create("release") {
+                storeFile = rootProject.file(props.getProperty("storeFile"))
+                storePassword = props.getProperty("storePassword")
+                keyAlias = props.getProperty("keyAlias")
+                keyPassword = props.getProperty("keyPassword")
+            }
         }
     }
 
     buildTypes {
-        release {
+        named("debug") {
+            applicationIdSuffix = ".debug"
+            versionNameSuffix = "-debug+${getGitCommitHash(short = true).get()}"
+
+            isDebuggable = true
+            isJniDebuggable = false
+        }
+
+        create("beta") {
+            applicationIdSuffix = ".beta"
+            versionNameSuffix = projectVersionNameSuffix
+
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             isMinifyEnabled = true
             isShrinkResources = true
-            proguardFiles(
-                getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro"
-            )
-            signingConfig = signingConfigs.getByName("release")
         }
-        debug {
-            isMinifyEnabled = false
-            applicationIdSuffix = ".debug"
-            versionNameSuffix = "-debug"
+
+        named("release") {
+            versionNameSuffix = projectVersionNameSuffix
+
+            if (keystoreProps != null) {
+                signingConfig = signingConfigs.getByName("release")
+            } else {
+                signingConfig = signingConfigs.getByName("debug")
+            }
+
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            isMinifyEnabled = true
+            isShrinkResources = true
         }
-    }
 
-    compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
-    }
+        create("benchmark") {
+            initWith(getByName("release"))
 
-    kotlinOptions {
-        jvmTarget = "17"
-    }
+            applicationIdSuffix = ".bench"
+            versionNameSuffix = "-bench+${getGitCommitHash(short = true).get()}"
 
-    
-
-    buildFeatures {
-        compose = true
-        viewBinding = true
-        buildConfig = true
-    }
-
-    packaging {
-        resources {
-            excludes += "/META-INF/{AL2.0,LGPL2.1}"
+            signingConfig = signingConfigs.getByName("debug")
+            matchingFallbacks += listOf("release")
         }
     }
 
-    // Only build for ARM64
-    splits {
-        abi {
-            isEnable = false
+    lint {
+        baseline = file("lint.xml")
+    }
+
+    testOptions {
+        unitTests {
+            isIncludeAndroidResources = true
+        }
+        unitTests.all {
+            it.useJUnitPlatform()
         }
     }
 }
 
+aboutLibraries {
+    collect {
+        configPath = file("src/main/config")
+    }
+}
+
+ksp {
+    arg("room.schemaLocation", "$projectDir/schemas")
+    arg("room.incremental", "true")
+    arg("room.expandProjection", "true")
+}
+
+tasks.withType<Test> {
+    testLogging {
+        events = setOf(TestLogEvent.FAILED, TestLogEvent.PASSED, TestLogEvent.SKIPPED)
+    }
+    useJUnitPlatform()
+}
+
+kover {
+    useJacoco()
+}
+
 dependencies {
-
-    // Jetpack Compose
-    val composeBom = platform("androidx.compose:compose-bom:2024.04.01")
+    val composeBom = platform(libs.androidx.compose.bom)
     implementation(composeBom)
-    implementation("androidx.compose.ui:ui")
-    implementation("androidx.compose.ui:ui-graphics")
-    implementation("androidx.compose.ui:ui-tooling-preview")
-    implementation("androidx.compose.material3:material3")
-    implementation("androidx.activity:activity-compose:1.9.0")
-    
-    debugImplementation("androidx.compose.ui:ui-tooling")
-    debugImplementation("androidx.compose.ui:ui-test-manifest")
+    // testImplementation(composeBom)
+    // androidTestImplementation(composeBom)
 
-    // AndroidX Core
-    implementation("androidx.core:core-ktx:1.15.0")
-    implementation("androidx.appcompat:appcompat:1.7.0")
-    implementation("androidx.core:core-splashscreen:1.0.1")
+    // Play Billing for the optional Dictate Cloud credit packs (#255 follow-up). Version 8 is
+    // not a choice: from 31.08.2026 Play refuses uploads built against anything older.
+    implementation(libs.android.billing.ktx)
+    implementation(libs.androidx.activity.compose)
+    implementation(libs.androidx.activity.ktx)
+    implementation(libs.androidx.autofill)
+    implementation(libs.androidx.collection.ktx)
+    implementation(libs.androidx.compose.material.icons)
+    implementation(libs.androidx.compose.material3)
+    implementation(libs.androidx.compose.runtime.livedata)
+    implementation(libs.androidx.compose.ui)
+    implementation(libs.androidx.compose.ui.tooling.preview)
+    implementation(libs.androidx.core.ktx)
+    implementation(libs.androidx.core.splashscreen)
+    implementation(libs.androidx.emoji2)
+    implementation(libs.androidx.emoji2.views)
+    implementation(libs.androidx.exifinterface)
+    implementation(libs.androidx.navigation.compose)
+    implementation(libs.androidx.profileinstaller)
+    ksp(libs.androidx.room.compiler)
+    implementation(libs.androidx.room.runtime)
+    implementation(libs.androidx.window.core)
+    implementation(libs.cache4k)
+    // GIF search (Klipy): Compose image loading + animated GIF/WebP decoding + OkHttp network fetcher.
+    implementation(libs.coil.compose)
+    implementation(libs.coil.gif)
+    implementation(libs.coil.network.okhttp)
+    implementation(libs.kotlin.reflect)
+    implementation(libs.kotlinx.coroutines)
+    implementation(libs.kotlinx.serialization.json)
+    implementation(libs.mikepenz.aboutlibraries.core)
+    implementation(libs.mikepenz.aboutlibraries.compose)
+    implementation(libs.okhttp)
+    implementation(libs.patrickgold.compose.tooltip)
+    implementation(libs.patrickgold.jetpref.datastore.model)
+    ksp(libs.patrickgold.jetpref.datastore.model.processor)
+    implementation(libs.patrickgold.jetpref.datastore.ui)
+    implementation(libs.patrickgold.jetpref.material.ui)
 
-    // Room (for clipboard history)
-    implementation("androidx.room:room-runtime:2.6.1")
-    implementation("androidx.room:room-ktx:2.6.1")
-    ksp("androidx.room:room-compiler:2.6.1")
+    // sherpa-onnx on-device STT spike (issue #104). Vendored from the v1.13.3 GitHub release AAR:
+    // the Kotlin/JNI API as a jar here; the matching native .so live in src/main/jniLibs/<abi>/.
+    // Not on Maven Central, so consumed as a local file (see private/docs/research/sherpa-onnx-feasibility.md).
+    implementation(files("libs/sherpa-onnx-1.13.3.jar"))
+    // Generic ONNX Runtime Java/JNI bridge for Smart Turn v3. The matching 1.24.3 runtime is already
+    // shipped by sherpa-onnx; tools/fetch-sherpa-onnx.sh extracts only the API jar + tiny JNI bridge,
+    // avoiding a second ~20–27 MB copy of libonnxruntime per ABI.
+    implementation(files("libs/onnxruntime-android-1.24.3.jar"))
 
-    // Coroutines
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
+    implementation(projects.lib.android)
+    implementation(projects.lib.color)
+    implementation(projects.lib.dictateCore)
+    implementation(projects.lib.compose)
 
-    // Serialization (for theme JSON)
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
+    // Wearable Data Layer: settings sync + tethered transcription with the Wear OS app (#106).
+    implementation(libs.play.services.wearable)
+    implementation(libs.kotlinx.coroutines.play.services)
+    implementation(projects.lib.kotlin)
+    implementation(projects.lib.snygg)
 
-    // Material Design (companion app only)
-    implementation("com.google.android.material:material:1.12.0")
+    testImplementation(libs.kotest.assertions.core)
+    testImplementation(libs.kotest.property)
+    testImplementation(libs.kotest.runner.junit5)
+    testImplementation(libs.kotlin.test.junit5)
+    testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.turbine)
+    androidTestImplementation(libs.androidx.test.ext)
+    androidTestImplementation(libs.androidx.test.espresso.core)
+}
 
-    // AndroidX Preference (settings)
-    implementation("androidx.preference:preference-ktx:1.2.1")
+// On-device STT (issue #104): the sherpa-onnx native libs are vendored, not committed (see
+// .gitignore). Fail early with a clear instruction instead of a cryptic linker error if a fresh
+// clone hasn't fetched them yet.
+val verifySherpaOnnxLibs by tasks.registering {
+    // Resolve paths at configuration time so the action captures only plain Files (configuration
+    // cache cannot serialize references to Gradle script/Project objects).
+    val projectDir = layout.projectDirectory
+    val required = buildList {
+        add(projectDir.file("libs/sherpa-onnx-1.13.3.jar").asFile)
+        add(projectDir.file("libs/onnxruntime-android-1.24.3.jar").asFile)
+        // Must match the abiFilters above. A missing ABI here would not fail the build — it would
+        // produce a split for that architecture carrying no sherpa-onnx at all, which installs
+        // happily and then dies the first time on-device transcription or the VAD is touched.
+        for (abi in listOf("arm64-v8a", "armeabi-v7a", "x86_64")) {
+            add(projectDir.file("src/main/jniLibs/$abi/libonnxruntime.so").asFile)
+            add(projectDir.file("src/main/jniLibs/$abi/libonnxruntime4j_jni.so").asFile)
+            add(projectDir.file("src/main/jniLibs/$abi/libsherpa-onnx-jni.so").asFile)
+        }
+    }
+    doLast {
+        val missing = required.filterNot { it.exists() }
+        if (missing.isNotEmpty()) {
+            throw GradleException(
+                "Missing vendored sherpa-onnx native libs:\n" +
+                    missing.joinToString("\n") { "  - ${it.name}" } +
+                    "\n\nRun:  tools/fetch-sherpa-onnx.sh",
+            )
+        }
+    }
+}
+tasks.named("preBuild").configure { dependsOn(verifySherpaOnnxLibs) }
 
-    // Testing — Unit
-    testImplementation("junit:junit:4.13.2")
-    testImplementation("org.robolectric:robolectric:4.14.1")
-    testImplementation("androidx.test:core:1.6.1")
-    testImplementation("androidx.test.ext:junit:1.2.1")
-    testImplementation("io.mockk:mockk:1.13.13")
+fun getGitCommitHash(short: Boolean = false): Provider<String> {
+    if (!File(".git").exists()) {
+        return providers.provider { "null" }
+    }
 
-    // Testing — Instrumented (on-device)
-    androidTestImplementation("androidx.test.ext:junit:1.2.1")
-    androidTestImplementation("androidx.test:runner:1.6.2")
-    androidTestImplementation("androidx.test:rules:1.6.1")
-    androidTestImplementation("androidx.test.espresso:espresso-core:3.6.1")
-    androidTestImplementation("androidx.test.espresso:espresso-intents:3.6.1")
-    androidTestImplementation("androidx.test.uiautomator:uiautomator:2.3.0")
-    androidTestImplementation("androidx.test:core:1.6.1")
+    val execProvider = providers.exec {
+        if (short) {
+            commandLine("git", "rev-parse", "--short", "HEAD")
+        } else {
+            commandLine("git", "rev-parse", "HEAD")
+        }
+    }
+    return execProvider.standardOutput.asText.map { it.trim() }
 }

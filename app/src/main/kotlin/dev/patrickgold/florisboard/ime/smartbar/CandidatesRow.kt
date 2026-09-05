@@ -1,0 +1,285 @@
+/*
+ * Copyright (C) 2024-2025 The FlorisBoard Contributors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package dev.patrickgold.florisboard.ime.smartbar
+
+import android.text.TextUtils
+import android.view.View
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.waitForUpOrCancellation
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.wrapContentWidth
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.PointerEventTimeoutCancellationException
+import androidx.compose.ui.input.pointer.PointerInputChange
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.unit.dp
+import androidx.compose.runtime.rememberCoroutineScope
+import dev.patrickgold.florisboard.FlorisImeService
+import dev.patrickgold.florisboard.R
+import dev.patrickgold.florisboard.app.FlorisPreferenceStore
+import dev.patrickgold.florisboard.ime.nlp.ClipboardSuggestionCandidate
+import dev.patrickgold.florisboard.ime.nlp.NlpManager
+import dev.patrickgold.florisboard.ime.nlp.SuggestionCandidate
+import kotlinx.coroutines.launch
+import org.florisboard.lib.android.showShortToast
+import dev.patrickgold.florisboard.ime.theme.FlorisImeUi
+import dev.patrickgold.florisboard.keyboardManager
+import dev.patrickgold.florisboard.nlpManager
+import dev.patrickgold.florisboard.subtypeManager
+import dev.patrickgold.jetpref.datastore.model.collectAsState
+import org.florisboard.lib.compose.conditional
+import org.florisboard.lib.compose.florisHorizontalScroll
+import org.florisboard.lib.snygg.SnyggSelector
+import org.florisboard.lib.snygg.ui.SnyggBox
+import org.florisboard.lib.snygg.ui.SnyggColumn
+import org.florisboard.lib.snygg.ui.SnyggIcon
+import org.florisboard.lib.snygg.ui.SnyggRow
+import org.florisboard.lib.snygg.ui.SnyggSpacer
+import androidx.compose.ui.text.font.FontWeight
+import org.florisboard.lib.snygg.ui.SnyggText
+
+val CandidatesRowScrollbarHeight = 2.dp
+
+@Composable
+fun CandidatesRow(modifier: Modifier = Modifier) {
+    val prefs by FlorisPreferenceStore
+    val context = LocalContext.current
+    val keyboardManager by context.keyboardManager()
+    val nlpManager by context.nlpManager()
+    val subtypeManager by context.subtypeManager()
+
+    val scope = rememberCoroutineScope()
+    val displayMode by prefs.suggestion.displayMode.collectAsState()
+    val candidates by nlpManager.activeCandidatesFlow.collectAsState()
+    // Read once per composition instead of a synchronous pref get() per candidate on every keystroke
+    // (the candidates row recomposes on each character — issue: typing jank).
+    val longPressDelay by prefs.keyboard.longPressDelay.collectAsState()
+
+    // The strip runs in the *typed* language's direction, not the phone's (issue #265). LocalLayoutDirection
+    // follows the system locale, so writing Arabic on a German phone laid the candidates out left to right
+    // while the words inside them ran right to left — the best suggestion ended up on the far side from
+    // where the writing does. Also fixes he, fa, ur and ckb, which had it too.
+    val activeSubtype by subtypeManager.activeSubtypeFlow.collectAsState()
+    val layoutDirection = remember(activeSubtype.primaryLocale) {
+        when (TextUtils.getLayoutDirectionFromLocale(activeSubtype.primaryLocale.base)) {
+            View.LAYOUT_DIRECTION_RTL -> LayoutDirection.Rtl
+            else -> LayoutDirection.Ltr
+        }
+    }
+
+    CompositionLocalProvider(LocalLayoutDirection provides layoutDirection) {
+    SnyggRow(
+        elementName = FlorisImeUi.SmartbarCandidatesRow.elementName,
+        modifier = modifier
+            .fillMaxSize()
+            .conditional(displayMode == CandidatesDisplayMode.DYNAMIC_SCROLLABLE && candidates.size > 1) {
+                florisHorizontalScroll(scrollbarHeight = CandidatesRowScrollbarHeight)
+            },
+        horizontalArrangement = if (candidates.size > 1) {
+            Arrangement.Start
+        } else {
+            Arrangement.Center
+        },
+    ) {
+        if (candidates.isNotEmpty()) {
+            val candidateModifier = if (candidates.size == 1) {
+                Modifier
+                    .fillMaxHeight()
+                    .weight(1f, fill = false)
+            } else {
+                Modifier
+                    .fillMaxHeight()
+                    .conditional(displayMode == CandidatesDisplayMode.CLASSIC) {
+                        weight(1f)
+                    }
+                    .conditional(displayMode != CandidatesDisplayMode.CLASSIC) {
+                        wrapContentWidth().widthIn(max = 160.dp)
+                    }
+            }
+            val list = when (displayMode) {
+                CandidatesDisplayMode.CLASSIC -> candidates.subList(0, 3.coerceAtMost(candidates.size))
+                else -> candidates
+            }
+            for ((n, candidate) in list.withIndex()) {
+                if (n > 0) {
+                    SnyggSpacer(
+                        elementName = FlorisImeUi.SmartbarCandidateSpacer.elementName,
+                        modifier = Modifier
+                            .width(1.dp)
+                            .fillMaxHeight(0.6f)
+                            .align(Alignment.CenterVertically),
+                    )
+                }
+                CandidateItem(
+                    modifier = candidateModifier,
+                    candidate = candidate,
+                    displayMode = displayMode,
+                    onClick = {
+                        FlorisImeService.inputFeedbackController()?.keyPress()
+                        // Can't use candidate directly
+                        keyboardManager.commitCandidate(candidates[n])
+                    },
+                    onLongPress = {
+                        // Can't use candidate directly
+                        val candidateItem = candidates[n]
+                        when {
+                            // Clipboard suggestions keep their existing "long-press to forget" behaviour.
+                            candidateItem is ClipboardSuggestionCandidate -> {
+                                nlpManager.removeSuggestion(subtypeManager.activeSubtype, candidateItem)
+                            }
+                            // For words the gesture teaches the personal dictionary instead (issue #241).
+                            // It used to call removeSuggestion(), which every word provider answers with
+                            // false, so long-pressing a word did nothing at all.
+                            else -> {
+                                val subtype = subtypeManager.activeSubtype
+                                val result = nlpManager.addToUserDictionary(subtype, candidateItem)
+                                val message = when (result) {
+                                    NlpManager.AddToDictionaryResult.ADDED ->
+                                        R.string.suggestion__added_to_dictionary
+                                    NlpManager.AddToDictionaryResult.ALREADY_PRESENT ->
+                                        R.string.suggestion__already_in_dictionary
+                                    NlpManager.AddToDictionaryResult.UNAVAILABLE -> null
+                                }
+                                if (message != null) {
+                                    // Haptic as well as the toast: Android suppresses toasts entirely when
+                                    // the user has turned notifications off for the app, and a silent
+                                    // long-press would look broken.
+                                    FlorisImeService.inputFeedbackController()?.keyLongPress()
+                                    scope.launch {
+                                        context.showShortToast(
+                                            message,
+                                            "word" to candidateItem.text.toString(),
+                                        )
+                                    }
+                                }
+                                result != NlpManager.AddToDictionaryResult.UNAVAILABLE
+                            }
+                        }
+                    },
+                    longPressDelay = longPressDelay.toLong(),
+                )
+            }
+        }
+    }
+    }
+}
+
+@Composable
+private fun CandidateItem(
+    candidate: SuggestionCandidate,
+    displayMode: CandidatesDisplayMode,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit = { },
+    onLongPress: () -> Boolean = { false },
+    longPressDelay: Long,
+) = with(LocalDensity.current) {
+    var isPressed by remember { mutableStateOf(false) }
+
+    val elementName = if (candidate is ClipboardSuggestionCandidate) {
+        FlorisImeUi.SmartbarCandidateClip
+    } else {
+        FlorisImeUi.SmartbarCandidateWord
+    }.elementName
+    // Remembered so recomposing the row on each keystroke doesn't allocate a fresh map (which, as an
+    // unstable arg to the Snygg composables below, would also defeat their skipping) — reduces the
+    // per-keystroke recomposition + GC churn behind the typing jank.
+    val autoCommit = candidate.isEligibleForAutoCommit
+    val attributes = remember(autoCommit) { mapOf(FlorisImeUi.Attr.AutoCommit to if (autoCommit) 1 else 0) }
+    val selector = if (isPressed) SnyggSelector.PRESSED else SnyggSelector.NONE
+
+    SnyggRow(
+        elementName = elementName,
+        attributes = attributes,
+        selector = selector,
+        modifier = modifier
+            .pointerInput(Unit) {
+                awaitEachGesture {
+                    val down = awaitFirstDown()
+                    isPressed = true
+                    if (down.pressed != down.previousPressed) down.consume()
+                    var upOrCancel: PointerInputChange? = null
+                    try {
+                        upOrCancel = withTimeout(longPressDelay) {
+                            waitForUpOrCancellation()
+                        }
+                        upOrCancel?.let { if (it.pressed != it.previousPressed) it.consume() }
+                    } catch (_: PointerEventTimeoutCancellationException) {
+                        if (onLongPress()) {
+                            upOrCancel = null
+                            isPressed = false
+                        }
+                        waitForUpOrCancellation()?.let { if (it.pressed != it.previousPressed) it.consume() }
+                    }
+                    if (upOrCancel != null) {
+                        onClick()
+                    }
+                    isPressed = false
+                }
+            },
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        if (candidate.icon != null) {
+            SnyggBox(
+                elementName = "$elementName-icon",
+                attributes = attributes,
+                selector = selector,
+            ) {
+                SnyggIcon(imageVector = candidate.icon!!)
+            }
+        }
+        SnyggColumn(
+            modifier = if (displayMode == CandidatesDisplayMode.CLASSIC) Modifier.weight(1f) else Modifier,
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            SnyggText(
+                elementName = "$elementName-text",
+                attributes = attributes,
+                selector = selector,
+                // Gboard-style: bold the suggestion that will be auto-applied (autocorrect), so it's clear
+                // what will replace the typed word; other suggestions stay normal weight (issue #150).
+                fontWeight = if (autoCommit) FontWeight.Bold else null,
+                text = candidate.text.toString(),
+            )
+            if (candidate.secondaryText != null) {
+                SnyggText(
+                    elementName = "$elementName-secondary-text",
+                    attributes = attributes,
+                    selector = selector,
+                    text = candidate.secondaryText!!.toString(),
+                )
+            }
+        }
+    }
+}

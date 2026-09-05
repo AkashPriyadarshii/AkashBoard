@@ -1,0 +1,1571 @@
+/*
+ * Copyright (C) 2021-2025 The FlorisBoard Contributors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package dev.patrickgold.florisboard.ime.keyboard
+
+import android.content.Context
+import android.icu.lang.UCharacter
+import android.view.KeyEvent
+import android.widget.Toast
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.setValue
+import dev.patrickgold.florisboard.FlorisImeService
+import dev.patrickgold.florisboard.R
+import dev.patrickgold.florisboard.app.FlorisPreferenceStore
+import dev.patrickgold.florisboard.appContext
+import dev.patrickgold.florisboard.clipboardManager
+import dev.patrickgold.florisboard.editorInstance
+import dev.patrickgold.florisboard.dictate.snippet.SnippetTriggers
+import dev.patrickgold.florisboard.extensionManager
+import dev.patrickgold.florisboard.ime.ImeUiMode
+import dev.patrickgold.florisboard.ime.core.DisplayLanguageNamesIn
+import dev.patrickgold.florisboard.ime.core.Subtype
+import dev.patrickgold.florisboard.ime.core.SubtypePreset
+import dev.patrickgold.florisboard.ime.editor.EditorContent
+import dev.patrickgold.florisboard.ime.editor.FlorisEditorInfo
+import dev.patrickgold.florisboard.ime.editor.ImeOptions
+import dev.patrickgold.florisboard.ime.editor.InputAttributes
+import dev.patrickgold.florisboard.ime.editor.OperationUnit
+import dev.patrickgold.florisboard.ime.input.CapitalizationBehavior
+import dev.patrickgold.florisboard.ime.input.InputEventDispatcher
+import dev.patrickgold.florisboard.ime.input.InputKeyEventReceiver
+import dev.patrickgold.florisboard.ime.input.InputShiftState
+import dev.patrickgold.florisboard.ime.nlp.ClipboardSuggestionCandidate
+import dev.patrickgold.florisboard.ime.nlp.PunctuationRule
+import dev.patrickgold.florisboard.ime.nlp.SuggestionCandidate
+import dev.patrickgold.florisboard.ime.nlp.latin.TouchTrace
+import dev.patrickgold.florisboard.ime.popup.PopupMappingComponent
+import dev.patrickgold.florisboard.ime.text.composing.Composer
+import dev.patrickgold.florisboard.ime.text.gestures.SwipeAction
+import dev.patrickgold.florisboard.ime.text.key.KeyCode
+import dev.patrickgold.florisboard.ime.text.key.KeyType
+import dev.patrickgold.florisboard.ime.text.key.KeyVariation
+import dev.patrickgold.florisboard.ime.text.key.UtilityKeyAction
+import dev.patrickgold.florisboard.ime.text.keyboard.DevanagariBase
+import dev.patrickgold.florisboard.ime.text.keyboard.TextKeyData
+import dev.patrickgold.florisboard.ime.text.keyboard.TextKeyboardCache
+import dev.patrickgold.florisboard.lib.devtools.LogTopic
+import dev.patrickgold.florisboard.lib.devtools.flogError
+import dev.patrickgold.florisboard.lib.FlorisLocale
+import dev.patrickgold.florisboard.lib.ext.ExtensionComponentName
+import dev.patrickgold.florisboard.lib.lowercase
+import dev.patrickgold.florisboard.lib.titlecase
+import dev.patrickgold.florisboard.lib.uppercase
+import dev.patrickgold.florisboard.lib.util.InputMethodUtils
+import dev.patrickgold.florisboard.nlpManager
+import dev.patrickgold.florisboard.subtypeManager
+import java.lang.ref.WeakReference
+import java.util.concurrent.atomic.AtomicInteger
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import org.florisboard.lib.android.AndroidKeyguardManager
+import org.florisboard.lib.android.showLongToast
+import org.florisboard.lib.android.showLongToastSync
+import org.florisboard.lib.android.showShortToastSync
+import org.florisboard.lib.android.systemService
+import org.florisboard.lib.kotlin.collectIn
+import org.florisboard.lib.kotlin.collectLatestIn
+
+private val DoubleSpacePeriodMatcher = """([^.!?‽\s]\s)""".toRegex()
+
+/** How much of an expanded snippet must still stand before the cursor for the backspace undo (issue #283). */
+private const val TAIL_MATCH_LENGTH = 120
+
+/**
+ * Whether a keystroke belongs to an open in-keyboard search rather than to the app's text field.
+ *
+ * Stated as what a search *takes*, not as the one thing it refuses. The rule used to name the single
+ * type it accepted — `CHARACTER` — and hand everything else to the editor, which is how every digit
+ * typed into the emoji, GIF or sticker search ended up in the message being written instead of in the
+ * search box: the number row declares its keys as `"type": "numeric"` in the layout files, so they
+ * were never characters (issue #317).
+ *
+ * Text-producing types only. A shift, a backspace or a layout switch has work of its own to do and
+ * must reach the keyboard, and an empty string is a key that writes nothing at all.
+ */
+internal fun keyProducesSearchText(type: KeyType, text: String): Boolean =
+    (type == KeyType.CHARACTER || type == KeyType.NUMERIC) && text.isNotEmpty()
+
+class KeyboardManager(context: Context) : InputKeyEventReceiver {
+    private val prefs by FlorisPreferenceStore
+    private val appContext by context.appContext()
+    private val clipboardManager by context.clipboardManager()
+    private val editorInstance by context.editorInstance()
+    private val extensionManager by context.extensionManager()
+    private val nlpManager by context.nlpManager()
+    private val subtypeManager by context.subtypeManager()
+
+    private val scope = CoroutineScope(Dispatchers.Default + SupervisorJob())
+    val layoutManager = LayoutManager(context)
+    private val keyboardCache = TextKeyboardCache()
+
+    val resources = KeyboardManagerResources()
+    val activeState = ObservableKeyboardState.new()
+    var smartbarVisibleDynamicActionsCount by mutableIntStateOf(0)
+    private var lastToastReference = WeakReference<Toast>(null)
+
+    /**
+     * Holds the live query of the in-keyboard emoji search (issue #110), or `null` when no search is
+     * active. While non-null, the search panel replaces the Smartbar (see [TextInputLayout]) and the
+     * user's own keyboard layout is used to type the query — character/space/delete keystrokes are
+     * intercepted in [onInputKeyUp] and folded into this query instead of being committed to the editor.
+     */
+    val emojiSearchQuery = MutableStateFlow<String?>(null)
+
+    // GIF search (KLIPY). [gifSearchQuery] is non-null while the user is TYPING a query (keyboard shown,
+    // keystrokes folded into it instead of the editor; a search bar shows above the keyboard). Pressing
+    // Enter submits: [gifSearchQuery] clears and [gifSearchSubmit] holds the committed query, which makes
+    // the full-panel GifPanel show a large results grid. [gifSearchSubmit] null = the panel's home view.
+    val gifSearchQuery = MutableStateFlow<String?>(null)
+    val gifSearchSubmit = MutableStateFlow<String?>(null)
+
+    /**
+     * The Devanagari consonant sitting directly in front of the cursor, or [DevanagariBase.NONE] (#315).
+     *
+     * A [MutableStateFlow] drops equal values, and [DevanagariBase.of] is a single character test, so for
+     * every non-Indic language this never changes and costs no extra key recomputation per keystroke.
+     */
+    private val pendingDevanagariBase = MutableStateFlow(DevanagariBase.NONE)
+
+    /**
+     * The live query of the sticker search (issue #317), or `null` when no search is running.
+     *
+     * Shaped like the emoji search rather than the GIF one, because the difference between them is
+     * where the answer comes from: KLIPY has to be asked, so a query is submitted; sticker names are
+     * already in memory, so the results can narrow on every keystroke and there is nothing to submit.
+     */
+    val stickerSearchQuery = MutableStateFlow<String?>(null)
+
+    private val activeEvaluatorGuard = Mutex(locked = false)
+    private var activeEvaluatorVersion = AtomicInteger(0)
+    val activeEvaluator: StateFlow<ComputingEvaluator>
+        field = MutableStateFlow<ComputingEvaluator>(DefaultComputingEvaluator)
+    val activeSmartbarEvaluator: StateFlow<ComputingEvaluator>
+        field = MutableStateFlow<ComputingEvaluator>(DefaultComputingEvaluator)
+    val lastCharactersEvaluator: StateFlow<ComputingEvaluator>
+        field = MutableStateFlow<ComputingEvaluator>(DefaultComputingEvaluator)
+
+    val inputEventDispatcher = InputEventDispatcher.new(
+        repeatableKeyCodes = intArrayOf(
+            KeyCode.ARROW_DOWN,
+            KeyCode.ARROW_LEFT,
+            KeyCode.ARROW_RIGHT,
+            KeyCode.ARROW_UP,
+            KeyCode.DELETE,
+            KeyCode.FORWARD_DELETE,
+            KeyCode.UNDO,
+            KeyCode.REDO,
+        )
+    ).also { it.keyEventReceiver = this }
+
+    init {
+        scope.launch(Dispatchers.Main.immediate) {
+            resources.anyChangedVersion.collectIn(scope) {
+                updateActiveEvaluators {
+                    keyboardCache.clear()
+                }
+            }
+            prefs.keyboard.numberRow.asFlow().collectLatestIn(scope) {
+                updateActiveEvaluators {
+                    keyboardCache.clear(KeyboardMode.CHARACTERS)
+                }
+            }
+            prefs.keyboard.hintedNumberRowEnabled.asFlow().collectLatestIn(scope) {
+                updateActiveEvaluators()
+            }
+            prefs.keyboard.hintedSymbolsEnabled.asFlow().collectLatestIn(scope) {
+                updateActiveEvaluators()
+            }
+            prefs.keyboard.utilityKeyEnabled.asFlow().collectLatestIn(scope) {
+                updateActiveEvaluators()
+            }
+            prefs.keyboard.utilityKeyAction.asFlow().collectLatestIn(scope) {
+                updateActiveEvaluators()
+            }
+            activeState.collectLatestIn(scope) {
+                updateActiveEvaluators()
+            }
+            subtypeManager.subtypesFlow.collectLatestIn(scope) {
+                updateActiveEvaluators()
+            }
+            subtypeManager.activeSubtypeFlow.collectLatestIn(scope) {
+                reevaluateInputShiftState()
+                updateActiveEvaluators()
+                editorInstance.refreshComposing()
+                resetSuggestions(editorInstance.activeContent)
+            }
+            clipboardManager.primaryClipFlow.collectLatestIn(scope) {
+                updateActiveEvaluators()
+            }
+            editorInstance.activeContentFlow.collectIn(scope) { content ->
+                resetSuggestions(content)
+                pendingDevanagariBase.value = DevanagariBase.of(content.textBeforeSelection)
+            }
+            pendingDevanagariBase.collectLatestIn(scope) {
+                updateActiveEvaluators()
+            }
+            prefs.devtools.enabled.asFlow().collectLatestIn(scope) {
+                reevaluateDebugFlags()
+            }
+            prefs.devtools.showDragAndDropHelpers.asFlow().collectLatestIn(scope) {
+                reevaluateDebugFlags()
+            }
+        }
+    }
+
+    fun updateActiveEvaluators(action: () -> Unit = { }) = scope.launch {
+        activeEvaluatorGuard.withLock {
+            action()
+            val editorInfo = editorInstance.activeInfo
+            val state = activeState.snapshot()
+            val subtype = subtypeManager.activeSubtype
+            val mode = state.keyboardMode
+            // We need to reset the snapshot input shift state for non-character layouts, because the shift mechanic
+            // only makes sense for the character layouts.
+            if (mode != KeyboardMode.CHARACTERS) {
+                state.inputShiftState = InputShiftState.UNSHIFTED
+            }
+            val computedKeyboard = keyboardCache.getOrElseAsync(mode, subtype) {
+                layoutManager.computeKeyboardAsync(
+                    keyboardMode = mode,
+                    subtype = subtype,
+                ).await()
+            }
+            val computingEvaluator = ComputingEvaluatorImpl(
+                version = activeEvaluatorVersion.getAndAdd(1),
+                keyboard = computedKeyboard,
+                editorInfo = editorInfo,
+                state = state,
+                subtype = subtype,
+            )
+            for (key in computedKeyboard.keys()) {
+                key.compute(computingEvaluator)
+                key.computeLabelsAndDrawables(computingEvaluator)
+            }
+            activeEvaluator.value = computingEvaluator
+            activeSmartbarEvaluator.value = computingEvaluator.asSmartbarQuickActionsEvaluator()
+            if (computedKeyboard.mode == KeyboardMode.CHARACTERS) {
+                lastCharactersEvaluator.value = computingEvaluator
+            }
+        }
+    }
+
+    fun reevaluateInputShiftState() {
+        if (activeState.inputShiftState != InputShiftState.CAPS_LOCK && !inputEventDispatcher.isPressed(KeyCode.SHIFT)) {
+            val shift = prefs.correction.autoCapitalization.get()
+                && subtypeManager.activeSubtype.primaryLocale.supportsCapitalization
+                && editorInstance.activeCursorCapsMode != InputAttributes.CapsMode.NONE
+            activeState.inputShiftState = when {
+                shift -> InputShiftState.SHIFTED_AUTOMATIC
+                else -> InputShiftState.UNSHIFTED
+            }
+        }
+    }
+
+    fun resetSuggestions(content: EditorContent) {
+        if (!(activeState.isComposingEnabled || nlpManager.isSuggestionOn())) {
+            nlpManager.clearSuggestions()
+            return
+        }
+        nlpManager.suggest(subtypeManager.activeSubtype, content)
+    }
+
+    /**
+     * @return If the language switch should be shown.
+     */
+    fun shouldShowLanguageSwitch(): Boolean {
+        return subtypeManager.subtypes.size > 1
+    }
+
+    fun executeSwipeAction(swipeAction: SwipeAction) {
+        val keyData = when (swipeAction) {
+            SwipeAction.CYCLE_TO_PREVIOUS_KEYBOARD_MODE -> when (activeState.keyboardMode) {
+                KeyboardMode.CHARACTERS -> TextKeyData.VIEW_NUMERIC_ADVANCED
+                KeyboardMode.NUMERIC_ADVANCED -> TextKeyData.VIEW_SYMBOLS2
+                KeyboardMode.SYMBOLS2 -> TextKeyData.VIEW_SYMBOLS
+                else -> TextKeyData.VIEW_CHARACTERS
+            }
+            SwipeAction.CYCLE_TO_NEXT_KEYBOARD_MODE -> when (activeState.keyboardMode) {
+                KeyboardMode.CHARACTERS -> TextKeyData.VIEW_SYMBOLS
+                KeyboardMode.SYMBOLS -> TextKeyData.VIEW_SYMBOLS2
+                KeyboardMode.SYMBOLS2 -> TextKeyData.VIEW_NUMERIC_ADVANCED
+                else -> TextKeyData.VIEW_CHARACTERS
+            }
+            SwipeAction.DELETE_WORD -> TextKeyData.DELETE_WORD
+            SwipeAction.HIDE_KEYBOARD -> TextKeyData.IME_HIDE_UI
+            SwipeAction.INSERT_SPACE -> TextKeyData.SPACE
+            SwipeAction.MOVE_CURSOR_DOWN -> TextKeyData.ARROW_DOWN
+            SwipeAction.MOVE_CURSOR_UP -> TextKeyData.ARROW_UP
+            SwipeAction.MOVE_CURSOR_LEFT -> TextKeyData.ARROW_LEFT
+            SwipeAction.MOVE_CURSOR_RIGHT -> TextKeyData.ARROW_RIGHT
+            SwipeAction.MOVE_CURSOR_START_OF_LINE -> TextKeyData.MOVE_START_OF_LINE
+            SwipeAction.MOVE_CURSOR_END_OF_LINE -> TextKeyData.MOVE_END_OF_LINE
+            SwipeAction.MOVE_CURSOR_START_OF_PAGE -> TextKeyData.MOVE_START_OF_PAGE
+            SwipeAction.MOVE_CURSOR_END_OF_PAGE -> TextKeyData.MOVE_END_OF_PAGE
+            SwipeAction.SHIFT -> TextKeyData.SHIFT
+            SwipeAction.REDO -> TextKeyData.REDO
+            SwipeAction.UNDO -> TextKeyData.UNDO
+            SwipeAction.SHOW_INPUT_METHOD_PICKER -> TextKeyData.SYSTEM_INPUT_METHOD_PICKER
+            SwipeAction.SHOW_SUBTYPE_PICKER -> TextKeyData.SHOW_SUBTYPE_PICKER
+            SwipeAction.SWITCH_TO_CLIPBOARD_CONTEXT -> TextKeyData.IME_UI_MODE_CLIPBOARD
+            SwipeAction.SWITCH_TO_MEDIA_CONTEXT -> TextKeyData.IME_UI_MODE_MEDIA
+            SwipeAction.SWITCH_TO_PREV_SUBTYPE -> TextKeyData.IME_PREV_SUBTYPE
+            SwipeAction.SWITCH_TO_NEXT_SUBTYPE -> TextKeyData.IME_NEXT_SUBTYPE
+            SwipeAction.SWITCH_TO_PREV_KEYBOARD -> TextKeyData.SYSTEM_PREV_INPUT_METHOD
+            SwipeAction.TOGGLE_SMARTBAR_VISIBILITY -> TextKeyData.TOGGLE_SMARTBAR_VISIBILITY
+            SwipeAction.TOGGLE_COMPACT_LAYOUT -> TextKeyData.TOGGLE_COMPACT_LAYOUT
+            else -> null
+        }
+        if (keyData != null) {
+            // The one place a completed swipe becomes an input event, and therefore the one place its
+            // feedback belongs (issue #325). Seven call sites detect swipes; none of them used to ask for
+            // a tick, so "Gesture swipe sounds/vibration" was wired to nothing on the keyboard while its
+            // summary string said as much. Sitting inside this branch is what keeps the rule honest: the
+            // actions that map to no key data — NO_ACTION, and the "precisely" ones handled during the
+            // move, where gestureMovingSwipe already ticks per step — stay silent by construction rather
+            // than by a second list that could drift. Passing keyData buys the right sound for free:
+            // DELETE_WORD gets the delete effect, INSERT_SPACE the spacebar one.
+            FlorisImeService.inputFeedbackController()?.gestureSwipe(keyData)
+            inputEventDispatcher.sendDownUp(keyData)
+        }
+    }
+
+    /**
+     * Applies the correction the strip had marked, and remembers what it overwrote so the next
+     * backspace can take it back (issue #295).
+     *
+     * Separate from [commitCandidate] because only the *silent* swap earns an undo: a tap on the strip
+     * is a choice, and a backspace after one is meant for the text, not for the choice.
+     */
+    private fun commitAutoCorrection(candidate: SuggestionCandidate) {
+        // Read before the commit — afterwards the editor holds the corrected word and the typed one is
+        // gone for good.
+        val replaced = editorInstance.textCompletionWouldReplace()
+        commitCandidate(candidate)
+        val inserted = candidate.text.toString()
+        pendingAutoCorrection = if (replaced.isNotEmpty() && replaced != inserted) {
+            AutoCorrection(inserted = inserted, replaced = replaced)
+        } else {
+            null
+        }
+    }
+
+    fun commitCandidate(candidate: SuggestionCandidate) {
+        pendingExpansion = null // this write does not come through onInputKeyUp (issue #283)
+        // A tap on the strip replaces whatever the previous correction left behind, so there is nothing
+        // left to take back. [commitAutoCorrection] re-arms it immediately afterwards for its own case.
+        pendingAutoCorrection = null
+        scope.launch {
+            candidate.sourceProvider?.notifySuggestionAccepted(subtypeManager.activeSubtype, candidate)
+        }
+        // The composing word is being replaced wholesale, so its tap evidence no longer describes what is
+        // in the editor (issue #242).
+        TouchTrace.reset()
+        when (candidate) {
+            is ClipboardSuggestionCandidate -> editorInstance.commitClipboardItem(candidate.clipboardItem)
+            else -> editorInstance.commitCompletion(candidate)
+        }
+    }
+
+    fun commitGesture(word: String) {
+        // Same as above: a glide never passes through onInputKeyUp (issues #283, #295).
+        pendingExpansion = null
+        pendingAutoCorrection = null
+        // A glide produces a whole word at once, so there are no per-character taps to reason about (#242).
+        TouchTrace.reset()
+        val text = fixCase(word)
+        // A glide never passes through onInputKeyDown, so the emoji/GIF search interception there never
+        // sees it — swiping a word while searching used to drop it into the app's text field instead of
+        // the search box. Route it to the query the same way a typed character goes.
+        if (appendToActiveSearch(text)) return
+        editorInstance.commitGesture(text)
+    }
+
+    /**
+     * Appends [text] to whichever search is currently taking the keyboard's input, returning `true` when
+     * one was. Words are separated by a space, so two glides in a row read as two terms.
+     */
+    private fun appendToActiveSearch(text: String): Boolean {
+        fun joined(current: String) = if (current.isEmpty() || current.endsWith(' ')) {
+            current + text
+        } else {
+            "$current $text"
+        }
+        emojiSearchQuery.value?.let { emojiSearchQuery.value = joined(it); return true }
+        gifSearchQuery.value?.let { gifSearchQuery.value = joined(it); return true }
+        stickerSearchQuery.value?.let { stickerSearchQuery.value = joined(it); return true }
+        return false
+    }
+
+    /**
+     * Changes a word to the current case.
+     * eg if [KeyboardState.isUppercase] is true, abc -> ABC
+     *    if [caps]     is true, abc -> Abc
+     *    otherwise            , abc -> abc
+     */
+    fun fixCase(word: String): String {
+        return when(activeState.inputShiftState) {
+            InputShiftState.CAPS_LOCK -> {
+                word.uppercase(subtypeManager.activeSubtype.primaryLocale)
+            }
+            InputShiftState.SHIFTED_MANUAL, InputShiftState.SHIFTED_AUTOMATIC -> {
+                word.titlecase(subtypeManager.activeSubtype.primaryLocale)
+            }
+            else -> word
+        }
+    }
+
+    /**
+     * Handles [KeyCode] arrow and move events, behaves differently depending on text selection.
+     */
+    fun handleArrow(code: Int, count: Int = 1) = editorInstance.apply {
+        val isShiftPressed = activeState.isManualSelectionMode || inputEventDispatcher.isPressed(KeyCode.SHIFT)
+        val content = activeContent
+        val selection = content.selection
+        when (code) {
+            KeyCode.ARROW_LEFT -> {
+                if (!selection.isSelectionMode && activeState.isManualSelectionMode) {
+                    activeState.isManualSelectionModeStart = true
+                    activeState.isManualSelectionModeEnd = false
+                }
+                sendDownUpKeyEvent(KeyEvent.KEYCODE_DPAD_LEFT, meta(shift = isShiftPressed), count)
+            }
+            KeyCode.ARROW_RIGHT -> {
+                if (!selection.isSelectionMode && activeState.isManualSelectionMode) {
+                    activeState.isManualSelectionModeStart = false
+                    activeState.isManualSelectionModeEnd = true
+                }
+                sendDownUpKeyEvent(KeyEvent.KEYCODE_DPAD_RIGHT, meta(shift = isShiftPressed), count)
+            }
+            KeyCode.ARROW_UP -> {
+                if (!selection.isSelectionMode && activeState.isManualSelectionMode) {
+                    activeState.isManualSelectionModeStart = true
+                    activeState.isManualSelectionModeEnd = false
+                }
+                sendDownUpKeyEvent(KeyEvent.KEYCODE_DPAD_UP, meta(shift = isShiftPressed), count)
+            }
+            KeyCode.ARROW_DOWN -> {
+                if (!selection.isSelectionMode && activeState.isManualSelectionMode) {
+                    activeState.isManualSelectionModeStart = false
+                    activeState.isManualSelectionModeEnd = true
+                }
+                sendDownUpKeyEvent(KeyEvent.KEYCODE_DPAD_DOWN, meta(shift = isShiftPressed), count)
+            }
+            KeyCode.MOVE_START_OF_PAGE -> {
+                if (!selection.isSelectionMode && activeState.isManualSelectionMode) {
+                    activeState.isManualSelectionModeStart = true
+                    activeState.isManualSelectionModeEnd = false
+                }
+                sendDownUpKeyEvent(KeyEvent.KEYCODE_DPAD_UP, meta(alt = true, shift = isShiftPressed), count)
+            }
+            KeyCode.MOVE_END_OF_PAGE -> {
+                if (!selection.isSelectionMode && activeState.isManualSelectionMode) {
+                    activeState.isManualSelectionModeStart = false
+                    activeState.isManualSelectionModeEnd = true
+                }
+                sendDownUpKeyEvent(KeyEvent.KEYCODE_DPAD_DOWN, meta(alt = true, shift = isShiftPressed), count)
+            }
+            KeyCode.MOVE_START_OF_LINE -> {
+                if (!selection.isSelectionMode && activeState.isManualSelectionMode) {
+                    activeState.isManualSelectionModeStart = true
+                    activeState.isManualSelectionModeEnd = false
+                }
+                sendDownUpKeyEvent(KeyEvent.KEYCODE_DPAD_LEFT, meta(alt = true, shift = isShiftPressed), count)
+            }
+            KeyCode.MOVE_END_OF_LINE -> {
+                if (!selection.isSelectionMode && activeState.isManualSelectionMode) {
+                    activeState.isManualSelectionModeStart = false
+                    activeState.isManualSelectionModeEnd = true
+                }
+                sendDownUpKeyEvent(KeyEvent.KEYCODE_DPAD_RIGHT, meta(alt = true, shift = isShiftPressed), count)
+            }
+        }
+    }
+
+    /**
+     * Handles a [KeyCode.CLIPBOARD_SELECT] event.
+     */
+    private fun handleClipboardSelect() {
+        val activeSelection = editorInstance.activeContent.selection
+        activeState.isManualSelectionMode = if (activeSelection.isSelectionMode) {
+            if (activeState.isManualSelectionMode && activeState.isManualSelectionModeStart) {
+                editorInstance.setSelection(activeSelection.start, activeSelection.start)
+            } else {
+                editorInstance.setSelection(activeSelection.end, activeSelection.end)
+            }
+            false
+        } else {
+            !activeState.isManualSelectionMode
+        }
+    }
+
+    /**
+     * A snippet that has just been expanded, kept for exactly one keystroke so the next backspace can
+     * put the shortcut back (issue #283). [inserted] is what stands in the editor now, [replaced] what
+     * the user had typed — both including the boundary character that triggered the expansion.
+     */
+    private data class SnippetExpansion(val inserted: String, val replaced: String)
+
+    private var pendingExpansion: SnippetExpansion? = null
+
+    /**
+     * An auto-correction that has just been applied, kept for exactly one keystroke so the next
+     * backspace can put the typed word back (issue #295). [inserted] is the word that now stands,
+     * [replaced] what was actually typed.
+     *
+     * Only ever armed for a *silent* correction. Tapping a suggestion in the strip is a decision the
+     * user made and does not want undone by a backspace they meant for the letter before it.
+     */
+    private data class AutoCorrection(val inserted: String, val replaced: String)
+
+    private var pendingAutoCorrection: AutoCorrection? = null
+
+    /**
+     * Expands a typed snippet trigger (issue #283): if the word right before the cursor is a shortcut
+     * of a `[snippet]` prompt, it is replaced by that snippet plus [boundary] — the space, punctuation
+     * mark or line break that ended the word. Returns true when that happened, in which case the caller
+     * is done: the boundary character has already been written.
+     *
+     * Writing the boundary here rather than letting the normal path append it afterwards is deliberate.
+     * The replacement goes straight to the InputConnection, so the cached editor content is one step
+     * behind for a moment, and `commitChar`'s auto-space logic would decide on stale text.
+     */
+    private fun expandSnippet(boundary: String): Boolean {
+        if (SnippetTriggers.isEmpty) return false
+        // Never in a password field, and never while something is selected (the selection is what the
+        // user means to replace, not the word before it).
+        if (activeState.keyVariation == KeyVariation.PASSWORD) return false
+        val content = editorInstance.activeContent
+        if (content.selection.isSelectionMode) return false
+        val token = SnippetTriggers.triggerCandidate(content.textBeforeSelection) ?: return false
+        val body = SnippetTriggers.bodyFor(token) ?: return false
+
+        val inserted = body + boundary
+        val replaced = token + boundary
+        TouchTrace.reset() // the word is gone, and with it its tap evidence (issue #242)
+        editorInstance.autoSpace.setInactive()
+        editorInstance.phantomSpace.setInactive()
+        editorInstance.replaceTextBeforeCursor(token.length, inserted)
+        pendingExpansion = SnippetExpansion(inserted = inserted, replaced = replaced)
+        return true
+    }
+
+    /**
+     * Undoes the snippet expansion of the previous keystroke, if the editor still ends exactly in what
+     * was inserted. Returns true when the backspace was consumed by putting the shortcut back.
+     */
+    /**
+     * Puts back the word the previous keystroke auto-corrected away, if the editor still ends in what
+     * the correction wrote. Returns true when the backspace was spent on that instead of deleting.
+     *
+     * The boundary that triggered the correction — the space or punctuation mark typed after it — is
+     * kept: the point is to take back a word that was changed for you, not to undo your own keystroke.
+     * A second backspace then deletes normally, because this only ever fires once.
+     */
+    /**
+     * The boundary character standing after [correction]'s word, "" when there is none, or null when
+     * the editor no longer ends in the corrected word at all and nothing may be assumed about it.
+     *
+     * A correction is written as `word` on the punctuation path and as `word ` on the space path, and
+     * the cached text before the cursor is capped, so only the tail is compared — the same reasoning as
+     * in [undoSnippetExpansion].
+     */
+    private fun boundaryAfter(correction: AutoCorrection): String? {
+        val content = editorInstance.activeContent
+        if (content.selection.isSelectionMode) return null
+        val before = content.textBeforeSelection
+        val tail = correction.inserted.takeLast(TAIL_MATCH_LENGTH)
+        return when {
+            before.endsWith(tail) -> ""
+            before.length > correction.inserted.length && before.dropLast(1).endsWith(tail) -> before.takeLast(1)
+            else -> null
+        }
+    }
+
+    private fun undoAutoCorrection(): Boolean {
+        val correction = pendingAutoCorrection ?: return false
+        pendingAutoCorrection = null
+        val boundary = boundaryAfter(correction) ?: return false
+        editorInstance.replaceTextBeforeCursor(
+            correction.inserted.length + boundary.length,
+            correction.replaced + boundary,
+        )
+        // The restored word is the user's own spelling again; nothing about the taps that produced it
+        // still describes what is in the editor (issue #242).
+        TouchTrace.reset()
+        return true
+    }
+
+    private fun undoSnippetExpansion(): Boolean {
+        val expansion = pendingExpansion ?: return false
+        pendingExpansion = null
+        val content = editorInstance.activeContent
+        if (content.selection.isSelectionMode) return false
+        // Only the last stretch is compared: the cached text before the cursor is capped, so a snippet
+        // longer than that would never match in full. Deleting past the cache is fine, that goes to the
+        // editor itself.
+        if (!content.textBeforeSelection.endsWith(expansion.inserted.takeLast(TAIL_MATCH_LENGTH))) return false
+        editorInstance.replaceTextBeforeCursor(expansion.inserted.length, expansion.replaced)
+        return true
+    }
+
+    private fun revertPreviouslyAcceptedCandidate() {
+        editorInstance.phantomSpace.candidateForRevert?.let { candidateForRevert ->
+            candidateForRevert.sourceProvider?.let { sourceProvider ->
+                scope.launch {
+                    sourceProvider.notifySuggestionReverted(
+                        subtype = subtypeManager.activeSubtype,
+                        candidate = candidateForRevert,
+                    )
+                }
+            }
+        }
+    }
+
+    /**
+     * Handles a [KeyCode.DELETE] event.
+     */
+    private fun handleBackwardDelete(unit: OperationUnit) {
+        if (inputEventDispatcher.isPressed(KeyCode.SHIFT)) {
+            return handleForwardDelete(unit)
+        }
+        activeState.batchEdit {
+            it.isManualSelectionMode = false
+            it.isManualSelectionModeStart = false
+            it.isManualSelectionModeEnd = false
+        }
+        revertPreviouslyAcceptedCandidate()
+        // A backspace straight after a snippet expanded puts the shortcut back instead of deleting
+        // (issue #283). A second one then deletes normally.
+        if (undoSnippetExpansion()) {
+            TouchTrace.reset()
+            return
+        }
+        // And straight after an auto-correction it puts the typed word back (issue #295), which is the
+        // fastest way out of a correction you did not want. A second one then deletes normally.
+        if (undoAutoCorrection()) return
+        // Keep the tap evidence aligned with the word: a single-character backspace drops the last tap,
+        // anything coarser (a whole word) invalidates the trace entirely (issue #242).
+        if (unit == OperationUnit.CHARACTERS) TouchTrace.pop() else TouchTrace.reset()
+        editorInstance.deleteBackwards(unit)
+    }
+
+    /**
+     * Handles a [KeyCode.FORWARD_DELETE] event.
+     */
+    private fun handleForwardDelete(unit: OperationUnit) {
+        activeState.batchEdit {
+            it.isManualSelectionMode = false
+            it.isManualSelectionModeStart = false
+            it.isManualSelectionModeEnd = false
+        }
+        revertPreviouslyAcceptedCandidate()
+        editorInstance.deleteForwards(unit)
+    }
+
+    /**
+     * Handles a [KeyCode.ENTER] event.
+     */
+    private fun handleEnter() {
+        TouchTrace.reset() // word boundary (issue #242)
+        val info = editorInstance.activeInfo
+        val isShiftPressed = inputEventDispatcher.isPressed(KeyCode.SHIFT)
+        if (editorInstance.tryPerformEnterCommitRaw()) {
+            return
+        }
+        if (info.imeOptions.flagNoEnterAction || info.inputAttributes.flagTextMultiLine && isShiftPressed) {
+            if (expandSnippet("\n")) return
+            editorInstance.performEnter()
+        } else {
+            when (val action = info.imeOptions.action) {
+                ImeOptions.Action.DONE,
+                ImeOptions.Action.GO,
+                ImeOptions.Action.NEXT,
+                ImeOptions.Action.PREVIOUS,
+                ImeOptions.Action.SEARCH,
+                ImeOptions.Action.SEND -> {
+                    // Deliberately no snippet expansion here (issue #283): this Enter submits the field,
+                    // so expanding would insert the block and send it in the same keystroke, unread.
+                    editorInstance.performEnterAction(action)
+                }
+                else -> {
+                    if (expandSnippet("\n")) return
+                    editorInstance.performEnter()
+                }
+            }
+        }
+    }
+
+    /**
+     * Handles a [KeyCode.LANGUAGE_SWITCH] event. Also handles if the language switch should cycle
+     * FlorisBoard internal or system-wide.
+     */
+    private fun handleLanguageSwitch() {
+        when (prefs.keyboard.utilityKeyAction.get()) {
+            UtilityKeyAction.DYNAMIC_SWITCH_LANGUAGE_EMOJIS,
+            UtilityKeyAction.SWITCH_LANGUAGE -> subtypeManager.switchToNextSubtype()
+            // The utility key is explicitly configured to jump to the next keyboard app, so honour that.
+            UtilityKeyAction.SWITCH_KEYBOARD_APP -> FlorisImeService.switchToNextInputMethod()
+            // Remaining cases (utility key set to emojis / disabled) can only reach here via the Smartbar
+            // "Switch language" quick action — which should switch language regardless of the utility-key
+            // setting. Cycle the configured layouts when there is more than one, and only fall back to the
+            // next keyboard app when there is nothing to cycle (issue #200).
+            else -> if (subtypeManager.subtypes.size >= 2) {
+                subtypeManager.switchToNextSubtype()
+            } else {
+                FlorisImeService.switchToNextInputMethod()
+            }
+        }
+    }
+
+    /**
+     * Handles a [KeyCode.SHIFT] down event.
+     */
+    private fun handleShiftDown(data: KeyData) {
+        // Gboard-style: when text is selected, Shift cycles the selection's capitalization
+        // (Title case → UPPERCASE → lowercase → …) and keeps it selected, instead of toggling the shift state.
+        if (cycleSelectionCapitalization()) return
+        val prefs = prefs.keyboard.capitalizationBehavior
+        when (prefs.get()) {
+            CapitalizationBehavior.CAPSLOCK_BY_DOUBLE_TAP -> {
+                if (inputEventDispatcher.isConsecutiveDown(data)) {
+                    activeState.inputShiftState = InputShiftState.CAPS_LOCK
+                } else {
+                    if (activeState.inputShiftState == InputShiftState.UNSHIFTED) {
+                        activeState.inputShiftState = InputShiftState.SHIFTED_MANUAL
+                    } else {
+                        activeState.inputShiftState = InputShiftState.UNSHIFTED
+                    }
+                }
+            }
+            CapitalizationBehavior.CAPSLOCK_BY_CYCLE -> {
+                activeState.inputShiftState = when (activeState.inputShiftState) {
+                    InputShiftState.UNSHIFTED -> InputShiftState.SHIFTED_MANUAL
+                    InputShiftState.SHIFTED_MANUAL -> InputShiftState.CAPS_LOCK
+                    InputShiftState.SHIFTED_AUTOMATIC -> InputShiftState.UNSHIFTED
+                    InputShiftState.CAPS_LOCK -> InputShiftState.UNSHIFTED
+                }
+            }
+        }
+    }
+
+    /**
+     * Handles a [KeyCode.SHIFT] up event.
+     */
+    private fun handleShiftUp(data: KeyData) {
+        if (activeState.inputShiftState != InputShiftState.CAPS_LOCK && !inputEventDispatcher.isAnyPressed() &&
+            !inputEventDispatcher.isUninterruptedEventSequence(data)) {
+            activeState.inputShiftState = InputShiftState.UNSHIFTED
+        }
+    }
+
+    /**
+     * Gboard-style Shift-on-selection: if there is a non-empty text selection, cycle its capitalization
+     * (Title case → UPPERCASE → lowercase → …), keep it selected, and report that Shift was consumed. Handy
+     * for fixing a name/word the dictation mis-cased without repositioning the cursor.
+     */
+    private fun cycleSelectionCapitalization(): Boolean {
+        val content = editorInstance.activeContent
+        val selection = content.selection
+        if (selection.isNotValid || !selection.isSelectionMode) return false
+        val selected = content.selectedText
+        if (selected.isEmpty() || selected.none { it.isLetter() }) return false
+        val locale = subtypeManager.activeSubtype.primaryLocale
+        val next = nextCapitalization(selected, locale)
+        if (next != selected) {
+            val start = selection.start
+            editorInstance.commitTextRaw(next)
+            editorInstance.setSelection(start, start + next.length)
+        }
+        return true
+    }
+
+    /** Next state in the Title → UPPER → lower cycle for [text] (falls back to Title for mixed input). */
+    private fun nextCapitalization(text: String, locale: FlorisLocale): String {
+        val lower = text.lowercase(locale)
+        val upper = text.uppercase(locale)
+        val title = titlecaseWords(text, locale)
+        return when {
+            text == upper && upper != lower -> lower
+            text == title && title != upper -> upper
+            text == lower -> title
+            else -> title
+        }
+    }
+
+    /** Capitalizes the first letter of every whitespace-separated word and lowercases the rest. */
+    private fun titlecaseWords(text: String, locale: FlorisLocale): String {
+        val sb = StringBuilder(text.length)
+        var atWordStart = true
+        for (ch in text) {
+            when {
+                ch.isLetter() -> {
+                    sb.append(if (atWordStart) ch.toString().uppercase(locale) else ch.toString().lowercase(locale))
+                    atWordStart = false
+                }
+                ch.isWhitespace() -> { sb.append(ch); atWordStart = true }
+                else -> sb.append(ch)
+            }
+        }
+        return sb.toString()
+    }
+
+    /**
+     * Handles a [KeyCode.CAPS_LOCK] event.
+     */
+    private fun handleCapsLock() {
+        activeState.inputShiftState = InputShiftState.CAPS_LOCK
+    }
+
+    /**
+     * Handles a [KeyCode.SHIFT] cancel event.
+     */
+    private fun handleShiftCancel() {
+        activeState.inputShiftState = InputShiftState.UNSHIFTED
+    }
+
+    /**
+     * Handles a hardware [KeyEvent.KEYCODE_SPACE] event. Same as [handleSpace],
+     * but skips handling changing to characters keyboard and double space periods.
+     */
+    fun handleHardwareKeyboardSpace() {
+        val candidate = nlpManager.getAutoCommitCandidate()
+        candidate?.let { commitAutoCorrection(it) }
+        // Skip handling changing to characters keyboard and double space periods
+        // TODO: this is whether we commit space after selecting candidate. Should be determined by SuggestionProvider
+        if (!subtypeManager.activeSubtype.primaryLocale.supportsAutoSpace &&
+                candidate != null) { /* Do nothing */ } else {
+            editorInstance.commitText(KeyCode.SPACE.toChar().toString())
+        }
+    }
+
+    /**
+     * Handles a [KeyCode.SPACE] event. Also handles the auto-correction of two space taps if
+     * enabled by the user.
+     */
+    private fun handleSpace(data: KeyData) {
+        // Before the auto-commit candidate: otherwise autocorrect replaces the shortcut with a "better"
+        // word and there is nothing left to recognise (issue #283).
+        if (expandSnippet(KeyCode.SPACE.toChar().toString())) return
+        val candidate = nlpManager.getAutoCommitCandidate()
+        candidate?.let { commitAutoCorrection(it) }
+        TouchTrace.reset() // word boundary (issue #242)
+        if (prefs.keyboard.spaceBarSwitchesToCharacters.get()) {
+            when (activeState.keyboardMode) {
+                KeyboardMode.NUMERIC_ADVANCED,
+                KeyboardMode.SYMBOLS,
+                KeyboardMode.SYMBOLS2 -> {
+                    activeState.keyboardMode = KeyboardMode.CHARACTERS
+                }
+                else -> { /* Do nothing */ }
+            }
+        }
+        if (prefs.correction.doubleSpacePeriod.get()) {
+            if (inputEventDispatcher.isConsecutiveUp(data)) {
+                val text = editorInstance.run { activeContent.getTextBeforeCursor(2) }
+                if (text.length == 2 && DoubleSpacePeriodMatcher.matches(text)) {
+                    editorInstance.deleteBackwards(OperationUnit.CHARACTERS)
+                    editorInstance.commitText(". ")
+                    return
+                }
+            }
+        }
+        // TODO: this is whether we commit space after selecting candidate. Should be determined by SuggestionProvider
+        if (!subtypeManager.activeSubtype.primaryLocale.supportsAutoSpace &&
+                candidate != null) { /* Do nothing */ } else {
+            editorInstance.commitText(KeyCode.SPACE.toChar().toString())
+        }
+    }
+
+    /**
+     * Handles a [KeyCode.TOGGLE_INCOGNITO_MODE] event.
+     */
+    private suspend fun handleToggleIncognitoMode() {
+        prefs.suggestion.forceIncognitoModeFromDynamic.set(!prefs.suggestion.forceIncognitoModeFromDynamic.get())
+        val newState = !activeState.isIncognitoMode
+        activeState.isIncognitoMode = newState
+        lastToastReference.get()?.cancel()
+        lastToastReference = WeakReference(
+            if (newState) {
+                appContext.showLongToast(
+                    R.string.incognito_mode__toast_after_enabled,
+                    "app_name" to appContext.getString(R.string.floris_app_name),
+                )
+            } else {
+                appContext.showLongToast(
+                    R.string.incognito_mode__toast_after_disabled,
+                    "app_name" to appContext.getString(R.string.floris_app_name),
+                )
+            }
+        )
+    }
+
+    /**
+     * Handles a [KeyCode.KANA_SWITCHER] event
+     */
+    private fun handleKanaSwitch() {
+        activeState.batchEdit {
+            it.isKanaKata = !it.isKanaKata
+            it.isCharHalfWidth = false
+        }
+    }
+
+    /**
+     * Handles a [KeyCode.KANA_HIRA] event
+     */
+    private fun handleKanaHira() {
+        activeState.batchEdit {
+            it.isKanaKata = false
+            it.isCharHalfWidth = false
+        }
+    }
+
+    /**
+     * Handles a [KeyCode.KANA_KATA] event
+     */
+    private fun handleKanaKata() {
+        activeState.batchEdit {
+            it.isKanaKata = true
+            it.isCharHalfWidth = false
+        }
+    }
+
+    /**
+     * Handles a [KeyCode.KANA_HALF_KATA] event
+     */
+    private fun handleKanaHalfKata() {
+        activeState.batchEdit {
+            it.isKanaKata = true
+            it.isCharHalfWidth = true
+        }
+    }
+
+    /**
+     * Handles a [KeyCode.CHAR_WIDTH_SWITCHER] event
+     */
+    private fun handleCharWidthSwitch() {
+        activeState.isCharHalfWidth = !activeState.isCharHalfWidth
+    }
+
+    /**
+     * Handles a [KeyCode.CHAR_WIDTH_SWITCHER] event
+     */
+    private fun handleCharWidthFull() {
+        activeState.isCharHalfWidth = false
+    }
+
+    /**
+     * Handles a [KeyCode.CHAR_WIDTH_SWITCHER] event
+     */
+    private fun handleCharWidthHalf() {
+        activeState.isCharHalfWidth = true
+    }
+
+    /**
+     * Opens the in-keyboard emoji search (issue #110): switches to the text keyboard so the user can type
+     * a query using their own selected layout, while the search panel is shown in place of the Smartbar.
+     */
+    fun activateEmojiSearch() {
+        emojiSearchQuery.value = ""
+        activeState.imeUiMode = ImeUiMode.TEXT
+    }
+
+    /**
+     * Closes the emoji search. When [returnToMedia] is set the user is taken back to the emoji palette,
+     * which is the natural "back" destination since search is launched from there.
+     */
+    fun closeEmojiSearch(returnToMedia: Boolean = true) {
+        if (emojiSearchQuery.value == null) return
+        emojiSearchQuery.value = null
+        if (returnToMedia) activeState.imeUiMode = ImeUiMode.MEDIA
+    }
+
+    /**
+     * Folds a keystroke into [query] while that search is open, instead of letting it reach the editor.
+     * Returns `true` when the key was consumed, `false` when the search is closed or the key is not one
+     * that writes text.
+     *
+     * One function for all three searches (emoji, GIF, sticker). They were three copies of the same
+     * twenty lines, and the copies are what let the bug in [keyProducesSearchText] sit in all three at
+     * once: a rule that lives in one place can only be wrong once.
+     *
+     * A backspace on an empty query leaves the search — a common "back out" gesture — and Enter is the
+     * only thing the three still disagree about, so it is passed in: GIF submits its query, the other
+     * two swallow it, because their results are already filtered and a newline would land in whatever
+     * the user was writing.
+     */
+    private fun handleSearchKey(
+        query: MutableStateFlow<String?>,
+        data: KeyData,
+        onEnter: (String) -> Unit,
+        onExit: () -> Unit,
+    ): Boolean {
+        val current = query.value ?: return false
+        when (data.code) {
+            KeyCode.SPACE -> query.value = "$current "
+            KeyCode.ENTER -> onEnter(current)
+            KeyCode.DELETE, KeyCode.DELETE_WORD -> {
+                if (current.isEmpty()) {
+                    onExit()
+                } else {
+                    query.value = current.dropLast(1)
+                }
+            }
+            else -> {
+                val text = data.asString(isForDisplay = false)
+                if (!keyProducesSearchText(data.type, text)) return false
+                query.value = current + text
+            }
+        }
+        return true
+    }
+
+    /** Empties the emoji query without leaving the search — the ✕ inside the search bar. */
+    fun clearEmojiSearch() {
+        if (emojiSearchQuery.value == null) return
+        emojiSearchQuery.value = ""
+    }
+
+    /** Empties the GIF query without leaving the search — the ✕ inside the search bar. */
+    fun clearGifSearch() {
+        if (gifSearchQuery.value == null) return
+        gifSearchQuery.value = ""
+    }
+
+    /** Empties the sticker query without leaving the search — the ✕ inside the search bar. */
+    fun clearStickerSearch() {
+        if (stickerSearchQuery.value == null) return
+        stickerSearchQuery.value = ""
+    }
+
+    /** Starts a sticker search: shows the text keyboard so the user can type a file name. */
+    fun activateStickerSearch() {
+        stickerSearchQuery.value = ""
+        activeState.imeUiMode = ImeUiMode.TEXT
+    }
+
+    /**
+     * Closes the sticker search. [returnToPanel] is what separates backing out — which belongs back in
+     * the panel the search was opened from — from having just inserted a sticker, after which the
+     * keyboard is where the user wants to be.
+     */
+    fun closeStickerSearch(returnToPanel: Boolean = true) {
+        if (stickerSearchQuery.value == null) return
+        stickerSearchQuery.value = null
+        if (returnToPanel) activeState.imeUiMode = ImeUiMode.STICKER
+    }
+
+    /** Starts a GIF search: shows the text keyboard so the user can type the query. */
+    fun activateGifSearch() {
+        gifSearchQuery.value = ""
+        activeState.imeUiMode = ImeUiMode.TEXT
+    }
+
+    /**
+     * Commits the typed GIF query (on Enter or the search button): hides the keyboard and switches the
+     * full GifPanel to its results view for [query]. A blank query returns to the panel's home view.
+     */
+    fun submitGifSearch(query: String) {
+        val q = query.trim()
+        gifSearchQuery.value = null
+        gifSearchSubmit.value = q.ifBlank { null }
+        activeState.imeUiMode = ImeUiMode.GIF
+    }
+
+    /**
+     * Closes the GIF search. When [returnToPanel] is set the user is taken back to the GIF panel, which is
+     * the natural "back" destination since search is launched from there.
+     */
+    fun closeGifSearch(returnToPanel: Boolean = true) {
+        if (gifSearchQuery.value == null) return
+        gifSearchQuery.value = null
+        if (returnToPanel) activeState.imeUiMode = ImeUiMode.GIF
+    }
+
+
+    override fun onInputKeyDown(data: KeyData) {
+        val windowController = FlorisImeService.windowControllerOrNull()
+        windowController?.editor?.disableIfNoGestureInProgress()
+        when (data.code) {
+            KeyCode.ARROW_DOWN,
+            KeyCode.ARROW_LEFT,
+            KeyCode.ARROW_RIGHT,
+            KeyCode.ARROW_UP,
+            KeyCode.MOVE_START_OF_PAGE,
+            KeyCode.MOVE_END_OF_PAGE,
+            KeyCode.MOVE_START_OF_LINE,
+            KeyCode.MOVE_END_OF_LINE -> {
+                editorInstance.massSelection.begin()
+            }
+            KeyCode.SHIFT -> handleShiftDown(data)
+        }
+    }
+
+    override fun onInputKeyUp(data: KeyData) = activeState.batchEdit {
+        // Both undos last exactly one keystroke: anything but a plain backspace lets them go, and the
+        // expansion and the correction re-arm themselves further down (issues #283, #295).
+        if (data.code != KeyCode.DELETE) {
+            pendingExpansion = null
+            pendingAutoCorrection = null
+        }
+        val windowController = FlorisImeService.windowControllerOrNull() ?: return@batchEdit
+        // Only one of the three can be open at a time — each is reached from its own panel — so the
+        // first one that answers has consumed the key.
+        val consumedBySearch = handleSearchKey(
+            query = emojiSearchQuery,
+            data = data,
+            onEnter = { /* swallow: the results are already filtered */ },
+            onExit = { closeEmojiSearch() },
+        ) || handleSearchKey(
+            query = gifSearchQuery,
+            data = data,
+            onEnter = { query -> submitGifSearch(query) }, // Enter runs the search → full results page
+            onExit = { closeGifSearch() },
+        ) || handleSearchKey(
+            query = stickerSearchQuery,
+            data = data,
+            onEnter = { /* swallow: the results are already filtered */ },
+            onExit = { closeStickerSearch() },
+        )
+        if (consumedBySearch) {
+            return@batchEdit
+        }
+        when (data.code) {
+            KeyCode.ARROW_DOWN,
+            KeyCode.ARROW_LEFT,
+            KeyCode.ARROW_RIGHT,
+            KeyCode.ARROW_UP,
+            KeyCode.MOVE_START_OF_PAGE,
+            KeyCode.MOVE_END_OF_PAGE,
+            KeyCode.MOVE_START_OF_LINE,
+            KeyCode.MOVE_END_OF_LINE -> {
+                editorInstance.massSelection.end()
+                handleArrow(data.code)
+            }
+            KeyCode.CAPS_LOCK -> handleCapsLock()
+            KeyCode.CHAR_WIDTH_SWITCHER -> handleCharWidthSwitch()
+            KeyCode.CHAR_WIDTH_FULL -> handleCharWidthFull()
+            KeyCode.CHAR_WIDTH_HALF -> handleCharWidthHalf()
+            KeyCode.CLIPBOARD_CUT -> editorInstance.performClipboardCut()
+            KeyCode.CLIPBOARD_COPY -> editorInstance.performClipboardCopy()
+            KeyCode.CLIPBOARD_PASTE -> editorInstance.performClipboardPaste()
+            KeyCode.CLIPBOARD_SELECT -> handleClipboardSelect()
+            KeyCode.CLIPBOARD_SELECT_ALL -> {
+                // Toggle (issue #152): select all when nothing is selected, otherwise clear the selection.
+                if (editorInstance.activeContent.selection.isSelectionMode) {
+                    editorInstance.performClipboardDeselect()
+                } else {
+                    editorInstance.performClipboardSelectAll()
+                }
+            }
+            KeyCode.CLIPBOARD_CLEAR_HISTORY -> clipboardManager.clearHistory()
+            KeyCode.CLIPBOARD_CLEAR_FULL_HISTORY -> clipboardManager.clearFullHistory()
+            KeyCode.CLIPBOARD_CLEAR_PRIMARY_CLIP -> {
+                if (prefs.clipboard.clearPrimaryClipAffectsHistoryIfUnpinned.get()) {
+                    clipboardManager.primaryClip?.let { clipboardManager.deleteClip(it, onlyIfUnpinned = true) }
+                }
+                clipboardManager.updatePrimaryClip(null)
+                appContext.showShortToastSync(R.string.clipboard__cleared_primary_clip)
+            }
+            KeyCode.TOGGLE_FLOATING_WINDOW -> windowController.actions.toggleFloatingWindow()
+            KeyCode.TOGGLE_COMPACT_LAYOUT -> windowController.actions.toggleCompactLayout()
+            KeyCode.COMPACT_LAYOUT_TO_LEFT -> windowController.actions.compactLayoutToLeft()
+            KeyCode.COMPACT_LAYOUT_TO_RIGHT -> windowController.actions.compactLayoutToRight()
+            KeyCode.TOGGLE_RESIZE_MODE -> windowController.editor.toggleEnabled()
+            KeyCode.DELETE -> handleBackwardDelete(OperationUnit.CHARACTERS)
+            KeyCode.DELETE_WORD -> handleBackwardDelete(OperationUnit.WORDS)
+            KeyCode.ENTER -> handleEnter()
+            KeyCode.FORWARD_DELETE -> handleForwardDelete(OperationUnit.CHARACTERS)
+            KeyCode.FORWARD_DELETE_WORD -> handleForwardDelete(OperationUnit.WORDS)
+            KeyCode.IME_SHOW_UI -> FlorisImeService.showUi()
+            KeyCode.IME_HIDE_UI -> FlorisImeService.hideUi()
+            KeyCode.IME_PREV_SUBTYPE -> subtypeManager.switchToPrevSubtype()
+            KeyCode.IME_NEXT_SUBTYPE -> subtypeManager.switchToNextSubtype()
+            KeyCode.IME_UI_MODE_TEXT -> { closeEmojiSearch(returnToMedia = false); activeState.imeUiMode = ImeUiMode.TEXT }
+            KeyCode.IME_UI_MODE_MEDIA -> { closeEmojiSearch(returnToMedia = false); activeState.imeUiMode = ImeUiMode.MEDIA }
+            KeyCode.IME_UI_MODE_CLIPBOARD -> { closeEmojiSearch(returnToMedia = false); activeState.imeUiMode = ImeUiMode.CLIPBOARD }
+            // Opens the KLIPY GIF search panel (its own ImeUiMode, like the media/history panels); resets
+            // any previous search so it opens on the home view (recent GIFs + trending).
+            KeyCode.IME_UI_MODE_GIF -> {
+                closeEmojiSearch(returnToMedia = false)
+                gifSearchSubmit.value = null
+                activeState.imeUiMode = ImeUiMode.GIF
+            }
+            // Opens the local sticker panel (issue #280) — the user's own folder, no network involved.
+            KeyCode.IME_UI_MODE_STICKER -> {
+                closeEmojiSearch(returnToMedia = false)
+                activeState.imeUiMode = ImeUiMode.STICKER
+            }
+            KeyCode.IME_UI_MODE_DICTATE -> dev.patrickgold.florisboard.dictate.DictateController.onMicClick(appContext)
+            KeyCode.DICTATE_LIVE_PROMPT -> dev.patrickgold.florisboard.dictate.DictateController.startLivePrompt(appContext)
+            KeyCode.DICTATE_PROMPTS -> {
+                dev.patrickgold.florisboard.dictate.DictateController.refreshPrompts(appContext)
+                activeState.imeUiMode = ImeUiMode.DICTATE
+            }
+            // Repurposed for the transcription history panel (issue #140): opens the browsable list of
+            // recent dictations to quickly re-insert or re-transcribe, superseding the one-shot reinsert.
+            KeyCode.DICTATE_REINSERT -> { activeState.imeUiMode = ImeUiMode.HISTORY }
+            KeyCode.KANA_SWITCHER -> handleKanaSwitch()
+            KeyCode.KANA_HIRA -> handleKanaHira()
+            KeyCode.KANA_KATA -> handleKanaKata()
+            KeyCode.KANA_HALF_KATA -> handleKanaHalfKata()
+            KeyCode.LANGUAGE_SWITCH -> handleLanguageSwitch()
+            KeyCode.REDO -> editorInstance.performRedo()
+            KeyCode.SETTINGS -> FlorisImeService.launchSettings()
+            KeyCode.SHIFT -> handleShiftUp(data)
+            KeyCode.SPACE -> handleSpace(data)
+            KeyCode.SYSTEM_INPUT_METHOD_PICKER -> InputMethodUtils.showImePicker(appContext)
+            KeyCode.SHOW_SUBTYPE_PICKER -> {
+                appContext.keyboardManager.value.activeState.isSubtypeSelectionVisible = true
+            }
+            KeyCode.SYSTEM_PREV_INPUT_METHOD -> FlorisImeService.switchToPrevInputMethod()
+            KeyCode.SYSTEM_NEXT_INPUT_METHOD -> FlorisImeService.switchToNextInputMethod()
+            KeyCode.TOGGLE_SMARTBAR_VISIBILITY -> scope.launch {
+                prefs.smartbar.enabled.let { it.set(!it.get()) }
+            }
+            KeyCode.TOGGLE_ACTIONS_OVERFLOW -> {
+                activeState.isActionsOverflowVisible = !activeState.isActionsOverflowVisible
+            }
+            KeyCode.TOGGLE_ACTIONS_EDITOR -> {
+                activeState.isActionsEditorVisible = !activeState.isActionsEditorVisible
+            }
+            KeyCode.TOGGLE_INCOGNITO_MODE -> scope.launch { handleToggleIncognitoMode() }
+            KeyCode.UNDO -> editorInstance.performUndo()
+            KeyCode.VIEW_CHARACTERS -> activeState.keyboardMode = KeyboardMode.CHARACTERS
+            KeyCode.VIEW_NUMERIC -> activeState.keyboardMode = KeyboardMode.NUMERIC
+            KeyCode.VIEW_NUMERIC_ADVANCED -> activeState.keyboardMode = KeyboardMode.NUMERIC_ADVANCED
+            KeyCode.VIEW_PHONE -> activeState.keyboardMode = KeyboardMode.PHONE
+            KeyCode.VIEW_PHONE2 -> activeState.keyboardMode = KeyboardMode.PHONE2
+            KeyCode.VIEW_SYMBOLS -> activeState.keyboardMode = KeyboardMode.SYMBOLS
+            KeyCode.VIEW_SYMBOLS2 -> activeState.keyboardMode = KeyboardMode.SYMBOLS2
+            else -> {
+                if (activeState.imeUiMode == ImeUiMode.MEDIA) {
+                    nlpManager.getAutoCommitCandidate()?.let { commitAutoCorrection(it) }
+                    editorInstance.commitText(data.asString(isForDisplay = false))
+                    return@batchEdit
+                }
+                when (activeState.keyboardMode) {
+                    KeyboardMode.NUMERIC,
+                    KeyboardMode.NUMERIC_ADVANCED,
+                    KeyboardMode.PHONE,
+                    KeyboardMode.PHONE2 -> when (data.type) {
+                        KeyType.CHARACTER,
+                        KeyType.NUMERIC -> {
+                            val text = data.asString(isForDisplay = false)
+                            editorInstance.commitText(text)
+                        }
+                        else -> when (data.code) {
+                            KeyCode.PHONE_PAUSE,
+                            KeyCode.PHONE_WAIT -> {
+                                val text = data.asString(isForDisplay = false)
+                                editorInstance.commitText(text)
+                            }
+                        }
+                    }
+                    else -> when (data.type) {
+                        KeyType.CHARACTER, KeyType.NUMERIC ->{
+                            val text = data.asString(isForDisplay = false)
+                            val codePoint = UCharacter.codePointAt(text, 0)
+                            when {
+                                UCharacter.isUAlphabetic(codePoint) -> {
+                                    TouchTrace.commit(text)
+                                    editorInstance.commitChar(text)
+                                }
+                                // A digit does not end the word it is written into. Unicode's word rules
+                                // keep `top1` in one piece (UAX#29 WB9/WB10) and so does the composing
+                                // region built from them, so treating a digit as a boundary made the two
+                                // halves of the keyboard disagree about where the word ends — and the
+                                // half that ends it too early hands the other one's work in.
+                                //
+                                // That is how `top10` became `Top 1` (issue #311): "Top" is a German noun
+                                // waiting in the strip while `top` is composed, the first digit collected
+                                // that correction as if the word were finished, and the phantom space that
+                                // follows every committed candidate put a space after it. Nothing about
+                                // the digit was wrong; the word simply was not over.
+                                //
+                                // The tap evidence still goes: no tap is recorded for a digit, so a trace
+                                // that no longer matches the word cannot decode it anyway (issue #242).
+                                UCharacter.isDigit(codePoint) -> {
+                                    TouchTrace.reset()
+                                    editorInstance.commitChar(text)
+                                }
+                                // A punctuation mark ends the word too, so it can expand a snippet
+                                // trigger (issue #283) — and then it has already written itself.
+                                else -> {
+                                    if (!expandSnippet(text)) {
+                                        nlpManager.getAutoCommitCandidate()?.let { commitAutoCorrection(it) }
+                                        // Punctuation ends the word — drop the tap evidence (issue #242).
+                                        TouchTrace.reset()
+                                        editorInstance.commitChar(text)
+                                    }
+                                }
+                            }
+                        }
+                        else -> {
+                            flogError(LogTopic.KEY_EVENTS) { "Received unknown key: $data" }
+                        }
+                    }
+                }
+                if (activeState.inputShiftState != InputShiftState.CAPS_LOCK && !inputEventDispatcher.isPressed(KeyCode.SHIFT)) {
+                    activeState.inputShiftState = InputShiftState.UNSHIFTED
+                }
+            }
+        }
+    }
+
+    override fun onInputKeyCancel(data: KeyData) {
+        when (data.code) {
+            KeyCode.ARROW_DOWN,
+            KeyCode.ARROW_LEFT,
+            KeyCode.ARROW_RIGHT,
+            KeyCode.ARROW_UP,
+            KeyCode.MOVE_START_OF_PAGE,
+            KeyCode.MOVE_END_OF_PAGE,
+            KeyCode.MOVE_START_OF_LINE,
+            KeyCode.MOVE_END_OF_LINE -> {
+                editorInstance.massSelection.end()
+            }
+            KeyCode.SHIFT -> handleShiftCancel()
+        }
+    }
+
+    override fun onInputKeyRepeat(data: KeyData) {
+        FlorisImeService.inputFeedbackController()?.keyRepeatedAction(data)
+        when (data.code) {
+            KeyCode.ARROW_DOWN,
+            KeyCode.ARROW_LEFT,
+            KeyCode.ARROW_RIGHT,
+            KeyCode.ARROW_UP,
+            KeyCode.MOVE_START_OF_PAGE,
+            KeyCode.MOVE_END_OF_PAGE,
+            KeyCode.MOVE_START_OF_LINE,
+            KeyCode.MOVE_END_OF_LINE -> handleArrow(data.code)
+            else -> onInputKeyUp(data)
+        }
+    }
+
+    private fun reevaluateDebugFlags() {
+        val devtoolsEnabled = prefs.devtools.enabled.get()
+        activeState.batchEdit {
+            activeState.debugShowDragAndDropHelpers = devtoolsEnabled && prefs.devtools.showDragAndDropHelpers.get()
+        }
+    }
+
+    fun onHardwareKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
+        when (keyCode) {
+            KeyEvent.KEYCODE_SPACE -> {
+                handleHardwareKeyboardSpace()
+                return true
+            }
+            KeyEvent.KEYCODE_ENTER -> {
+                handleEnter()
+                return true
+            }
+            KeyEvent.KEYCODE_SHIFT_LEFT, KeyEvent.KEYCODE_SHIFT_RIGHT -> {
+                inputEventDispatcher.sendDown(TextKeyData.SHIFT)
+                return true
+            }
+            else -> return false
+        }
+    }
+
+    fun onHardwareKeyUp(keyCode: Int, event: KeyEvent?): Boolean {
+        when (keyCode) {
+            KeyEvent.KEYCODE_SHIFT_LEFT, KeyEvent.KEYCODE_SHIFT_RIGHT -> {
+                inputEventDispatcher.sendUp(TextKeyData.SHIFT)
+                return true
+            }
+            else -> return false
+        }
+    }
+
+    inner class KeyboardManagerResources {
+        val composers = MutableStateFlow<Map<ExtensionComponentName, Composer>>(emptyMap())
+        val currencySets = MutableStateFlow<Map<ExtensionComponentName, CurrencySet>>(emptyMap())
+        val layouts = MutableStateFlow<Map<LayoutType, Map<ExtensionComponentName, LayoutArrangementComponent>>>(emptyMap())
+        val popupMappings = MutableStateFlow<Map<ExtensionComponentName, PopupMappingComponent>>(emptyMap())
+        val punctuationRules = MutableStateFlow<Map<ExtensionComponentName, PunctuationRule>>(emptyMap())
+        val subtypePresets = MutableStateFlow<List<SubtypePreset>>(emptyList())
+
+        val anyChangedVersion = MutableStateFlow(0)
+
+        init {
+            extensionManager.keyboardExtensions.collectIn(scope) { keyboardExtensions ->
+                parseKeyboardExtensions(keyboardExtensions)
+            }
+        }
+
+        private fun parseKeyboardExtensions(keyboardExtensions: List<KeyboardExtension>) {
+            val localComposers = mutableMapOf<ExtensionComponentName, Composer>()
+            val localCurrencySets = mutableMapOf<ExtensionComponentName, CurrencySet>()
+            val localLayouts = mutableMapOf<LayoutType, MutableMap<ExtensionComponentName, LayoutArrangementComponent>>()
+            val localPopupMappings = mutableMapOf<ExtensionComponentName, PopupMappingComponent>()
+            val localPunctuationRules = mutableMapOf<ExtensionComponentName, PunctuationRule>()
+            val localSubtypePresets = mutableListOf<SubtypePreset>()
+            for (layoutType in LayoutType.entries) {
+                localLayouts[layoutType] = mutableMapOf()
+            }
+            for (keyboardExtension in keyboardExtensions) {
+                keyboardExtension.composers.forEach { composer ->
+                    localComposers[ExtensionComponentName(keyboardExtension.meta.id, composer.id)] = composer
+                }
+                keyboardExtension.currencySets.forEach { currencySet ->
+                    localCurrencySets[ExtensionComponentName(keyboardExtension.meta.id, currencySet.id)] = currencySet
+                }
+                keyboardExtension.layouts.forEach { (type, layoutComponents) ->
+                    for (layoutComponent in layoutComponents) {
+                        localLayouts[LayoutType.entries.first { it.id == type }]!![ExtensionComponentName(keyboardExtension.meta.id, layoutComponent.id)] = layoutComponent
+                    }
+                }
+                keyboardExtension.popupMappings.forEach { popupMapping ->
+                    localPopupMappings[ExtensionComponentName(keyboardExtension.meta.id, popupMapping.id)] = popupMapping
+                }
+                keyboardExtension.punctuationRules.forEach { punctuationRule ->
+                    localPunctuationRules[ExtensionComponentName(keyboardExtension.meta.id, punctuationRule.id)] = punctuationRule
+                }
+                localSubtypePresets.addAll(keyboardExtension.subtypePresets)
+            }
+            localSubtypePresets.sortBy { it.locale.displayName() }
+            for (languageCode in listOf("en-CA", "en-AU", "en-UK", "en-US")) {
+                val index: Int = localSubtypePresets.indexOfFirst { it.locale.languageTag() == languageCode }
+                if (index > 0) {
+                    localSubtypePresets.add(0, localSubtypePresets.removeAt(index))
+                }
+            }
+            subtypePresets.value = localSubtypePresets
+            composers.value = localComposers
+            currencySets.value = localCurrencySets
+            layouts.value = localLayouts
+            popupMappings.value = localPopupMappings
+            punctuationRules.value = localPunctuationRules
+            anyChangedVersion.update { it + 1 }
+        }
+    }
+
+    private inner class ComputingEvaluatorImpl(
+        override val version: Int,
+        override val keyboard: Keyboard,
+        override val editorInfo: FlorisEditorInfo,
+        override val state: KeyboardState,
+        override val subtype: Subtype,
+    ) : ComputingEvaluator {
+
+        override val isGifSearchActive: Boolean
+            get() = gifSearchQuery.value != null
+
+        override val devanagariBase: Int
+            get() = pendingDevanagariBase.value
+
+        override fun context(): Context = appContext
+
+        val androidKeyguardManager = context().systemService(AndroidKeyguardManager::class)
+
+        override fun displayLanguageNamesIn(): DisplayLanguageNamesIn {
+            return prefs.localization.displayLanguageNamesIn.get()
+        }
+
+        override fun evaluateEnabled(data: KeyData): Boolean {
+            return when (data.code) {
+                KeyCode.CLIPBOARD_COPY,
+                KeyCode.CLIPBOARD_CUT -> {
+                    state.isSelectionMode && editorInfo.isRichInputEditor
+                }
+                KeyCode.CLIPBOARD_PASTE -> {
+                    !androidKeyguardManager.let { it.isDeviceLocked || it.isKeyguardLocked }
+                        && clipboardManager.canBePasted(clipboardManager.primaryClip)
+                }
+                KeyCode.CLIPBOARD_CLEAR_PRIMARY_CLIP -> {
+                    clipboardManager.canBePasted(clipboardManager.primaryClip)
+                }
+                KeyCode.CLIPBOARD_SELECT_ALL -> {
+                    editorInfo.isRichInputEditor
+                }
+                KeyCode.TOGGLE_INCOGNITO_MODE -> when (prefs.suggestion.incognitoMode.get()) {
+                    IncognitoMode.FORCE_OFF, IncognitoMode.FORCE_ON -> false
+                    IncognitoMode.DYNAMIC_ON_OFF -> !editorInfo.imeOptions.flagNoPersonalizedLearning
+                }
+                KeyCode.LANGUAGE_SWITCH -> {
+                    subtypeManager.subtypes.size > 1
+                }
+                KeyCode.DICTATE_REINSERT -> {
+                    // Opens the transcription history panel (issue #140); greyed out only when the history
+                    // feature itself is turned off, since the panel is otherwise always available.
+                    dev.patrickgold.florisboard.dictate.DictateController.isHistoryEnabled()
+                }
+                else -> true
+            }
+        }
+
+        override fun evaluateVisible(data: KeyData): Boolean {
+            return when (data.code) {
+                KeyCode.IME_UI_MODE_TEXT,
+                KeyCode.IME_UI_MODE_MEDIA -> {
+                    val tempUtilityKeyAction = when {
+                        prefs.keyboard.utilityKeyEnabled.get() -> prefs.keyboard.utilityKeyAction.get()
+                        else -> UtilityKeyAction.DISABLED
+                    }
+                    when (tempUtilityKeyAction) {
+                        UtilityKeyAction.DISABLED,
+                        UtilityKeyAction.SWITCH_LANGUAGE,
+                        UtilityKeyAction.SWITCH_KEYBOARD_APP -> false
+                        UtilityKeyAction.SWITCH_TO_EMOJIS -> true
+                        UtilityKeyAction.DYNAMIC_SWITCH_LANGUAGE_EMOJIS -> !shouldShowLanguageSwitch()
+                    }
+                }
+                KeyCode.LANGUAGE_SWITCH -> {
+                    val tempUtilityKeyAction = when {
+                        prefs.keyboard.utilityKeyEnabled.get() -> prefs.keyboard.utilityKeyAction.get()
+                        else -> UtilityKeyAction.DISABLED
+                    }
+                    when (tempUtilityKeyAction) {
+                        UtilityKeyAction.DISABLED,
+                        UtilityKeyAction.SWITCH_TO_EMOJIS -> false
+                        UtilityKeyAction.SWITCH_LANGUAGE,
+                        UtilityKeyAction.SWITCH_KEYBOARD_APP -> true
+                        UtilityKeyAction.DYNAMIC_SWITCH_LANGUAGE_EMOJIS -> shouldShowLanguageSwitch()
+                    }
+                }
+                else -> true
+            }
+        }
+
+        override fun isSlot(data: KeyData): Boolean {
+            return CurrencySet.isCurrencySlot(data.code)
+        }
+
+        override fun slotData(data: KeyData): KeyData? {
+            return subtypeManager.getCurrencySet(subtype).getSlot(data.code)
+        }
+
+        fun asSmartbarQuickActionsEvaluator(): ComputingEvaluatorImpl {
+            return ComputingEvaluatorImpl(
+                version = version,
+                keyboard = SmartbarQuickActionsKeyboard,
+                editorInfo = editorInfo,
+                state = state,
+                subtype = Subtype.DEFAULT,
+            )
+        }
+    }
+}

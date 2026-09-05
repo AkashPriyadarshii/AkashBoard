@@ -1,0 +1,55 @@
+{
+  "$": "ime.extension.theme",
+  "meta": {
+    "id": "org.florisboard.themes",
+    "version": "0.2.0",
+    "title": "AkashBoard default themes",
+    "description": "Default themes (both day and night) for the keyboard UI",
+    "maintainers": [ "patrickgold <patrick@patrickgold.dev>", "lm41 <lm41@lm41.xyz>" ],
+    "license": "apache-2.0"
+  },
+  "themes": [
+    {
+      "id": "dictate_eink",
+      "label": "AkashBoard E-Ink (High Contrast)",
+      "authors": [ "AkashBoard Contributors" ],
+      "isNight": false
+    },
+    {
+      "id": "floris_day",
+      "label": "Dictate Day",
+      "authors": [ "patrickgold" ],
+      "isNight": false
+    },
+    {
+      "id": "floris_day_borderless",
+      "label": "Dictate Day (Borderless)",
+      "authors": [ "patrickgold" ],
+      "isNight": false
+    },
+    {
+      "id": "floris_night",
+      "label": "Dictate Night",
+      "authors": [ "patrickgold" ],
+      "isNight": true
+    },
+    {
+      "id": "floris_night_borderless",
+      "label": "Dictate Night (Borderless)",
+      "authors": [ "patrickgold" ],
+      "isNight": true
+    },
+    {
+      "id": "floris_pure_night",
+      "label": "Dictate Pure Night",
+      "authors": [ "serebit" ],
+      "isNight": true
+    },
+    {
+      "id": "floris_pure_night_borderless",
+      "label": "Dictate Pure Night (Borderless)",
+      "authors": [ "serebit" ],
+      "isNight": true
+    }
+  ]
+}
