@@ -12,7 +12,7 @@
     <color name="colorError">#B00020</color><!-- Red -->
     <color name="textColorError">#FFFFFF</color><!-- White -->
 
-    <color name="ic_app_icon_background">#4C1D95</color><!-- Violet 900 -->
+    <color name="ic_app_icon_background">#0B0416</color><!-- Obsidian Violet -->
 
     <color name="cardViewBackgroundColor">#FFFFFF</color><!-- White -->
     <color name="navigationBarColor">#000000</color><!-- Black -->

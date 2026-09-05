@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  Monochrome layer for themed (Android 13+) launcher icons.
-  System applies dynamic wallpaper palette; fill/stroke alphas provide tonal depth.
+  Foreground layer for AkashBoard launcher icon.
+  Option 1: Geometric mechanical keycap container + Stylized 'A' + Neural Whisper audio waveform.
 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
@@ -9,83 +9,96 @@
     android:viewportWidth="108"
     android:viewportHeight="108">
 
-    <!-- Keycap Outer Base Outline -->
+    <!-- Keycap Outer Base -->
     <path
         android:pathData="M41,25 L67,25 A14,14 0 0 1 81,39 L81,69 A14,14 0 0 1 67,83 L41,83 A14,14 0 0 1 27,69 L27,39 A14,14 0 0 1 41,25 Z"
-        android:strokeColor="@android:color/white"
+        android:fillColor="#150A2A"
+        android:strokeColor="#7C3AED"
         android:strokeWidth="1.5"
-        android:strokeAlpha="0.4"/>
-
-    <!-- Keycap Face Outline -->
-    <path
-        android:pathData="M40,28 L68,28 A10,10 0 0 1 78,38 L78,66 A10,10 0 0 1 68,76 L40,76 A10,10 0 0 1 30,66 L30,38 A10,10 0 0 1 40,28 Z"
-        android:strokeColor="@android:color/white"
-        android:strokeWidth="1.2"
         android:strokeAlpha="0.6"/>
 
-    <!-- Stylized "A" Geometric Frame -->
+    <!-- Keycap Face Surface -->
     <path
-        android:pathData="M39.5,65 L52.5,36"
-        android:strokeColor="@android:color/white"
-        android:strokeWidth="4.5"
-        android:strokeLineCap="round"/>
+        android:pathData="M40,28 L68,28 A10,10 0 0 1 78,38 L78,66 A10,10 0 0 1 68,76 L40,76 A10,10 0 0 1 30,66 L30,38 A10,10 0 0 1 40,28 Z"
+        android:fillColor="#241048"/>
 
+    <!-- Keycap Top Highlight Rim -->
     <path
-        android:pathData="M68.5,65 L55.5,36"
-        android:strokeColor="@android:color/white"
-        android:strokeWidth="4.5"
-        android:strokeLineCap="round"/>
-
-    <path
-        android:pathData="M51.5,36 L56.5,36"
-        android:strokeColor="@android:color/white"
-        android:strokeWidth="4.5"
-        android:strokeLineCap="round"/>
-
-    <!-- Soundwave Baseline Connection -->
-    <path
-        android:pathData="M40,52 L68,52"
-        android:strokeColor="@android:color/white"
+        android:pathData="M37,28.5 L71,28.5"
+        android:strokeColor="#A78BFA"
         android:strokeWidth="1.5"
-        android:strokeAlpha="0.3"/>
-
-    <!-- Neural Whisper Soundwave Bars -->
-    <path
-        android:pathData="M42,49 L42,55"
-        android:strokeColor="@android:color/white"
-        android:strokeWidth="2.5"
         android:strokeLineCap="round"
         android:strokeAlpha="0.8"/>
 
+    <!-- Stylized "A" Geometric Frame -->
+    <!-- Left leg -->
     <path
-        android:pathData="M48,46 L48,58"
-        android:strokeColor="@android:color/white"
+        android:pathData="M39.5,65 L52.5,36"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="4.5"
+        android:strokeLineCap="round"/>
+
+    <!-- Right leg -->
+    <path
+        android:pathData="M68.5,65 L55.5,36"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="4.5"
+        android:strokeLineCap="round"/>
+
+    <!-- Apex joining cap -->
+    <path
+        android:pathData="M51.5,36 L56.5,36"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="4.5"
+        android:strokeLineCap="round"/>
+
+    <!-- Soundwave Crossbar Baseline Connection -->
+    <path
+        android:pathData="M40,52 L68,52"
+        android:strokeColor="#7C3AED"
+        android:strokeWidth="1.5"
+        android:strokeAlpha="0.5"/>
+
+    <!-- Neural Whisper Soundwave (Audio Frequency Bars) -->
+    <!-- Bar 1 (Left low) -->
+    <path
+        android:pathData="M42,49 L42,55"
+        android:strokeColor="#A78BFA"
         android:strokeWidth="2.5"
         android:strokeLineCap="round"/>
 
+    <!-- Bar 2 (Mid-left) -->
+    <path
+        android:pathData="M48,46 L48,58"
+        android:strokeColor="#C4B5FD"
+        android:strokeWidth="2.5"
+        android:strokeLineCap="round"/>
+
+    <!-- Bar 3 (Center Whisper Peak) -->
     <path
         android:pathData="M54,41 L54,63"
-        android:strokeColor="@android:color/white"
+        android:strokeColor="#FFFFFF"
         android:strokeWidth="3.2"
         android:strokeLineCap="round"/>
 
+    <!-- Bar 4 (Mid-right) -->
     <path
         android:pathData="M60,46 L60,58"
-        android:strokeColor="@android:color/white"
+        android:strokeColor="#C4B5FD"
         android:strokeWidth="2.5"
         android:strokeLineCap="round"/>
 
+    <!-- Bar 5 (Right low) -->
     <path
         android:pathData="M66,49 L66,55"
-        android:strokeColor="@android:color/white"
+        android:strokeColor="#A78BFA"
         android:strokeWidth="2.5"
-        android:strokeLineCap="round"
-        android:strokeAlpha="0.8"/>
+        android:strokeLineCap="round"/>
 
-    <!-- Tactile Homing Bump -->
+    <!-- Tactile Homing Bump (Mechanical Keyboard Detail) -->
     <path
         android:pathData="M52,71 L56,71"
-        android:strokeColor="@android:color/white"
+        android:strokeColor="#A78BFA"
         android:strokeWidth="2"
         android:strokeLineCap="round"
         android:strokeAlpha="0.7"/>
