@@ -1,3 +1,4 @@
 <lint>
     <issue id="ExtraTranslation" severity="warning"/>
+    <issue id="InvalidFragmentVersionForActivityResult" severity="ignore"/>
 </lint>

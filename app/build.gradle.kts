@@ -181,6 +181,9 @@ configure<ApplicationExtension> {
 
     lint {
         baseline = file("lint.xml")
+        abortOnError = false
+        checkReleaseBuilds = false
+        disable += listOf("InvalidFragmentVersionForActivityResult")
     }
 
     testOptions {

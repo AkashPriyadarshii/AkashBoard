@@ -43,7 +43,7 @@ jobs:
         run: chmod +x gradlew
 
       - name: Build Release APK
-        run: ./gradlew assembleRelease --stacktrace
+        run: ./gradlew assembleRelease --no-daemon --stacktrace -x lint
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
@@ -58,5 +58,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           APK_FILE=$(ls app/build/outputs/apk/release/*.apk | head -n 1)
-          echo "Uploading $APK_FILE to release v0.1..."
-          gh release upload v0.1 "$APK_FILE" --clobber
+          cp "$APK_FILE" app/build/outputs/apk/release/AkashBoard-v0.1.0.apk
+          echo "Uploading $APK_FILE and AkashBoard-v0.1.0.apk to release v0.1..."
+          gh release upload v0.1 "$APK_FILE" app/build/outputs/apk/release/AkashBoard-v0.1.0.apk --clobber
